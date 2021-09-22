@@ -11,4 +11,6 @@
       :serial t
       :components
         ((:file "packages")
-         (:file "interface")))))
+         (:file "interface")
+         (:file "client")
+         (:file "dispatch")))))

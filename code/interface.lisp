@@ -2,9 +2,9 @@
 
 (defvar *print-pprint-dispatch* nil)
 
-(defgeneric copy-pprint-dispatch (client &optional table))
+(defgeneric copy-pprint-dispatch (client table))
 
-(defgeneric pprint-dispatch (client object &optional table))
+(defgeneric pprint-dispatch (client object table))
 
 (defgeneric pprint-fill (client stream object &optional colon-p at-sign-p))
 
@@ -18,6 +18,6 @@
 
 (defgeneric pprint-tab (client kind colnum colinc &optional stream))
 
-(defgeneric set-pprint-dispatch (client type-specifier function &optional priority table))
+(defgeneric set-pprint-dispatch (client type-specifier function priority table))
 
 
