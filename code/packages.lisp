@@ -17,6 +17,7 @@
     "SET-PPRINT-DISPATCH")
   (:export
     #:client
+    #:*client*
     #:copy-pprint-dispatch
     #:pprint-dispatch
     #:pprint-exit-if-list-exhausted

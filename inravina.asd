@@ -5,7 +5,7 @@
   :version "0.1"
   :homepage "https://yitzchak.github.io/Inravina/"
   :bug-tracker "https://github.com/yitzchak/Inravina/issues"
-  :depends-on ()
+  :depends-on (#:trivial-gray-streams)
   :components
     ((:module code
       :serial t
@@ -13,4 +13,5 @@
         ((:file "packages")
          (:file "interface")
          (:file "client")
+         (:file "pretty-stream")
          (:file "dispatch")))))

@@ -9,13 +9,25 @@
      :initarg :function)
    (priority
      :accessor dispatch-entry-priority
-     :initarg :priority)))
+     :initarg :priority
+     :initform 0
+     :type real)))
 
 (defclass dispatch-table ()
   ((entries
      :accessor dispatch-table-entries
      :initarg :entries
-     :initform nil)))
+     :initform nil
+     :type list)))
+
+(defmethod print-object ((entry dispatch-entry) stream)
+  (print-unreadable-object (entry stream :type t)
+    (format stream "type-specifier=~S, priority=~S"
+            (pprint-dispatch-entry-type-specifier entry)
+            (pprint-dispatch-entry-priority entry))))
+
+(defmethod print-object ((table dispatch-table) stream)
+  (print-unreadable-object (table stream :type t :identity t)))
 
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
   (make-instance 'dispatch-table))
@@ -40,12 +52,15 @@
 
 (defmethod set-pprint-dispatch (client type-specifier function priority (table dispatch-table))
   (let ((entry (find type-specifier (dispatch-table-entries table)
-                     :test #'equal :key #'dispatch-entry-type-specifier)))
+                     :test #'equal :key #'dispatch-entry-type-specifier))
+        (wrapped-function (lambda (stream object &aux (*client* client))
+                            (funcall function stream object))))
     (if entry
-      (setf (dispatch-entry-function entry) function
+      (setf (dispatch-entry-function entry) wrapped-function
             (dispatch-entry-priority entry) (or priority 0))
       (push (make-instance 'dispatch-entry
-                           :type-specifier type-specifier :function function
+                           :type-specifier type-specifier
+                           :function wrapped-function
                            :priority (or priority 0))
             (dispatch-table-entries table))))
   nil)
