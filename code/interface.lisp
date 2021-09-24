@@ -14,11 +14,11 @@
 
 (defgeneric pprint-tabular (client stream object &optional colon-p at-sign-p tabsize))
 
-(defgeneric pprint-indent (client relative-to n &optional stream))
+(defgeneric pprint-indent (client relative-to n stream))
 
-(defgeneric pprint-newline (client kind &optional stream))
+(defgeneric pprint-newline (client kind stream))
 
-(defgeneric pprint-tab (client kind colnum colinc &optional stream))
+(defgeneric pprint-tab (client kind colnum colinc stream))
 
 (defgeneric make-pretty-stream (client stream))
 

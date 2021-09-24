@@ -13,5 +13,8 @@
         ((:file "packages")
          (:file "interface")
          (:file "client")
+         (:file "queue")
+         (:file "dispatch")
          (:file "pretty-stream")
-         (:file "dispatch")))))
+         (:file "implementation")))))
+         
