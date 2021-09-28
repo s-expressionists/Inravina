@@ -1,36 +1,49 @@
 (in-package #:inravina)
 
 (defclass logical-block ()
-  ())
+  ((prefix
+     :accessor logical-block-prefix
+     :initarg :prefix)
+   (per-line-prefix
+     :accessor logical-block-per-line-prefix
+     :initarg :per-line-prefix)
+   (suffix
+     :accessor logical-block-suffix
+     :initarg :suffix)))
 
 (defclass chunk ()
-  ())
+  ((logical-block
+     :accessor chunk-logical-block
+     :initarg :logical-block)))
 
-(defclass text-chunk ()
-  ((value
-     :accessor chunk-value
-     :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'character))))
-
-(defclass newline-chunk ()
+(defclass kind-chunk (chunk)
   ((kind
      :accessor chunk-kind
      :initarg :kind)))
 
-(defclass tab-chunk ()
-  ((kind
-     :accessor chunk-kind
-     :initarg :kind)
-   (colnum
+(defclass text-chunk (chunk)
+  ((value
+     :accessor chunk-value
+     :initform "")))
+
+(defclass newline-chunk (kind-chunk)
+  ())
+
+(defclass tab-chunk (kind-chunk)
+  ((colnum
      :accessor chunk-colnum
      :initarg :colnum)
    (colinc
      :accessor chunk-colinc
      :initarg :colinc)))
 
-(defclass start-chunk ()
+(defclass logical-block-chunk (chunk)
+ ())
+
+(defclass start-chunk (logical-block-chunk)
   ())
 
-(defclass end-chunk ()
+(defclass end-chunk (logical-block-chunk)
   ())
 
 (defclass pretty-stream (trivial-gray-streams:fundamental-character-output-stream)
@@ -48,42 +61,79 @@
      :initform (make-instance 'queue))
    (logical-blocks
      :accessor pretty-stream-logical-blocks
-     :initform (list (make-instance 'logical-block)))))
+     :initform nil)))
 
 (defmethod initialize-instance :after ((instance pretty-stream) &rest initargs &key &allow-other-keys)
+  (declare (ignore initargs))
   (when (slot-boundp instance 'stream)
     (setf (pretty-stream-column instance)
           (or (ignore-errors
                 (trivial-gray-streams:stream-line-column (pretty-stream-stream instance)))
               0))))
 
+(defun process-queue (instance)
+  (with-accessors ((chunks pretty-stream-chunks)
+                   (stream pretty-stream-stream)
+                   (logical-blocks pretty-stream-logical-blocks))
+                  instance
+    (prog (chunk)
+     next
+      (unless (or logical-blocks (queue-empty-p chunks))
+        (setf chunk (pop-head chunks))
+        (etypecase chunk
+          (text-chunk (write-string (chunk-value chunk) stream))
+          (tab-chunk (write-char #\tab stream))
+          (newline-chunk (when (eq :mandatory (chunk-kind chunk)) (write-char #\newline stream)))
+          (start-chunk (write-string (or (logical-block-per-line-prefix (chunk-logical-block chunk))
+                                         (logical-block-prefix (chunk-logical-block chunk)))
+                                     stream))
+          (end-chunk (write-string (logical-block-suffix (chunk-logical-block chunk))
+                                   stream)))
+        (go next)))))
+
 (defmethod pprint-newline (client kind (stream pretty-stream))
-  (enqueue (make-instance 'newline-chunk :kind kind) (pretty-stream-chunks stream)))
+  (push-tail (pretty-stream-chunks stream)
+             (make-instance 'newline-chunk :kind kind
+                            :logical-block (car (pretty-stream-logical-blocks stream))))
+  (process-queue stream))
 
 (defmethod pprint-tab (client kind colnum colinc (stream pretty-stream))
-  (enqueue (make-instance 'tab-chunk :kind kind :colnum colnum :colinc colinc)
-           (pretty-stream-chunks stream)))
-
-(defun enqueue-char (stream ch &aux (queue (pretty-stream queue)) (chunk (cdr (queue-tail-cons queue))))
-  (unless (typep chunk 'text-chunk)
-    (setf chunk (enqueue (make-instance 'text-chunk) (pretty-stream-chunks stream))))
-  (vector-push-extend ch (chunk-text chunk)))
+  (push-tail (pretty-stream-chunks stream)
+             (make-instance 'tab-chunk :kind kind :colnum colnum :colinc colinc
+                            :logical-block (car (pretty-stream-logical-blocks stream)))))
 
 (defmethod trivial-gray-streams:stream-file-position ((stream pretty-stream))
   (file-position (pretty-stream-stream stream)))
 
 (defmethod trivial-gray-streams:stream-write-char ((stream pretty-stream) char)
-  (cond
-    ((char= char #\Newline)
-      (pprint-newline *client* :mandatory stream))
-    ((char= char #\Tab)
-      (pprint-tab *client* :line nil nil stream))
-    ((graphic-char-p char)
-      (enqueue-char (pretty-stream-column stream) char)))
+  (with-accessors ((chunks pretty-stream-chunks))
+                  stream
+    (let ((chunk (tail chunks)))
+      (if (typep chunk 'text-chunk)
+        (setf (chunk-value chunk) (concatenate 'string (chunk-value chunk) (string char)))
+        (push-tail chunks
+                   (make-instance 'text-chunk
+                                  :value (string char)
+                                  :logical-block (car (pretty-stream-logical-blocks stream)))))))
   char)
 
+(defmethod trivial-gray-streams:stream-write-string ((stream pretty-stream) string &optional start end)
+  (with-accessors ((chunks pretty-stream-chunks))
+                  stream
+    (let ((chunk (tail chunks))
+          (string (if (or start end)
+                    (subseq string (or start 0) end)
+                    string)))
+      (if (typep chunk 'text-chunk)
+        (setf (chunk-value chunk) (concatenate 'string (chunk-value chunk) string))
+        (push-tail chunks
+                   (make-instance 'text-chunk
+                                  :value string
+                                  :logical-block (car (pretty-stream-logical-blocks stream)))))))
+  string)
+
 (defmethod trivial-gray-streams:stream-finish-output ((stream pretty-stream))
-  (finish-output (pretty-stream-stream stream)))
+  (process-queue stream))
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
   (pretty-stream-column stream))
@@ -99,4 +149,19 @@
 
 (defmethod make-pretty-stream ((client client) stream)
   (make-instance 'pretty-stream :stream stream))
+
+(defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix suffix)
+  (let ((logical-block (make-instance 'logical-block
+                                      :prefix prefix
+                                      :per-line-prefix per-line-prefix
+                                      :suffix suffix)))
+    (push logical-block (pretty-stream-logical-blocks stream))
+    (push-tail (pretty-stream-chunks stream)
+               (make-instance 'start-chunk :logical-block logical-block))))
+
+(defmethod pprint-end-logical-block (client (stream pretty-stream))
+  (push-tail (pretty-stream-chunks stream)
+             (make-instance 'end-chunk :logical-block (pop (pretty-stream-logical-blocks stream))))
+  (process-queue stream))
+
 

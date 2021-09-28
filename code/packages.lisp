@@ -13,7 +13,7 @@
     "PPRINT-POP"
     "PPRINT-TAB"
     "PPRINT-TABULAR"
-    "*PRINT-PPRINT-DISPATCH*"
+    ;"*PRINT-PPRINT-DISPATCH*"
     "SET-PPRINT-DISPATCH")
   (:export
     #:client
@@ -29,6 +29,6 @@
     #:pprint-pop
     #:pprint-tab
     #:pprint-tabular
-    #:*print-pprint-dispatch*
+    ;#:*print-pprint-dispatch*
     #:set-pprint-dispatch))
 

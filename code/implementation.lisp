@@ -92,3 +92,8 @@
         (pprint-newline client :fill stream)
         (go next-item)))))
 
+(defmethod pprint-measure-text (client stream (text string))
+  (length text))
+
+(defmethod pprint-measure-text (client stream (text character))
+  1)

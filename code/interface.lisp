@@ -1,6 +1,6 @@
 (in-package #:inravina)
 
-(defvar *print-pprint-dispatch* nil)
+;(defvar *print-pprint-dispatch* nil)
 
 (defgeneric copy-pprint-dispatch (client table))
 
@@ -25,3 +25,5 @@
 (defgeneric pprint-start-logical-block (client stream prefix per-line-prefix suffix))
 
 (defgeneric pprint-end-logical-block (client stream))
+
+(defgeneric pprint-measure-text (client stream text))

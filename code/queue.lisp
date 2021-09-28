@@ -8,7 +8,13 @@
      :initform nil
      :accessor queue-tail-cons)))
 
-(defun enqueue (queue item)
+(defun head (queue &aux (head-cons (queue-head-cons queue)))
+  (values (car head-cons) (and head-cons t)))
+
+(defun tail (queue &aux (tail-cons (queue-tail-cons queue)))
+  (values (car tail-cons) (and tail-cons t)))
+
+(defun push-tail (queue item)
   (with-slots (head-cons tail-cons) queue
     (let ((old-tail-cons tail-cons))
       (setf tail-cons (list item))
@@ -17,7 +23,7 @@
         (setf head-cons tail-cons))))
   item)
 
-(defun dequeue (queue)
+(defun pop-head (queue)
   (with-slots (head-cons tail-cons) queue
     (prog1
       (pop head-cons)
