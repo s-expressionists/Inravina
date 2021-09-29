@@ -26,4 +26,4 @@
 
 (defgeneric pprint-end-logical-block (client stream))
 
-(defgeneric pprint-measure-text (client stream text))
+(defgeneric pprint-advance (client stream text line column))

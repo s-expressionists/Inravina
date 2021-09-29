@@ -24,6 +24,7 @@
 (defclass text-chunk (chunk)
   ((value
      :accessor chunk-value
+     :initarg :value
      :initform "")))
 
 (defclass newline-chunk (kind-chunk)

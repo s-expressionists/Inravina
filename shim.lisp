@@ -32,13 +32,13 @@
 (defun set-pprint-dispatch (type-specifier function &optional priority table)
   (inravina:set-pprint-dispatch inravina:*client* type-specifier function priority (or table *print-pprint-dispatch*)))
 
-(defun pprint-fill (stream object &optional colon-p at-sign-p)
+(defun pprint-fill (stream object &optional (colon-p t) at-sign-p)
   (inravina:pprint-fill inravina:*client* stream object colon-p at-sign-p))
 
-(defun pprint-linear (stream object &optional colon-p at-sign-p)
+(defun pprint-linear (stream object &optional (colon-p t) at-sign-p)
   (inravina:pprint-linear inravina:*client* stream object colon-p at-sign-p))
 
-(defun pprint-tabular (stream object &optional colon-p at-sign-p tabsize)
+(defun pprint-tabular (stream object &optional (colon-p t) at-sign-p (tabsize 16))
   (inravina:pprint-tabular inravina:*client* stream object colon-p at-sign-p tabsize))
 
 (defun pprint-indent (relative-to n &optional stream)
