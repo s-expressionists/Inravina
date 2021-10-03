@@ -6,7 +6,12 @@
      :initarg :parent)))
 
 (defclass section-start (chunk)
-  ((section-end
+  ((depth
+     :accessor depth
+     :initarg :depth
+     :initform 0
+     :type integer)
+   (section-end
      :accessor section-end
      :initarg :section-end
      :initform nil
@@ -141,10 +146,18 @@
         (go next)))))
 
 (defmethod pprint-newline (client kind (stream pretty-stream))
-  (push-tail (pretty-stream-chunks stream)
-             (make-instance 'newline :kind kind
-                            :parent (car (pretty-stream-logical-blocks stream))))
-  (process-queue stream))
+  (with-accessors ((chunks pretty-stream-chunks))
+                  stream
+    (let* ((depth (length (pretty-stream-logical-blocks stream)))
+           (newline (make-instance 'newline :kind kind
+                            :parent (car (pretty-stream-logical-blocks stream)))))
+      (dolist (chunk (queue-head-cons chunks))
+        (when (and (typep chunk 'section-start)
+                   (null (section-end chunk))
+                   (<= depth (depth chunk)))
+          (setf (section-end chunk) newline)))
+      (push-tail chunks newline)
+      (process-queue stream))))
 
 (defmethod pprint-tab (client kind colnum colinc (stream pretty-stream))
   (push-tail (pretty-stream-chunks stream)
@@ -225,6 +238,7 @@
                                     :prefix prefix
                                     :per-line-prefix per-line-prefix
                                     :suffix suffix
+                                    :depth (length (pretty-stream-logical-blocks stream))
                                     :parent (car (pretty-stream-logical-blocks stream)))))
     (push block-start (pretty-stream-logical-blocks stream))
     (push-tail (pretty-stream-chunks stream) block-start)))
