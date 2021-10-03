@@ -26,4 +26,14 @@
 
 (defgeneric pprint-end-logical-block (client stream))
 
-(defgeneric pprint-advance (client stream text line column))
+(defgeneric text-width (client stream text))
+
+(defgeneric advance-to-column (client stream column))
+
+(defgeneric miser-p (client stream))
+
+(defgeneric right-margin (client stream))
+
+(defgeneric column (client stream))
+
+(defgeneric line (client stream))

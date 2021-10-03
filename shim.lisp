@@ -42,12 +42,15 @@
   (inravina:pprint-tabular inravina:*client* stream object colon-p at-sign-p tabsize))
 
 (defun pprint-indent (relative-to n &optional stream)
+  (check-type relative-to-n (member :block :current))
   (inravina:pprint-indent inravina:*client* relative-to n stream))
 
 (defun pprint-newline (kind &optional stream)
+  (check-type kind (member :linear :fill :miser :mandatory))
   (inravina:pprint-newline inravina:*client* kind stream))
 
 (defun pprint-tab (kind colnum colinc &optional stream)
+  (check-type kind (member :line :section :line-relative :section-relative))
   (inravina:pprint-tab inravina:*client* kind colnum colinc stream))
 
 (defun pprint-dispatch (object &optional table)

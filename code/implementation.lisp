@@ -92,24 +92,18 @@
         (pprint-newline client :fill stream)
         (go next-item)))))
 
-(defmethod pprint-advance (client stream (text string) line column)
-  (map nil (lambda (char)
-             (case char
-               (#\newline
-                 (incf line)
-                 (setf column 0))
-               (#\tab
-                 (incf column 8))
-               (t
-                 (incf column))))
-       text)
-  (values line column))
+(defmethod text-width (client stream (text string))
+  (length text))
 
-(defmethod pprint-advance (client stream (text (eql #\newline)) line column)
-  (values (1+ line) 0))
+(defmethod text-width (client stream (text character))
+  1)
 
-(defmethod pprint-advance (client stream (text (eql #\tab)) line column)
-  (values line (+ column 8)))
+(defmethod right-margin (client stream)
+  (or *print-right-margin* 100))
 
-(defmethod pprint-advance (client stream (text character) line column)
-  (values line (1+ column)))
+(defmethod miser-p (client stream)
+  (and *print-miser-width*
+       (<= (- (right-margin client stream)
+              (column client stream))
+           *print-miser-width*)))
+  

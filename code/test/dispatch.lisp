@@ -34,3 +34,4 @@
       (true pres)
       (equal (with-output-to-string (s) (funcall func s '(a b)))
               "(A B)")))) 
+
