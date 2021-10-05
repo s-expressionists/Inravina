@@ -20,15 +20,13 @@
 
 (defgeneric pprint-tab (client kind colnum colinc stream))
 
-(defgeneric make-pretty-stream (client stream))
-
 (defgeneric pprint-start-logical-block (client stream prefix per-line-prefix suffix))
 
 (defgeneric pprint-end-logical-block (client stream))
 
-(defgeneric text-width (client stream text))
+(defgeneric make-pretty-stream (client stream))
 
-(defgeneric advance-to-column (client stream column))
+(defgeneric text-width (client stream text))
 
 (defgeneric miser-p (client stream))
 
@@ -36,4 +34,8 @@
 
 (defgeneric column (client stream))
 
+(defgeneric (setf column) (new-value client stream))
+
 (defgeneric line (client stream))
+
+(defgeneric (setf line) (new-value client stream))
