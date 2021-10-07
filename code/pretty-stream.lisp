@@ -67,9 +67,6 @@
    (per-line-prefix
      :accessor per-line-prefix
      :initarg :per-line-prefix)
-   (suffix
-     :accessor suffix
-     :initarg :suffix)
    (start-column
      :accessor start-column
      :initarg :start-column
@@ -87,7 +84,9 @@
      :type (or null block-end))))
 
 (defclass block-end (chunk)
-  ())
+  ((suffix
+     :accessor suffix
+     :initarg :suffix)))
 
 (defclass pretty-stream (trivial-gray-streams:fundamental-character-output-stream)
   ((stream
@@ -118,57 +117,165 @@
               0))))
 
 (defun write-string+ (client instance string)
-  (write-string string (pretty-stream-stream instance))
-  (incf (pretty-stream-column instance) (text-width client instance string)))
+  (let ((width (text-width client instance string)))
+    (cond
+      ((mode instance)
+        (when (< (right-margin client instance) (+ width (column client instance)))
+          (throw 'line-mode-fail t))
+        (vector-push-extend string (buffer instance)))
+      (t
+        (write-string string (pretty-stream-stream instance))))
+    (incf (pretty-stream-column instance) width)))
 
-(defun process-queue (instance &aux (client (pretty-stream-client instance)))
-  (unless (pretty-stream-logical-blocks instance)
-    (loop for chunk across (pretty-stream-chunks instance)
-          do (write-chunk client instance chunk))))
+(defun process-queue (stream &aux (client (pretty-stream-client stream))
+                      (chunks (pretty-stream-chunks stream)))
+  (unless (pretty-stream-logical-blocks stream)
+    (loop for chunk across chunks
+          with indent = 0
+          do (typecase chunk
+               (block-start (write-char #\< (pretty-stream-stream stream)))
+               (block-end (write-char #\> (pretty-stream-stream stream)))
+               (newline (format (pretty-stream-stream stream) "~36R" (incf indent)))
+               (text (write-string (make-string (length (value chunk)) :initial-element #\-) (pretty-stream-stream stream)))))
+    (terpri (pretty-stream-stream stream))
+    (prog ((i 0) (mode :multiline) mode-start mode-end success end chunk)
+     repeat
+      (when (< i (length chunks))
+        (setf chunk (aref chunks i)
+              (%column chunk) (if (zerop i)
+                                (pretty-stream-column stream)
+                                (%column (aref chunks (1- i))))
+              (%line chunk) (if (zerop i)
+                              (pretty-stream-line stream)
+                              (%line (aref chunks (1- i)))))
+        (multiple-value-setq (success end) (layout client stream chunk mode))
+        (cond
+          ((and success end (eq mode :multiline))
+            (setf mode-start i
+                  mode-end end
+                  mode :line)
+            (incf i))
+          ((and success end)
+            (error "Invalid mode switch from ~A to :line~%" mode))
+          ((and success
+                (or (eq mode :line-fail)
+                    (and (eq mode :line)
+                         (eq chunk mode-end))))
+            (setf mode :multiline)
+            (incf i))
+          (success
+            (incf i))
+          ((eq mode :line)
+            (setf mode :line-fail
+                  i mode-start))
+          (t
+            (error "Layout failure in mode ~A~%" mode)))
+        (go repeat)))
+    (loop for chunk across chunks
+          do (write-chunk client stream chunk))
+    (setf (fill-pointer (pretty-stream-chunks stream)) 0)))
+
+(defgeneric layout (client stream chunk mode))
+
+(defun layout-text (client stream chunk mode text)
+  (let ((width (text-width client stream text)))
+    (cond
+      ((and (eq :line mode)
+            (< (right-margin client stream) (+ width (%column chunk))))
+        nil)
+      (t
+        (incf (%column chunk))
+        t))))
+
+(defmethod layout (client stream (chunk text) mode)
+  (layout-text client stream chunk mode (value chunk)))
+
+(defmethod layout (client stream (chunk tab) mode)
+  (with-accessors ((column %column)
+                   (colnum colnum)
+                   (colinc colinc))
+                  chunk
+    (let ((new-column (cond
+                        ((< column colnum)
+                          colnum)
+                        ((not (zerop (colinc chunk)))
+                          (+ colnum
+                             (* colinc
+                                (floor (+ column (- colnum) colinc)
+                                       colinc)))))))
+      (cond
+        ((and (eq :line mode)
+              (< (right-margin client stream) column))
+          nil)
+        (t
+          (setf column new-column)
+          t)))))
+
+(defmethod layout (client stream (chunk newline) mode)
+  (cond
+    ((and (eq :line mode)
+          (member (kind chunk) '(:literal :mandatory)))
+      nil)
+    ((eq :line mode)
+      t)
+    ((member (kind chunk) '(:literal :mandatory))
+      (setf (%column chunk) 0)
+      (incf (%line chunk))
+      t)
+    (t
+      (setf (%column chunk) 0)
+      (incf (%line chunk))
+      (values t (section-end chunk)))))
+
+(defmethod layout (client stream (chunk block-start) mode)
+  (let ((column (%column chunk)))
+    (setf (start-column chunk) column
+          (section-column chunk) column)
+    (when (layout-text client stream chunk mode
+                       (or (per-line-prefix chunk)
+                           (prefix chunk)))
+      (if (eq :multiline mode)
+        (values t (section-end chunk))
+        t))))
+
+(defmethod layout (client stream (chunk block-end) mode)
+  (layout-text client stream chunk mode (suffix chunk)))
 
 (defgeneric write-chunk (client stream chunk))
 
 (defmethod write-chunk (client stream chunk)
   (declare (ignore client stream chunk)))
 
-(defmethod write-chunk (client stream (chunk text))
-  (write-string+ client stream (value chunk))
-  (incf (pretty-stream-column stream)
-        (text-width client stream (value chunk))))
+(defmethod write-chunk :after (client (stream pretty-stream) chunk)
+  (declare (ignore client))
+  (setf (pretty-stream-line stream) (%line chunk)
+        (pretty-stream-column stream) (%column chunk)))
 
-(defmethod write-chunk (client stream (chunk tab))
-  (with-accessors ((column pretty-stream-column)) stream
-    (cond
-      ((< column (colnum chunk))
-        (setf (column client stream) (colnum chunk)))
-      ((not (zerop (colinc chunk)))
-        (setf (column client stream)
-              (+ (colnum chunk)
-                 (* (colinc chunk)
-                    (floor (+ column (- (colnum chunk)) (colinc chunk))
-                           (colinc chunk)))))))))
+(defmethod write-chunk (client (stream pretty-stream) (chunk text))
+  (write-string (value chunk) (pretty-stream-stream stream)))
 
-(defmethod write-chunk (client stream (chunk newline))
-  (when (or (eq :literal (kind chunk))
-            (eq :mandatory (kind chunk)))
-    (write-char #\newline stream)
-    (setf (pretty-stream-column stream) 0)
-    (incf (pretty-stream-line stream))))
+(defmethod write-chunk (client (stream pretty-stream) (chunk tab))
+  (dotimes (i (- (%column chunk) (pretty-stream-column stream)))
+    (declare (ignore i))
+    (write-char #\Space (pretty-stream-stream stream))))
 
-(defmethod write-chunk (client stream (chunk block-start))
-  (write-string+ client stream
-                 (or (per-line-prefix chunk)
-                     (prefix chunk))))
+(defmethod write-chunk (client (stream pretty-stream) (chunk newline))
+  (unless (eql (pretty-stream-line stream) (%line chunk))
+  (write-char #\newline (pretty-stream-stream stream))))
 
-(defmethod write-chunk (client stream (chunk block-end))
-  (write-string+ client stream
-                            (suffix (parent chunk))))
+(defmethod write-chunk (client (stream pretty-stream) (chunk block-start))
+  (write-string (or (per-line-prefix chunk)
+                    (prefix chunk))
+                (pretty-stream-stream stream)))
+
+(defmethod write-chunk (client (stream pretty-stream) (chunk block-end))
+  (write-string (suffix chunk) (pretty-stream-stream stream)))
 
 (defmethod pprint-newline (client kind (stream pretty-stream))
   (with-accessors ((chunks pretty-stream-chunks))
                   stream
     (let* ((depth (length (pretty-stream-logical-blocks stream)))
-           (newline (make-instance 'newline :kind kind
+           (newline (make-instance 'newline :kind kind :depth depth
                                    :parent (car (pretty-stream-logical-blocks stream)))))
       (loop for chunk across chunks
             when (and (typep chunk 'section-start)
@@ -252,35 +359,21 @@
 (defmethod make-pretty-stream ((client client) stream)
   (make-instance 'pretty-stream :stream stream :client client))
 
-(defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix suffix)
+(defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix)
   (let ((block-start (make-instance 'block-start
                                     :prefix prefix
                                     :per-line-prefix per-line-prefix
-                                    :suffix suffix
                                     :depth (length (pretty-stream-logical-blocks stream))
                                     :parent (car (pretty-stream-logical-blocks stream)))))
     (push block-start (pretty-stream-logical-blocks stream))
     (vector-push-extend block-start (pretty-stream-chunks stream))))
 
-(defmethod pprint-end-logical-block (client (stream pretty-stream))
-  (let ((block-end (make-instance 'block-end :parent (car (pretty-stream-logical-blocks stream)))))
-    ;(setf (block-end (car (pretty-stream-logical-blocks stream))) block-end)
+(defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
+  (let ((block-end (make-instance 'block-end :suffix suffix :parent (car (pretty-stream-logical-blocks stream)))))
+    (setf (block-end (car (pretty-stream-logical-blocks stream))) block-end)
     (pop (pretty-stream-logical-blocks stream))
     (vector-push-extend block-end (pretty-stream-chunks stream))
     (process-queue stream)))
-
-(defmethod (setf column) (new-value client (stream pretty-stream))
-  (dotimes (i (- new-value (column client stream)))
-    (declare (ignore i))
-    (write-char #\Space (pretty-stream-stream stream)))
-  (setf (pretty-stream-column stream) new-value))
-
-(defmethod (setf line) (new-value client (stream pretty-stream))
-  (dotimes (i (- new-value (line client stream)))
-    (declare (ignore i))
-    (terpri (pretty-stream-stream stream)))
-  (setf (pretty-stream-line stream) new-value
-        (pretty-stream-column stream) 0))
 
 (defmethod column (client (stream pretty-stream))
   (pretty-stream-column stream))

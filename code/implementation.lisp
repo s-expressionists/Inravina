@@ -26,14 +26,14 @@
                                          ,(if (or prefix-p per-line-prefix-p)
                                             prefix
                                             "")
-                                         ,per-line-prefix ,suffix)
+                                         ,per-line-prefix)
              (macrolet ((pprint-exit-if-list-exhausted ()
                           '(unless ,object-var
                              (return-from ,tag-name)))
                         (pprint-pop ()
                           '(pop ,object-var)))
                ,@body))
-         (pprint-end-logical-block *client* ,stream-var)))))
+         (pprint-end-logical-block *client* ,stream-var ,suffix)))))
 
 (defmacro pprint-exit-if-list-exhausted ()
   "Tests whether or not the list passed to the lexically current logical block has
