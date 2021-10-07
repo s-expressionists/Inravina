@@ -21,6 +21,11 @@
      :initarg :depth
      :initform 0
      :type integer)
+   (single-line
+     :accessor single-line
+     :initarg :single-line
+     :initform t
+     :type boolean)
    (section-end
      :accessor section-end
      :initarg :section-end
@@ -116,29 +121,58 @@
                 (trivial-gray-streams:stream-line-column (pretty-stream-stream instance)))
               0))))
 
-(defun write-string+ (client instance string)
-  (let ((width (text-width client instance string)))
-    (cond
-      ((mode instance)
-        (when (< (right-margin client instance) (+ width (column client instance)))
-          (throw 'line-mode-fail t))
-        (vector-push-extend string (buffer instance)))
-      (t
-        (write-string string (pretty-stream-stream instance))))
-    (incf (pretty-stream-column instance) width)))
-
 (defun process-queue (stream &aux (client (pretty-stream-client stream))
                       (chunks (pretty-stream-chunks stream)))
   (unless (pretty-stream-logical-blocks stream)
     (loop for chunk across chunks
-          with indent = 0
-          do (typecase chunk
-               (block-start (write-char #\< (pretty-stream-stream stream)))
-               (block-end (write-char #\> (pretty-stream-stream stream)))
-               (newline (format (pretty-stream-stream stream) "~36R" (incf indent)))
-               (text (write-string (make-string (length (value chunk)) :initial-element #\-) (pretty-stream-stream stream)))))
-    (terpri (pretty-stream-stream stream))
-    (prog ((i 0) (mode :multiline) mode-start mode-end success end chunk)
+          for i from 0
+          for block-end = (find-if (lambda (x) (typep x 'block-end))
+                                   chunks
+                                   :from-end t
+                                   :start i)
+          when (and block-end
+                    (typep chunk 'newline)
+                    (not (section-end chunk)))
+          do (setf (section-end chunk) block-end))
+    ; (loop for chunk across chunks
+    ;       with indent = 0
+    ;       do (typecase chunk
+    ;            (block-start (write-char #\< (pretty-stream-stream stream)))
+    ;            (block-end (write-char #\> (pretty-stream-stream stream)))
+    ;            (newline (format (pretty-stream-stream stream) "~36R" (incf indent)))
+    ;            (text (write-string (make-string (length (value chunk)) :initial-element #\-) (pretty-stream-stream stream)))))
+    ; (terpri (pretty-stream-stream stream))
+    ; (loop for newline across chunks
+    ;       with indent = 0
+    ;       when (typep newline 'newline)
+    ;       do (progn
+    ;            (incf indent)
+    ;            (loop for chunk across chunks
+    ;                  with section = nil
+    ;                  do (typecase chunk
+    ;                       (section-start
+    ;                         (cond
+    ;                           ((eq (section-end chunk) newline)
+    ;                             (write-char #\[ (pretty-stream-stream stream))
+    ;                             (setf section t))
+    ;                           ((eq chunk newline)
+    ;                             (format (pretty-stream-stream stream) "~36R" indent)
+    ;                             (setf section t))
+    ;                           ((eq (section-end newline) chunk)
+    ;                             (write-char #\] (pretty-stream-stream stream))
+    ;                             (setf section nil))
+    ;                           (t
+    ;                             (write-char (if section #\- #\Space) (pretty-stream-stream stream)))))
+    ;                       (block-end
+    ;                         (cond
+    ;                           ((eq (section-end newline) chunk)
+    ;                             (write-char #\] (pretty-stream-stream stream))
+    ;                             (setf section nil))
+    ;                           (t
+    ;                             (write-char (if section #\- #\Space) (pretty-stream-stream stream)))))
+    ;                       (text (write-string (make-string (length (value chunk)) :initial-element (if section #\- #\Space)) (pretty-stream-stream stream)))))
+    ;            (terpri (pretty-stream-stream stream))))
+    (prog ((i 0) sections success chunk)
      repeat
       (when (< i (length chunks))
         (setf chunk (aref chunks i)
@@ -148,49 +182,56 @@
               (%line chunk) (if (zerop i)
                               (pretty-stream-line stream)
                               (%line (aref chunks (1- i)))))
-        (multiple-value-setq (success end) (layout client stream chunk mode))
+        (when (and sections
+                   (typep chunk 'section-start)
+                   (eq (section-end (first sections)) chunk))
+          (pop sections))
+        (setf success (layout client stream chunk
+                              (when sections
+                                (single-line (first sections)))))
+        (when (and (not (eq (first sections) chunk))
+                   (typep chunk 'section-start))
+          (push chunk sections)
+          (setf (single-line chunk) t))
         (cond
-          ((and success end (eq mode :multiline))
-            (setf mode-start i
-                  mode-end end
-                  mode :line)
-            (incf i))
-          ((and success end)
-            (error "Invalid mode switch from ~A to :line~%" mode))
           ((and success
-                (or (eq mode :line-fail)
-                    (and (eq mode :line)
-                         (eq chunk mode-end))))
-            (setf mode :multiline)
+                sections
+                (eq (section-end (first sections)) chunk))
+            (pop sections)
             (incf i))
           (success
             (incf i))
-          ((eq mode :line)
-            (setf mode :line-fail
-                  i mode-start))
+          ((null sections)
+            (error "Layout failure outside of a section."))
+          ((single-line (first sections))
+            (loop while (and (cdr sections)
+                             (typep (second sections) 'section-start)
+                             (single-line (second sections)))
+                  do (pop sections))
+            (setf i (position (first sections) chunks)
+                  (single-line (first sections)) nil))
           (t
-            (error "Layout failure in mode ~A~%" mode)))
+            (error "layout failure while in non-newline section in multiline mode.")))
         (go repeat)))
     (loop for chunk across chunks
           do (write-chunk client stream chunk))
     (setf (fill-pointer (pretty-stream-chunks stream)) 0)))
 
-(defgeneric layout (client stream chunk mode))
+(defgeneric layout (client stream chunk single-line))
 
-(defun layout-text (client stream chunk mode text)
+(defun layout-text (client stream chunk single-line text)
   (let ((width (text-width client stream text)))
     (cond
-      ((and (eq :line mode)
-            (< (right-margin client stream) (+ width (%column chunk))))
+      ((<= (right-margin client stream) (+ width (%column chunk)))
         nil)
       (t
         (incf (%column chunk))
         t))))
 
-(defmethod layout (client stream (chunk text) mode)
-  (layout-text client stream chunk mode (value chunk)))
+(defmethod layout (client stream (chunk text) single-line)
+  (layout-text client stream chunk single-line (value chunk)))
 
-(defmethod layout (client stream (chunk tab) mode)
+(defmethod layout (client stream (chunk tab) single-line)
   (with-accessors ((column %column)
                    (colnum colnum)
                    (colinc colinc))
@@ -204,42 +245,41 @@
                                 (floor (+ column (- colnum) colinc)
                                        colinc)))))))
       (cond
-        ((and (eq :line mode)
-              (< (right-margin client stream) column))
+        ((<= (right-margin client stream) column)
           nil)
         (t
           (setf column new-column)
           t)))))
 
-(defmethod layout (client stream (chunk newline) mode)
+(defmethod layout (client stream (chunk newline) single-line)
   (cond
-    ((and (eq :line mode)
+    ((and single-line
           (member (kind chunk) '(:literal :mandatory)))
       nil)
-    ((eq :line mode)
+    (single-line
       t)
-    ((member (kind chunk) '(:literal :mandatory))
+    ((member (kind chunk) '(:literal :mandatory :linear))
       (setf (%column chunk) 0)
       (incf (%line chunk))
+      t)
+    ((and (eq (kind chunk) :fill)
+          (single-line chunk))
       t)
     (t
       (setf (%column chunk) 0)
       (incf (%line chunk))
-      (values t (section-end chunk)))))
+      t)))
 
-(defmethod layout (client stream (chunk block-start) mode)
+(defmethod layout (client stream (chunk block-start) single-line)
   (let ((column (%column chunk)))
     (setf (start-column chunk) column
           (section-column chunk) column)
-    (when (layout-text client stream chunk mode
+    (layout-text client stream chunk single-line
                        (or (per-line-prefix chunk)
-                           (prefix chunk)))
-      (if (eq :multiline mode)
-        (values t (section-end chunk))
-        t))))
+                           (prefix chunk)))))
 
-(defmethod layout (client stream (chunk block-end) mode)
-  (layout-text client stream chunk mode (suffix chunk)))
+(defmethod layout (client stream (chunk block-end) single-line)
+  (layout-text client stream chunk single-line (suffix chunk)))
 
 (defgeneric write-chunk (client stream chunk))
 
@@ -280,7 +320,7 @@
       (loop for chunk across chunks
             when (and (typep chunk 'section-start)
                       (null (section-end chunk))
-                      (<= depth (depth chunk)))
+                      (<= (depth chunk) depth))
             do (setf (section-end chunk) newline))
       (vector-push-extend newline chunks)
       (process-queue stream))))
