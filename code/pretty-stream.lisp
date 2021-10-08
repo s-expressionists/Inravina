@@ -223,7 +223,7 @@
   (let ((width (text-width client stream text)))
     (unless (and single-line
                  (<= (right-margin client stream) (+ width (%column chunk))))
-      (incf (%column chunk))
+      (incf (%column chunk) width)
       t)))
 
 (defmethod layout (client stream (chunk text) single-line)
@@ -243,7 +243,7 @@
                                 (floor (+ column (- colnum) colinc)
                                        colinc)))))))
       (unless (and single-line
-                   (<= (right-margin client stream) column))
+                   (<= (right-margin client stream) new-column))
         (setf column new-column)
         t))))
 
