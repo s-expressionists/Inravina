@@ -221,12 +221,10 @@
 
 (defun layout-text (client stream chunk single-line text)
   (let ((width (text-width client stream text)))
-    (cond
-      ((<= (right-margin client stream) (+ width (%column chunk)))
-        nil)
-      (t
-        (incf (%column chunk))
-        t))))
+    (unless (and single-line
+                 (<= (right-margin client stream) (+ width (%column chunk))))
+      (incf (%column chunk))
+      t)))
 
 (defmethod layout (client stream (chunk text) single-line)
   (layout-text client stream chunk single-line (value chunk)))
@@ -244,26 +242,19 @@
                              (* colinc
                                 (floor (+ column (- colnum) colinc)
                                        colinc)))))))
-      (cond
-        ((<= (right-margin client stream) column)
-          nil)
-        (t
-          (setf column new-column)
-          t)))))
+      (unless (and single-line
+                   (<= (right-margin client stream) column))
+        (setf column new-column)
+        t))))
 
 (defmethod layout (client stream (chunk newline) single-line)
   (cond
     ((and single-line
           (member (kind chunk) '(:literal :mandatory)))
       nil)
-    (single-line
-      t)
-    ((member (kind chunk) '(:literal :mandatory :linear))
-      (setf (%column chunk) 0)
-      (incf (%line chunk))
-      t)
-    ((and (eq (kind chunk) :fill)
-          (single-line chunk))
+    ((or single-line
+         (and (eq (kind chunk) :fill)
+              (single-line chunk)))
       t)
     (t
       (setf (%column chunk) 0)
