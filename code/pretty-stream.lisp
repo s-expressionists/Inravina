@@ -4,9 +4,18 @@
   ((parent
      :accessor parent
      :initarg :parent)
+   (index
+     :accessor index
+     :initarg :index
+     :initform nil
+     :type (or null integer))
    (line
      :accessor %line
      :initarg :line
+     :initform nil
+     :type (or null integer))
+   (hard-column
+     :accessor hard-column
      :initform nil
      :type (or null integer))
    (column
@@ -82,6 +91,11 @@
      :initarg :section-column
      :initform 0
      :type real)
+   (indent
+     :accessor indent
+     :initarg :indent
+     :initform nil
+     :type (or null integer))
    (block-end
      :accessor block-end
      :initarg :block-end
@@ -106,6 +120,9 @@
    (column
      :accessor pretty-stream-column
      :initform 0)
+   (arranged-text
+     :accessor arranged-text
+     :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'list))
    (chunks
      :accessor pretty-stream-chunks
      :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'chunk))
@@ -134,54 +151,20 @@
                     (typep chunk 'newline)
                     (not (section-end chunk)))
           do (setf (section-end chunk) block-end))
-    ; (loop for chunk across chunks
-    ;       with indent = 0
-    ;       do (typecase chunk
-    ;            (block-start (write-char #\< (pretty-stream-stream stream)))
-    ;            (block-end (write-char #\> (pretty-stream-stream stream)))
-    ;            (newline (format (pretty-stream-stream stream) "~36R" (incf indent)))
-    ;            (text (write-string (make-string (length (value chunk)) :initial-element #\-) (pretty-stream-stream stream)))))
-    ; (terpri (pretty-stream-stream stream))
-    ; (loop for newline across chunks
-    ;       with indent = 0
-    ;       when (typep newline 'newline)
-    ;       do (progn
-    ;            (incf indent)
-    ;            (loop for chunk across chunks
-    ;                  with section = nil
-    ;                  do (typecase chunk
-    ;                       (section-start
-    ;                         (cond
-    ;                           ((eq (section-end chunk) newline)
-    ;                             (write-char #\[ (pretty-stream-stream stream))
-    ;                             (setf section t))
-    ;                           ((eq chunk newline)
-    ;                             (format (pretty-stream-stream stream) "~36R" indent)
-    ;                             (setf section t))
-    ;                           ((eq (section-end newline) chunk)
-    ;                             (write-char #\] (pretty-stream-stream stream))
-    ;                             (setf section nil))
-    ;                           (t
-    ;                             (write-char (if section #\- #\Space) (pretty-stream-stream stream)))))
-    ;                       (block-end
-    ;                         (cond
-    ;                           ((eq (section-end newline) chunk)
-    ;                             (write-char #\] (pretty-stream-stream stream))
-    ;                             (setf section nil))
-    ;                           (t
-    ;                             (write-char (if section #\- #\Space) (pretty-stream-stream stream)))))
-    ;                       (text (write-string (make-string (length (value chunk)) :initial-element (if section #\- #\Space)) (pretty-stream-stream stream)))))
-    ;            (terpri (pretty-stream-stream stream))))
     (prog ((i 0) sections success chunk)
      repeat
       (when (< i (length chunks))
         (setf chunk (aref chunks i)
+              (hard-column chunk) (if (zerop i)
+                                (pretty-stream-column stream)
+                                (hard-column (aref chunks (1- i))))
               (%column chunk) (if (zerop i)
                                 (pretty-stream-column stream)
                                 (%column (aref chunks (1- i))))
               (%line chunk) (if (zerop i)
                               (pretty-stream-line stream)
-                              (%line (aref chunks (1- i)))))
+                              (%line (aref chunks (1- i))))
+              (index chunk) (length (arranged-text stream)))
         (when (and sections
                    (typep chunk 'section-start)
                    (eq (section-end (first sections)) chunk))
@@ -209,43 +192,77 @@
                              (single-line (second sections)))
                   do (pop sections))
             (setf i (position (first sections) chunks)
-                  (single-line (first sections)) nil))
+                  (single-line (first sections)) nil
+                  (fill-pointer (arranged-text stream)) (index (first sections))))
           (t
             (error "layout failure while in non-newline section in multiline mode.")))
         (go repeat)))
-    (loop for chunk across chunks
-          do (write-chunk client stream chunk))
-    (setf (fill-pointer (pretty-stream-chunks stream)) 0)))
+    (map nil (lambda (args) (apply #'write-text client stream args)) (arranged-text stream))
+    (setf (fill-pointer (arranged-text stream)) 0
+          (fill-pointer (pretty-stream-chunks stream)) 0)))
+
+(defmethod write-text (client (stream pretty-stream) line column text)
+  (when line
+    (loop while (< (pretty-stream-line stream) line)
+          do (write-char #\Newline (pretty-stream-stream stream))
+          do (incf (pretty-stream-line stream)))
+    (setf (pretty-stream-column stream) 0))
+  (when column
+    (loop while (< (pretty-stream-column stream) column)
+          do (write-char #\Space (pretty-stream-stream stream))
+          do (incf (pretty-stream-column stream))))
+  (when text
+    (write-string text (pretty-stream-stream stream))
+    (incf (pretty-stream-column stream) (text-width client stream text))))
 
 (defgeneric layout (client stream chunk single-line))
 
-(defun layout-text (client stream chunk single-line text)
-  (let ((width (text-width client stream text)))
-    (unless (and single-line
-                 (<= (right-margin client stream) (+ width (%column chunk))))
-      (incf (%column chunk) width)
-      t)))
+(defun layout-arrange-text (client stream chunk single-line line column text)
+  (multiple-value-bind (text width hard-width)
+      (arrange-text client stream text)
+    (let ((new-hard-column (hard-column chunk))
+          (new-column (%column chunk))
+          (new-line (%line chunk)))
+      (when line
+        (setf new-line line
+              new-hard-column 0
+              new-column 0))
+      (when column
+        (setf new-column column))
+      (unless (zerop hard-width)
+        (setf new-hard-column (+ new-column hard-width)))
+      (incf new-column width)
+      #+(or)(format t "Line: ~2d -> ~2d, Column: ~2d -> ~2d, Hard Column: ~2d -> ~2d, Text: ~s~%"
+              (%line chunk) new-line
+              (%column chunk) new-column
+              (hard-column chunk) new-hard-column
+              text)
+      (unless (and single-line
+                   (< (right-margin client stream) new-hard-column))
+        (setf (hard-column chunk) new-hard-column
+              (%column chunk) new-column
+              (%line chunk) new-line)
+        (vector-push-extend (list line column text) (arranged-text stream))
+        t))))
 
 (defmethod layout (client stream (chunk text) single-line)
-  (layout-text client stream chunk single-line (value chunk)))
+  (layout-arrange-text client stream chunk single-line nil nil (value chunk)))
 
 (defmethod layout (client stream (chunk tab) single-line)
   (with-accessors ((column %column)
                    (colnum colnum)
                    (colinc colinc))
                   chunk
-    (let ((new-column (cond
-                        ((< column colnum)
-                          colnum)
-                        ((not (zerop (colinc chunk)))
-                          (+ colnum
-                             (* colinc
-                                (floor (+ column (- colnum) colinc)
-                                       colinc)))))))
-      (unless (and single-line
-                   (<= (right-margin client stream) new-column))
-        (setf column new-column)
-        t))))
+    (layout-arrange-text client stream chunk single-line nil
+                         (cond
+                           ((< column colnum)
+                             colnum)
+                           ((not (zerop (colinc chunk)))
+                             (+ colnum
+                                (* colinc
+                                   (floor (+ column (- colnum) colinc)
+                                          colinc)))))
+                         nil)))
 
 (defmethod layout (client stream (chunk newline) single-line)
   (cond
@@ -257,50 +274,33 @@
               (single-line chunk)))
       t)
     (t
-      (setf (%column chunk) 0)
-      (incf (%line chunk))
-      t)))
+      (layout-arrange-text client stream chunk single-line
+                           (1+ (%line chunk))
+                           (if (eq (kind chunk) :literal)
+                             0
+                             (indent (parent chunk)))
+                           nil))))
+
+(defmethod layout (client stream (chunk indent) single-line)
+  (setf (indent (parent chunk))
+        (+ (width chunk)
+           (ecase (kind chunk)
+             (:block
+               (start-column (parent chunk)))
+             (:current
+               (%column chunk))))))
 
 (defmethod layout (client stream (chunk block-start) single-line)
   (let ((column (%column chunk)))
     (setf (start-column chunk) column
-          (section-column chunk) column)
-    (layout-text client stream chunk single-line
+          (section-column chunk) column
+          (indent chunk) (+ column (text-width client stream (or (prefix chunk) (per-line-prefix chunk) ""))))
+    (layout-arrange-text client stream chunk single-line nil nil
                        (or (per-line-prefix chunk)
                            (prefix chunk)))))
 
 (defmethod layout (client stream (chunk block-end) single-line)
-  (layout-text client stream chunk single-line (suffix chunk)))
-
-(defgeneric write-chunk (client stream chunk))
-
-(defmethod write-chunk (client stream chunk)
-  (declare (ignore client stream chunk)))
-
-(defmethod write-chunk :after (client (stream pretty-stream) chunk)
-  (declare (ignore client))
-  (setf (pretty-stream-line stream) (%line chunk)
-        (pretty-stream-column stream) (%column chunk)))
-
-(defmethod write-chunk (client (stream pretty-stream) (chunk text))
-  (write-string (value chunk) (pretty-stream-stream stream)))
-
-(defmethod write-chunk (client (stream pretty-stream) (chunk tab))
-  (dotimes (i (- (%column chunk) (pretty-stream-column stream)))
-    (declare (ignore i))
-    (write-char #\Space (pretty-stream-stream stream))))
-
-(defmethod write-chunk (client (stream pretty-stream) (chunk newline))
-  (unless (eql (pretty-stream-line stream) (%line chunk))
-  (write-char #\newline (pretty-stream-stream stream))))
-
-(defmethod write-chunk (client (stream pretty-stream) (chunk block-start))
-  (write-string (or (per-line-prefix chunk)
-                    (prefix chunk))
-                (pretty-stream-stream stream)))
-
-(defmethod write-chunk (client (stream pretty-stream) (chunk block-end))
-  (write-string (suffix chunk) (pretty-stream-stream stream)))
+  (layout-arrange-text client stream chunk single-line nil nil (suffix chunk)))
 
 (defmethod pprint-newline (client kind (stream pretty-stream))
   (with-accessors ((chunks pretty-stream-chunks))

@@ -28,6 +28,10 @@
 
 (defgeneric text-width (client stream text))
 
+(defgeneric arrange-text (client stream text))
+
+(defgeneric write-text (client stream line column text))
+
 (defgeneric miser-p (client stream))
 
 (defgeneric right-margin (client stream))

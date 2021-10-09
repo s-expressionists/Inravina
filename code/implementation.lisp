@@ -98,6 +98,14 @@
 (defmethod text-width (client stream (text character))
   1)
 
+(defmethod arrange-text (client stream text)
+  (values text
+          (text-width client stream text)
+          (text-width client stream (string-right-trim '(#\Space) text))))
+
+(defmethod arrange-text (client stream (text (eql nil)))
+  (values nil 0 0))
+
 (defmethod right-margin (client stream)
   (or *print-right-margin* 100))
 
@@ -106,4 +114,4 @@
        (<= (- (right-margin client stream)
               (column client stream))
            *print-miser-width*)))
-  
+
