@@ -150,7 +150,9 @@
           when (and block-end
                     (typep chunk 'newline)
                     (not (section-end chunk)))
-          do (setf (section-end chunk) block-end))
+          do (setf (section-end chunk) block-end)
+          when (typep chunk 'text)
+          do (setf (value chunk) (normalize-text client stream (value chunk))))
     (prog ((i 0) sections success chunk)
      repeat
       (when (< i (length chunks))
@@ -218,32 +220,32 @@
 (defgeneric layout (client stream chunk single-line))
 
 (defun layout-arrange-text (client stream chunk single-line line column text)
-  (multiple-value-bind (text width hard-width)
-      (arrange-text client stream text)
-    (let ((new-hard-column (hard-column chunk))
-          (new-column (%column chunk))
-          (new-line (%line chunk)))
-      (when line
-        (setf new-line line
-              new-hard-column 0
-              new-column 0))
-      (when column
-        (setf new-column column))
-      (unless (zerop hard-width)
-        (setf new-hard-column (+ new-column hard-width)))
-      (incf new-column width)
-      #+(or)(format t "Line: ~2d -> ~2d, Column: ~2d -> ~2d, Hard Column: ~2d -> ~2d, Text: ~s~%"
-              (%line chunk) new-line
-              (%column chunk) new-column
-              (hard-column chunk) new-hard-column
-              text)
-      (unless (and single-line
-                   (< (right-margin client stream) new-hard-column))
-        (setf (hard-column chunk) new-hard-column
-              (%column chunk) new-column
-              (%line chunk) new-line)
-        (vector-push-extend (list line column text) (arranged-text stream))
-        t))))
+  (let ((new-hard-column (hard-column chunk))
+        (new-column (%column chunk))
+        (new-line (%line chunk))
+        (width (text-width client stream text))
+        (hard-width (text-width client stream text 0 (break-position client stream text))))
+    (when line
+      (setf new-line line
+            new-hard-column 0
+            new-column 0))
+    (when column
+      (setf new-column column))
+    (unless (zerop hard-width)
+      (setf new-hard-column (+ new-column hard-width)))
+    (incf new-column width)
+    #+(or)(format t "Line: ~2d -> ~2d, Column: ~2d -> ~2d, Hard Column: ~2d -> ~2d, Text: ~s~%"
+            (%line chunk) new-line
+            (%column chunk) new-column
+            (hard-column chunk) new-hard-column
+            text)
+    (unless (and single-line
+                 (< (right-margin client stream) new-hard-column))
+      (setf (hard-column chunk) new-hard-column
+            (%column chunk) new-column
+            (%line chunk) new-line)
+      (vector-push-extend (list line column text) (arranged-text stream))
+      t)))
 
 (defmethod layout (client stream (chunk text) single-line)
   (layout-arrange-text client stream chunk single-line nil nil (value chunk)))
@@ -392,15 +394,17 @@
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix)
   (let ((block-start (make-instance 'block-start
-                                    :prefix prefix
-                                    :per-line-prefix per-line-prefix
+                                    :prefix (normalize-text client stream prefix)
+                                    :per-line-prefix (normalize-text client stream per-line-prefix)
                                     :depth (length (pretty-stream-logical-blocks stream))
                                     :parent (car (pretty-stream-logical-blocks stream)))))
     (push block-start (pretty-stream-logical-blocks stream))
     (vector-push-extend block-start (pretty-stream-chunks stream))))
 
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
-  (let ((block-end (make-instance 'block-end :suffix suffix :parent (car (pretty-stream-logical-blocks stream)))))
+  (let ((block-end (make-instance 'block-end
+                                  :suffix (normalize-text client stream suffix)
+                                  :parent (car (pretty-stream-logical-blocks stream)))))
     (setf (block-end (car (pretty-stream-logical-blocks stream))) block-end)
     (pop (pretty-stream-logical-blocks stream))
     (vector-push-extend block-end (pretty-stream-chunks stream))

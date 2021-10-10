@@ -92,16 +92,18 @@
         (pprint-newline client :fill stream)
         (go next-item)))))
 
-(defmethod text-width (client stream (text string))
-  (length text))
+(defmethod text-width (client stream text &optional start end)
+  (- (or end (length text))
+     (or start 0)))
 
-(defmethod text-width (client stream (text character))
-  1)
+(defmethod break-position (client stream text)
+  (1+ (or (position-if (lambda (ch)
+                     (char/= ch #\Space))
+                   text :from-end t)
+      -1)))
 
-(defmethod arrange-text (client stream text)
-  (values text
-          (text-width client stream text)
-          (text-width client stream (string-right-trim '(#\Space) text))))
+(defmethod normalize-text (client stream text)
+  text)
 
 (defmethod arrange-text (client stream (text (eql nil)))
   (values nil 0 0))

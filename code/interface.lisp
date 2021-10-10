@@ -26,9 +26,11 @@
 
 (defgeneric make-pretty-stream (client stream))
 
-(defgeneric text-width (client stream text))
+(defgeneric text-width (client stream text &optional start end))
 
-(defgeneric arrange-text (client stream text))
+(defgeneric break-position (client stream text))
+
+(defgeneric normalize-text (client stream text))
 
 (defgeneric write-text (client stream line column text))
 
