@@ -20,6 +20,10 @@
 
 (defgeneric pprint-tab (client kind colnum colinc stream))
 
+(defgeneric pprint-split (client stream text &optional start end))
+
+(defgeneric pprint-text (client stream text &optional start end))
+
 (defgeneric pprint-start-logical-block (client stream prefix per-line-prefix))
 
 (defgeneric pprint-end-logical-block (client stream suffix))

@@ -117,3 +117,16 @@
               (column client stream))
            *print-miser-width*)))
 
+(defmethod pprint-split (client stream text &optional start end)
+  (prog (pos)
+   next
+    (setf pos (position #\newline text :start (or start 0) :end end))
+    (when pos
+      (pprint-text client stream text start pos)
+      (pprint-newline client :literal-mandatory stream)
+      (setf start (1+ pos))
+      (go next))
+    (pprint-text client stream text start end)))
+
+
+

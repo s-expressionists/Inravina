@@ -14,8 +14,8 @@
      :initarg :line
      :initform nil
      :type (or null integer))
-   (hard-column
-     :accessor hard-column
+   (break-column
+     :accessor break-column
      :initform nil
      :type (or null integer))
    (column
@@ -60,7 +60,7 @@
   ((kind
      :accessor kind
      :initarg :kind
-     :type (member :linear :fill :miser :literal :mandatory))))
+     :type (member :linear :fill :miser :literal-mandatory :mandatory))))
 
 (defclass tab (chunk)
   ((kind
@@ -157,9 +157,9 @@
      repeat
       (when (< i (length chunks))
         (setf chunk (aref chunks i)
-              (hard-column chunk) (if (zerop i)
+              (break-column chunk) (if (zerop i)
                                 (pretty-stream-column stream)
-                                (hard-column (aref chunks (1- i))))
+                                (break-column (aref chunks (1- i))))
               (%column chunk) (if (zerop i)
                                 (pretty-stream-column stream)
                                 (%column (aref chunks (1- i))))
@@ -220,28 +220,28 @@
 (defgeneric layout (client stream chunk single-line))
 
 (defun layout-arrange-text (client stream chunk single-line line column text)
-  (let ((new-hard-column (hard-column chunk))
+  (let ((new-break-column (break-column chunk))
         (new-column (%column chunk))
         (new-line (%line chunk))
         (width (text-width client stream text))
-        (hard-width (text-width client stream text 0 (break-position client stream text))))
+        (break-width (text-width client stream text 0 (break-position client stream text))))
     (when line
       (setf new-line line
-            new-hard-column 0
+            new-break-column 0
             new-column 0))
     (when column
       (setf new-column column))
-    (unless (zerop hard-width)
-      (setf new-hard-column (+ new-column hard-width)))
+    (unless (zerop break-width)
+      (setf new-break-column (+ new-column break-width)))
     (incf new-column width)
-    #+(or)(format t "Line: ~2d -> ~2d, Column: ~2d -> ~2d, Hard Column: ~2d -> ~2d, Text: ~s~%"
+    #+(or)(format t "Line: ~2d -> ~2d, Column: ~2d -> ~2d, Break Column: ~2d -> ~2d, Text: ~s~%"
             (%line chunk) new-line
             (%column chunk) new-column
-            (hard-column chunk) new-hard-column
+            (break-column chunk) new-break-column
             text)
     (unless (and single-line
-                 (< (right-margin client stream) new-hard-column))
-      (setf (hard-column chunk) new-hard-column
+                 (< (right-margin client stream) new-break-column))
+      (setf (break-column chunk) new-break-column
             (%column chunk) new-column
             (%line chunk) new-line)
       (vector-push-extend (list line column text) (arranged-text stream))
@@ -269,7 +269,7 @@
 (defmethod layout (client stream (chunk newline) single-line)
   (cond
     ((and single-line
-          (member (kind chunk) '(:literal :mandatory)))
+          (member (kind chunk) '(:literal-mandatory :mandatory)))
       nil)
     ((or single-line
          (and (eq (kind chunk) :fill)
@@ -278,7 +278,7 @@
     (t
       (layout-arrange-text client stream chunk single-line
                            (1+ (%line chunk))
-                           (if (eq (kind chunk) :literal)
+                           (if (eq (kind chunk) :literal-mandatory)
                              0
                              (indent (parent chunk)))
                            nil))))
@@ -333,49 +333,42 @@
 
 (defmethod trivial-gray-streams:stream-write-char ((stream pretty-stream) char)
   (if (char= char #\newline)
-    (terpri stream)
-    (with-accessors ((chunks pretty-stream-chunks))
-                    stream
-      (let ((chunk (unless (zerop (length chunks)) (aref chunks (1- (length chunks))))))
-        (if (typep chunk 'text)
-          (setf (value chunk) (concatenate 'string (value chunk) (string char)))
-          (vector-push-extend (make-instance 'text
-                                             :value (string char)
-                                             :parent (car (pretty-stream-logical-blocks stream)))
-                              chunks)))))
+    (pprint-newline (pretty-stream-client stream) :literal-mandatory stream)
+    (pprint-text (pretty-stream-client stream) stream char))
   char)
 
-(defun enqueue-string (stream string &optional (start 0) end)
+(defmethod pprint-text (client (stream pretty-stream) (text character) &optional start end)
+  (declare (ignore start end))
+  (with-accessors ((chunks pretty-stream-chunks))
+                  stream
+    (let ((chunk (unless (zerop (length chunks)) (aref chunks (1- (length chunks))))))
+      (if (typep chunk 'text)
+        (setf (value chunk) (concatenate 'string (value chunk) (string text)))
+        (vector-push-extend (make-instance 'text
+                                           :value (string text)
+                                           :parent (car (pretty-stream-logical-blocks stream)))
+                            chunks)))))
+
+(defmethod pprint-text (client (stream pretty-stream) (text string) &optional start end)
   (with-accessors ((chunks pretty-stream-chunks))
                   stream
     (let ((chunk (unless (zerop (length chunks)) (aref chunks (1- (length chunks))))))
       (if (typep chunk 'text)
         (setf (value chunk)
-              (concatenate 'string (value chunk) (subseq string start end)))
+              (concatenate 'string (value chunk) (subseq text start end)))
         (vector-push-extend (make-instance 'text
-                                           :value (subseq string start end)
+                                           :value (subseq text start end)
                                            :parent (car (pretty-stream-logical-blocks stream)))
                             chunks)))))
 
 (defmethod trivial-gray-streams:stream-write-string ((stream pretty-stream) string &optional start end)
-  (prog (pos)
-   next
-    (setf pos (position #\newline string :start (or start 0) :end end))
-    (when pos
-      (enqueue-string stream string start pos)
-      (terpri stream)
-      (setf start (1+ pos))
-      (go next))
-    (enqueue-string stream string start end)))
+  (pprint-split (pretty-stream-client stream) stream string start end))
 
 (defmethod trivial-gray-streams:stream-finish-output ((stream pretty-stream))
   (process-queue stream))
 
 (defmethod trivial-gray-streams:stream-terpri ((stream pretty-stream))
-  (vector-push-extend (make-instance 'newline :kind :literal
-                                     :parent (car (pretty-stream-logical-blocks stream)))
-                      (pretty-stream-chunks stream))
-  (process-queue stream))
+  (pprint-newline (pretty-stream-client stream) :literal-mandatory stream))
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
   (pretty-stream-column stream))
