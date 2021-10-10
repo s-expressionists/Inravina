@@ -199,7 +199,14 @@
           (t
             (error "layout failure while in non-newline section in multiline mode.")))
         (go repeat)))
-    (map nil (lambda (args) (apply #'write-text client stream args)) (arranged-text stream))
+    (loop for i below (length (arranged-text stream))
+          for text = (aref (arranged-text stream) i)
+          do (write-text client stream (first text) (second text)
+                         (if (and (third text)
+                                  (< (1+ i) (length (arranged-text stream)))
+                                  (null (third (aref (arranged-text stream) (1+ i)))))
+                           (subseq (third text) 0 (break-position client stream (third text)))
+                           (third text))))
     (setf (fill-pointer (arranged-text stream)) 0
           (fill-pointer (pretty-stream-chunks stream)) 0)))
 
