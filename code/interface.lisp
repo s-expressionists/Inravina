@@ -36,16 +36,9 @@
 
 (defgeneric normalize-text (client stream text))
 
-(defgeneric write-text (client stream line column text))
+(defgeneric write-text (client stream line column text &optional start end))
 
 (defgeneric miser-p (client stream))
 
 (defgeneric right-margin (client stream))
 
-(defgeneric column (client stream))
-
-(defgeneric (setf column) (new-value client stream))
-
-(defgeneric line (client stream))
-
-(defgeneric (setf line) (new-value client stream))

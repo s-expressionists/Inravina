@@ -1,6 +1,6 @@
 (in-package #:inravina)
 
-(defclass chunk ()
+(defclass instruction ()
   ((parent
      :accessor parent
      :initarg :parent)
@@ -10,7 +10,7 @@
      :initform nil
      :type (or null integer))
    (line
-     :accessor %line
+     :accessor line
      :initarg :line
      :initform nil
      :type (or null integer))
@@ -19,12 +19,12 @@
      :initform nil
      :type (or null integer))
    (column
-     :accessor %column
+     :accessor column
      :initarg :column
      :initform nil
      :type (or null integer))))
 
-(defclass section-start (chunk)
+(defclass section-start (instruction)
   ((depth
      :accessor depth
      :initarg :depth
@@ -41,13 +41,13 @@
      :initform nil
      :type (or null newline block-end))))
 
-(defclass text (chunk)
+(defclass text (instruction)
   ((value
      :accessor value
      :initarg :value
      :initform "")))
 
-(defclass indent (chunk)
+(defclass indent (instruction)
   ((kind
      :accessor kind
      :initarg :kind
@@ -62,7 +62,7 @@
      :initarg :kind
      :type (member :linear :fill :miser :literal-mandatory :mandatory))))
 
-(defclass tab (chunk)
+(defclass tab (instruction)
   ((kind
      :accessor kind
      :initarg :kind
@@ -102,134 +102,167 @@
      :initform nil
      :type (or null block-end))))
 
-(defclass block-end (chunk)
+(defclass block-end (instruction)
   ((suffix
      :accessor suffix
      :initarg :suffix)))
 
+(defclass fragment ()
+  ((line
+     :accessor line
+     :initarg :line
+     :initform nil
+     :type (or null integer))
+   (column
+     :accessor column
+     :initarg :column
+     :initform nil
+     :type (or null integer))
+   (text
+     :accessor text
+     :initarg :text
+     :initform nil
+     :type (or null string))))
+
 (defclass pretty-stream (trivial-gray-streams:fundamental-character-output-stream)
-  ((stream
-     :reader pretty-stream-stream
-     :initarg :stream)
+  ((target
+     :reader target
+     :initarg :target)
    (client
-     :reader pretty-stream-client
+     :reader client
      :initarg :client)
    (line
-     :accessor pretty-stream-line
+     :accessor line
      :initform 0)
    (column
-     :accessor pretty-stream-column
+     :accessor column
      :initform 0)
-   (arranged-text
-     :accessor arranged-text
-     :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'list))
-   (chunks
-     :accessor pretty-stream-chunks
-     :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'chunk))
-   (logical-blocks
-     :accessor pretty-stream-logical-blocks
+   (fragments
+     :accessor fragments
+     :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'fragment))
+   (instructions
+     :accessor instructions
+     :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'instruction))
+   (blocks
+     :accessor blocks
      :initform nil)))
 
 (defmethod initialize-instance :after ((instance pretty-stream) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
-  (when (slot-boundp instance 'stream)
-    (setf (pretty-stream-column instance)
+  (when (slot-boundp instance 'target)
+    (setf (column instance)
           (or (ignore-errors
-                (trivial-gray-streams:stream-line-column (pretty-stream-stream instance)))
+                (trivial-gray-streams:stream-line-column (target instance)))
               0))))
 
-(defun process-queue (stream &aux (client (pretty-stream-client stream))
-                      (chunks (pretty-stream-chunks stream)))
-  (unless (pretty-stream-logical-blocks stream)
-    (loop for chunk across chunks
-          for i from 0
-          for block-end = (find-if (lambda (x) (typep x 'block-end))
-                                   chunks
-                                   :from-end t
-                                   :start i)
-          when (and block-end
-                    (typep chunk 'newline)
-                    (not (section-end chunk)))
-          do (setf (section-end chunk) block-end)
-          when (typep chunk 'text)
-          do (setf (value chunk) (normalize-text client stream (value chunk))))
-    (prog ((i 0) sections success chunk)
-     repeat
-      (when (< i (length chunks))
-        (setf chunk (aref chunks i)
-              (break-column chunk) (if (zerop i)
-                                (pretty-stream-column stream)
-                                (break-column (aref chunks (1- i))))
-              (%column chunk) (if (zerop i)
-                                (pretty-stream-column stream)
-                                (%column (aref chunks (1- i))))
-              (%line chunk) (if (zerop i)
-                              (pretty-stream-line stream)
-                              (%line (aref chunks (1- i))))
-              (index chunk) (length (arranged-text stream)))
-        (when (and sections
-                   (typep chunk 'section-start)
-                   (eq (section-end (first sections)) chunk))
-          (pop sections))
-        (setf success (layout client stream chunk
-                              (when sections
-                                (single-line (first sections)))))
-        (when (and (not (eq (first sections) chunk))
-                   (typep chunk 'section-start))
-          (push chunk sections)
-          (setf (single-line chunk) t))
-        (cond
-          ((and success
-                sections
-                (eq (section-end (first sections)) chunk))
-            (pop sections)
-            (incf i))
-          (success
-            (incf i))
-          ((null sections)
-            (error "Layout failure outside of a section."))
-          ((single-line (first sections))
-            (loop while (and (cdr sections)
-                             (typep (second sections) 'section-start)
-                             (single-line (second sections)))
-                  do (pop sections))
-            (setf i (position (first sections) chunks)
-                  (single-line (first sections)) nil
-                  (fill-pointer (arranged-text stream)) (index (first sections))))
-          (t
-            (error "layout failure while in non-newline section in multiline mode.")))
-        (go repeat)))
-    (loop for i below (length (arranged-text stream))
-          for text = (aref (arranged-text stream) i)
-          do (write-text client stream (first text) (second text)
-                         (if (and (third text)
-                                  (< (1+ i) (length (arranged-text stream)))
-                                  (null (third (aref (arranged-text stream) (1+ i)))))
-                           (subseq (third text) 0 (break-position client stream (third text)))
-                           (third text))))
-    (setf (fill-pointer (arranged-text stream)) 0
-          (fill-pointer (pretty-stream-chunks stream)) 0)))
+(defun finalize-instructions (stream)
+  (loop with client = (client stream)
+        with instructions = (instructions stream)
+        for instruction across instructions
+        for i from 0
+        for block-end = (find-if (lambda (x) (typep x 'block-end))
+                                 instructions
+                                 :from-end t
+                                 :start i)
+        when (and block-end
+                  (typep instruction 'newline)
+                  (not (section-end instruction)))
+        do (setf (section-end instruction) block-end)
+        when (typep instruction 'text)
+        do (setf (value instruction) (normalize-text client stream (value instruction)))))
 
-(defmethod write-text (client (stream pretty-stream) line column text)
+(defun layout-instructions (stream &aux (client (client stream))
+                            (instructions (instructions stream)))
+  (prog ((i 0) sections success instruction)
+   repeat
+    (when (< i (length instructions))
+      (setf instruction (aref instructions i)
+            (break-column instruction) (if (zerop i)
+                                         (column stream)
+                                         (break-column (aref instructions (1- i))))
+            (column instruction) (if (zerop i)
+                                   (column stream)
+                                   (column (aref instructions (1- i))))
+            (line instruction) (if (zerop i)
+                                 (line stream)
+                                 (line (aref instructions (1- i))))
+            (index instruction) (length (fragments stream)))
+      (when (and sections
+                 (typep instruction 'section-start)
+                 (eq (section-end (first sections)) instruction))
+        (pop sections))
+      (setf success (layout client stream instruction
+                            (when sections
+                              (single-line (first sections)))))
+      (when (and (not (eq (first sections) instruction))
+                 (typep instruction 'section-start))
+        (push instruction sections)
+        (setf (single-line instruction) t))
+      (cond
+        ((and success
+              sections
+              (eq (section-end (first sections)) instruction))
+          (pop sections)
+          (incf i))
+        (success
+          (incf i))
+        ((null sections)
+          (error "Layout failure outside of a section."))
+        ((single-line (first sections))
+          (loop while (and (cdr sections)
+                           (typep (second sections) 'section-start)
+                           (single-line (second sections)))
+                do (pop sections))
+          (setf i (position (first sections) instructions)
+                (single-line (first sections)) nil
+                (fill-pointer (fragments stream)) (index (first sections))))
+        (t
+          (error "layout failure while in non-newline section in multiline mode.")))
+      (go repeat)))
+  (setf (fill-pointer (instructions stream)) 0))
+
+(defun write-fragments (stream)
+  (loop with client = (client stream)
+        with fragments = (fragments stream)
+        for i below (length (fragments stream))
+        for fragment = (aref (fragments stream) i)
+        for text = (text fragment)
+        do (write-text client stream
+                       (line fragment) (column fragment) text
+                       0 (when (and text
+                                    (< (1+ i) (length (fragments stream)))
+                                    (null (text (aref (fragments stream) (1+ i)))))
+                           (break-position client stream text))))
+  (setf (fill-pointer (fragments stream)) 0))
+
+(defun process-instructions (stream)
+  (unless (blocks stream)
+    (finalize-instructions stream)
+    (layout-instructions stream)
+    (write-fragments stream)))
+
+(defmethod write-text (client (stream pretty-stream) line column text &optional start end)
   (when line
-    (loop while (< (pretty-stream-line stream) line)
-          do (write-char #\Newline (pretty-stream-stream stream))
-          do (incf (pretty-stream-line stream)))
-    (setf (pretty-stream-column stream) 0))
+    (loop while (< (line stream) line)
+          do (write-char #\Newline (target stream))
+          do (incf (line stream)))
+    (setf (column stream) 0))
   (when column
-    (loop while (< (pretty-stream-column stream) column)
-          do (write-char #\Space (pretty-stream-stream stream))
-          do (incf (pretty-stream-column stream))))
+    (loop while (< (column stream) column)
+          do (write-char #\Space (target stream))
+          do (incf (column stream))))
   (when text
-    (write-string text (pretty-stream-stream stream))
-    (incf (pretty-stream-column stream) (text-width client stream text))))
+    (write-string text (target stream)
+                  :start start
+                  :end end)
+    (incf (column stream) (text-width client stream text))))
 
-(defgeneric layout (client stream chunk single-line))
+(defgeneric layout (client stream instruction single-line))
 
-(defun layout-arrange-text (client stream chunk single-line line column text)
-  (let ((new-break-column (break-column chunk))
-        (new-column (%column chunk))
-        (new-line (%line chunk))
+(defun layout-arrange-text (client stream instruction single-line line column text)
+  (let ((new-break-column (break-column instruction))
+        (new-column (column instruction))
+        (new-line (line instruction))
         (width (text-width client stream text))
         (break-width (text-width client stream text 0 (break-position client stream text))))
     (when line
@@ -242,177 +275,172 @@
       (setf new-break-column (+ new-column break-width)))
     (incf new-column width)
     #+(or)(format t "Line: ~2d -> ~2d, Column: ~2d -> ~2d, Break Column: ~2d -> ~2d, Text: ~s~%"
-            (%line chunk) new-line
-            (%column chunk) new-column
-            (break-column chunk) new-break-column
-            text)
+                  (line instruction) new-line
+                  (column instruction) new-column
+                  (break-column instruction) new-break-column
+                  text)
     (unless (and single-line
                  (< (right-margin client stream) new-break-column))
-      (setf (break-column chunk) new-break-column
-            (%column chunk) new-column
-            (%line chunk) new-line)
-      (vector-push-extend (list line column text) (arranged-text stream))
+      (setf (break-column instruction) new-break-column
+            (column instruction) new-column
+            (line instruction) new-line)
+      (vector-push-extend (make-instance 'fragment :line line :column column :text text)
+                          (fragments stream))
       t)))
 
-(defmethod layout (client stream (chunk text) single-line)
-  (layout-arrange-text client stream chunk single-line nil nil (value chunk)))
+(defmethod layout (client stream (instruction text) single-line)
+  (layout-arrange-text client stream instruction single-line nil nil (value instruction)))
 
-(defmethod layout (client stream (chunk tab) single-line)
-  (with-accessors ((column %column)
+(defmethod layout (client stream (instruction tab) single-line)
+  (with-accessors ((column column)
                    (colnum colnum)
                    (colinc colinc))
-                  chunk
-    (layout-arrange-text client stream chunk single-line nil
+                  instruction
+    (layout-arrange-text client stream instruction single-line nil
                          (cond
                            ((< column colnum)
                              colnum)
-                           ((not (zerop (colinc chunk)))
+                           ((not (zerop (colinc instruction)))
                              (+ colnum
                                 (* colinc
                                    (floor (+ column (- colnum) colinc)
                                           colinc)))))
                          nil)))
 
-(defmethod layout (client stream (chunk newline) single-line)
+(defmethod layout (client stream (instruction newline) single-line)
   (cond
     ((and single-line
-          (member (kind chunk) '(:literal-mandatory :mandatory)))
+          (member (kind instruction) '(:literal-mandatory :mandatory)))
       nil)
     ((or single-line
-         (and (eq (kind chunk) :fill)
-              (single-line chunk)))
+         (and (eq (kind instruction) :fill)
+              (single-line instruction)))
       t)
     (t
-      (layout-arrange-text client stream chunk single-line
-                           (1+ (%line chunk))
-                           (if (eq (kind chunk) :literal-mandatory)
+      (layout-arrange-text client stream instruction single-line
+                           (1+ (line instruction))
+                           (if (eq (kind instruction) :literal-mandatory)
                              0
-                             (indent (parent chunk)))
+                             (indent (parent instruction)))
                            nil))))
 
-(defmethod layout (client stream (chunk indent) single-line)
-  (setf (indent (parent chunk))
-        (+ (width chunk)
-           (ecase (kind chunk)
+(defmethod layout (client stream (instruction indent) single-line)
+  (setf (indent (parent instruction))
+        (+ (width instruction)
+           (ecase (kind instruction)
              (:block
-               (start-column (parent chunk)))
+               (start-column (parent instruction)))
              (:current
-               (%column chunk))))))
+               (column instruction))))))
 
-(defmethod layout (client stream (chunk block-start) single-line)
-  (let ((column (%column chunk)))
-    (setf (start-column chunk) column
-          (section-column chunk) column
-          (indent chunk) (+ column (text-width client stream (or (prefix chunk) (per-line-prefix chunk) ""))))
-    (layout-arrange-text client stream chunk single-line nil nil
-                       (or (per-line-prefix chunk)
-                           (prefix chunk)))))
+(defmethod layout (client stream (instruction block-start) single-line)
+  (let ((column (column instruction)))
+    (setf (start-column instruction) column
+          (section-column instruction) column
+          (indent instruction) (+ column (text-width client stream (or (prefix instruction) (per-line-prefix instruction) ""))))
+    (layout-arrange-text client stream instruction single-line nil nil
+                         (or (per-line-prefix instruction)
+                             (prefix instruction)))))
 
-(defmethod layout (client stream (chunk block-end) single-line)
-  (layout-arrange-text client stream chunk single-line nil nil (suffix chunk)))
+(defmethod layout (client stream (instruction block-end) single-line)
+  (layout-arrange-text client stream instruction single-line nil nil (suffix instruction)))
 
 (defmethod pprint-newline (client kind (stream pretty-stream))
-  (with-accessors ((chunks pretty-stream-chunks))
+  (with-accessors ((instructions instructions))
                   stream
-    (let* ((depth (length (pretty-stream-logical-blocks stream)))
+    (let* ((depth (length (blocks stream)))
            (newline (make-instance 'newline :kind kind :depth depth
-                                   :parent (car (pretty-stream-logical-blocks stream)))))
-      (loop for chunk across chunks
-            when (and (typep chunk 'section-start)
-                      (null (section-end chunk))
-                      (<= (depth chunk) depth))
-            do (setf (section-end chunk) newline))
-      (vector-push-extend newline chunks)
-      (process-queue stream))))
+                                   :parent (car (blocks stream)))))
+      (loop for instruction across instructions
+            when (and (typep instruction 'section-start)
+                      (null (section-end instruction))
+                      (<= (depth instruction) depth))
+            do (setf (section-end instruction) newline))
+      (vector-push-extend newline instructions)
+      (process-instructions stream))))
 
 (defmethod pprint-tab (client kind colnum colinc (stream pretty-stream))
   (vector-push-extend (make-instance 'tab :kind kind :colnum colnum :colinc colinc
-                                     :parent (car (pretty-stream-logical-blocks stream)))
-                      (pretty-stream-chunks stream)))
+                                     :parent (car (blocks stream)))
+                      (instructions stream)))
 
 (defmethod pprint-indent (client relative-to n (stream pretty-stream))
   (vector-push-extend (make-instance 'indent :kind relative-to :width n
-                                     :parent (car (pretty-stream-logical-blocks stream)))
-                      (pretty-stream-chunks stream)))
+                                     :parent (car (blocks stream)))
+                      (instructions stream)))
 
 (defmethod trivial-gray-streams:stream-file-position ((stream pretty-stream))
-  (file-position (pretty-stream-stream stream)))
+  (file-position (target stream)))
 
 (defmethod trivial-gray-streams:stream-write-char ((stream pretty-stream) char)
   (if (char= char #\newline)
-    (pprint-newline (pretty-stream-client stream) :literal-mandatory stream)
-    (pprint-text (pretty-stream-client stream) stream char))
+    (pprint-newline (client stream) :literal-mandatory stream)
+    (pprint-text (client stream) stream char))
   char)
 
 (defmethod pprint-text (client (stream pretty-stream) (text character) &optional start end)
   (declare (ignore start end))
-  (with-accessors ((chunks pretty-stream-chunks))
+  (with-accessors ((instructions instructions))
                   stream
-    (let ((chunk (unless (zerop (length chunks)) (aref chunks (1- (length chunks))))))
-      (if (typep chunk 'text)
-        (setf (value chunk) (concatenate 'string (value chunk) (string text)))
+    (let ((instruction (unless (zerop (length instructions)) (aref instructions (1- (length instructions))))))
+      (if (typep instruction 'text)
+        (setf (value instruction) (concatenate 'string (value instruction) (string text)))
         (vector-push-extend (make-instance 'text
                                            :value (string text)
-                                           :parent (car (pretty-stream-logical-blocks stream)))
-                            chunks)))))
+                                           :parent (car (blocks stream)))
+                            instructions)))))
 
 (defmethod pprint-text (client (stream pretty-stream) (text string) &optional start end)
-  (with-accessors ((chunks pretty-stream-chunks))
+  (with-accessors ((instructions instructions))
                   stream
-    (let ((chunk (unless (zerop (length chunks)) (aref chunks (1- (length chunks))))))
-      (if (typep chunk 'text)
-        (setf (value chunk)
-              (concatenate 'string (value chunk) (subseq text start end)))
+    (let ((instruction (unless (zerop (length instructions)) (aref instructions (1- (length instructions))))))
+      (if (typep instruction 'text)
+        (setf (value instruction)
+              (concatenate 'string (value instruction) (subseq text start end)))
         (vector-push-extend (make-instance 'text
                                            :value (subseq text start end)
-                                           :parent (car (pretty-stream-logical-blocks stream)))
-                            chunks)))))
+                                           :parent (car (blocks stream)))
+                            instructions)))))
 
 (defmethod trivial-gray-streams:stream-write-string ((stream pretty-stream) string &optional start end)
-  (pprint-split (pretty-stream-client stream) stream string start end))
+  (pprint-split (client stream) stream string start end))
 
 (defmethod trivial-gray-streams:stream-finish-output ((stream pretty-stream))
-  (process-queue stream))
+  (process-instructions stream))
 
 (defmethod trivial-gray-streams:stream-terpri ((stream pretty-stream))
-  (pprint-newline (pretty-stream-client stream) :literal-mandatory stream))
+  (pprint-newline (client stream) :literal-mandatory stream))
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
-  (pretty-stream-column stream))
+  (column stream))
 
 (defmethod make-pretty-stream ((client client) (stream pretty-stream))
   stream)
 
 (defmethod make-pretty-stream ((client client) (stream (eql nil)))
-  (make-instance 'pretty-stream :stream *standard-output* :client client))
+  (make-instance 'pretty-stream :target *standard-output* :client client))
 
 (defmethod make-pretty-stream ((client client) (stream (eql t)))
-  (make-instance 'pretty-stream :stream *terminal-io* :client client))
+  (make-instance 'pretty-stream :target *terminal-io* :client client))
 
 (defmethod make-pretty-stream ((client client) stream)
-  (make-instance 'pretty-stream :stream stream :client client))
+  (make-instance 'pretty-stream :target stream :client client))
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix)
   (let ((block-start (make-instance 'block-start
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix (normalize-text client stream per-line-prefix)
-                                    :depth (length (pretty-stream-logical-blocks stream))
-                                    :parent (car (pretty-stream-logical-blocks stream)))))
-    (push block-start (pretty-stream-logical-blocks stream))
-    (vector-push-extend block-start (pretty-stream-chunks stream))))
+                                    :depth (length (blocks stream))
+                                    :parent (car (blocks stream)))))
+    (push block-start (blocks stream))
+    (vector-push-extend block-start (instructions stream))))
 
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :suffix (normalize-text client stream suffix)
-                                  :parent (car (pretty-stream-logical-blocks stream)))))
-    (setf (block-end (car (pretty-stream-logical-blocks stream))) block-end)
-    (pop (pretty-stream-logical-blocks stream))
-    (vector-push-extend block-end (pretty-stream-chunks stream))
-    (process-queue stream)))
-
-(defmethod column (client (stream pretty-stream))
-  (pretty-stream-column stream))
-
-(defmethod line (client (stream pretty-stream))
-  (pretty-stream-line stream))  
+                                  :parent (car (blocks stream)))))
+    (setf (block-end (car (blocks stream))) block-end)
+    (pop (blocks stream))
+    (vector-push-extend block-end (instructions stream))
+    (process-instructions stream)))
 
