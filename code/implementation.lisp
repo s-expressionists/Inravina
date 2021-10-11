@@ -53,13 +53,10 @@
     (pprint-logical-block (stream object :prefix (if colon-p "(" "")
                                          :suffix (if colon-p ")" ""))
       (pprint-exit-if-list-exhausted)
-      (tagbody
-       next-item
-        (write (pprint-pop) :stream stream)
-        (pprint-exit-if-list-exhausted)
-        (write-char #\space stream)
-        (pprint-newline client :fill stream)
-        (go next-item)))))
+      (loop (write (pprint-pop) :stream stream)
+            (pprint-exit-if-list-exhausted)
+            (write-char #\space stream)
+            (pprint-newline client :fill stream)))))
 
 (defmethod pprint-linear (client stream object &optional colon-p at-sign-p)
   (declare (ignore at-sign-p))
@@ -67,13 +64,10 @@
     (pprint-logical-block (stream object :prefix (if colon-p "(" "")
                                          :suffix (if colon-p ")" ""))
       (pprint-exit-if-list-exhausted)
-      (tagbody
-       next-item
-        (write (pprint-pop) :stream stream)
-        (pprint-exit-if-list-exhausted)
-        (write-char #\space stream)
-        (pprint-newline client :linear stream)
-        (go next-item)))))
+      (loop (write (pprint-pop) :stream stream)
+            (pprint-exit-if-list-exhausted)
+            (write-char #\Space stream)
+            (pprint-newline client :linear stream)))))
 
 (defmethod pprint-tabular (client stream object &optional colon-p at-sign-p tabsize)
   (declare (ignore at-sign-p))
@@ -83,14 +77,11 @@
     (pprint-logical-block (stream object :prefix (if colon-p "(" "")
                                          :suffix (if colon-p ")" ""))
       (pprint-exit-if-list-exhausted)
-      (tagbody
-       next-item
-        (write (pprint-pop) :stream stream)
-        (pprint-exit-if-list-exhausted)
-        (write-char #\space stream)
-        (pprint-tab client :section-relative 0 tabsize stream)
-        (pprint-newline client :fill stream)
-        (go next-item)))))
+      (loop (write (pprint-pop) :stream stream)
+            (pprint-exit-if-list-exhausted)
+            (write-char #\space stream)
+            (pprint-tab client :section-relative 0 tabsize stream)
+            (pprint-newline client :fill stream)))))
 
 (defmethod text-width (client stream text &optional start end)
   (- (or end (length text))

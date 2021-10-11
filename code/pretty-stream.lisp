@@ -194,9 +194,11 @@
                  (typep instruction 'section-start)
                  (eq (section-end (first sections)) instruction))
         (pop sections))
+      (print sections)
       (setf success (layout client stream instruction
-                            (when sections
-                              (single-line (first sections)))))
+                            (if sections
+                              (single-line (first sections))
+                              t)))
       (when (and (not (eq (first sections) instruction))
                  (typep instruction 'section-start))
         (push instruction sections)
@@ -277,7 +279,8 @@
     (unless (zerop break-width)
       (setf new-break-column (+ new-column break-width)))
     (incf new-column width)
-    #+(or)(format t "Line: ~2d -> ~2d, Column: ~2d -> ~2d, Break Column: ~2d -> ~2d, Text: ~s~%"
+    (format t "Single Line: ~A, Line: ~2d -> ~2d, Column: ~2d -> ~2d, Break Column: ~2d -> ~2d, Text: ~s~%"
+                   single-line
                   (line instruction) new-line
                   (column instruction) new-column
                   (break-column instruction) new-break-column
@@ -331,7 +334,8 @@
                              nil
                              (+ (start-column (parent instruction))
                                 (indent (parent instruction)))
-                             nil)))))
+                             nil))
+      t)))
 
 (defmethod layout (client stream (instruction indent) single-line)
   (setf (indent (parent instruction))

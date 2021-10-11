@@ -33,5 +33,7 @@
         :serial t
         :components
           ((:file "packages")
-           (:file "dispatch")))))))
+           (:file "dispatch")
+           (:file "pprint-fill")
+           (:file "pprint-linear")))))))
          

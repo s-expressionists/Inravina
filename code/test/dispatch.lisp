@@ -20,18 +20,3 @@
       (true pres)
       (true (funcall func nil nil)))))
 
-
-(define-test d-3
-  (let ((table (make-instance 'inravina::dispatch-table)))
-    (inravina:set-pprint-dispatch inravina:*client*
-                                  'list
-                                  (lambda (s o)
-                                    (inravina:pprint-linear inravina:*client* s o t))
-                                  0
-                                  table)
-    (multiple-value-bind (func pres)
-                         (inravina:pprint-dispatch inravina:*client* nil table)
-      (true pres)
-      (equal (with-output-to-string (s) (funcall func s '(a b)))
-              "(A B)")))) 
-
