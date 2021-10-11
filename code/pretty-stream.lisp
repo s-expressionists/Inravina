@@ -81,6 +81,9 @@
    (per-line-prefix
      :accessor per-line-prefix
      :initarg :per-line-prefix)
+   (prefix-fragments
+     :accessor prefix-fragments
+     :initform nil)
    (start-column
      :accessor start-column
      :initarg :start-column
@@ -318,11 +321,17 @@
       t)
     (t
       (layout-arrange-text client stream instruction single-line
-                           (1+ (line instruction))
-                           (if (eq (kind instruction) :literal-mandatory)
-                             0
-                             (indent (parent instruction)))
-                           nil))))
+                           (1+ (line instruction)) 0 nil)
+      (unless (or (null (parent instruction))
+                  (member (kind instruction) '(:literal-fill :literal-linear :literal-mandatory)))
+        (map nil (lambda (fragment)
+                   (vector-push-extend fragment (fragments stream)))
+             (prefix-fragments (parent instruction)))
+        (layout-arrange-text client stream instruction single-line
+                             nil
+                             (+ (start-column (parent instruction))
+                                (indent (parent instruction)))
+                             nil)))))
 
 (defmethod layout (client stream (instruction indent) single-line)
   (setf (indent (parent instruction))
@@ -334,10 +343,31 @@
                (column instruction))))))
 
 (defmethod layout (client stream (instruction block-start) single-line)
-  (let ((column (column instruction)))
-    (setf (start-column instruction) column
-          (section-column instruction) column
-          (indent instruction) (+ column (text-width client stream (or (prefix instruction) (per-line-prefix instruction) ""))))
+  (let* ((column (column instruction))
+         (start-column (+ column
+                          (text-width client stream
+                                      (or (prefix instruction)
+                                          (per-line-prefix instruction)
+                                          ""))))
+         (parent-prefix-fragments (when (parent instruction)
+                                    (prefix-fragments (parent instruction))))
+         (per-line-prefix (per-line-prefix instruction)))
+    (setf (start-column instruction) start-column
+          (section-column instruction) start-column
+          (indent instruction) 0)
+    (cond
+      (parent-prefix-fragments
+        (setf (prefix-fragments instruction)
+              (make-array (1+ (length parent-prefix-fragments))
+                          :fill-pointer (length parent-prefix-fragments)
+                          :initial-contents parent-prefix-fragments
+                          :element-type 'fragment))
+        (vector-push (make-instance 'fragment :column column :text per-line-prefix)
+                     (prefix-fragments instruction)))
+      (per-line-prefix
+        (setf (prefix-fragments instruction)
+              (make-array 1 :element-type 'fragment
+                          :initial-element (make-instance 'fragment :column column :text per-line-prefix)))))
     (layout-arrange-text client stream instruction single-line nil nil
                          (or (per-line-prefix instruction)
                              (prefix instruction)))))
