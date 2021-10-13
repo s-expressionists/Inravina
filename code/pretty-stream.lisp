@@ -176,7 +176,7 @@
 
 (defun layout-instructions (stream &aux (client (client stream))
                             (instructions (instructions stream)))
-  (prog ((i 0) sections success instruction)
+  (prog ((i 0) section previous success instruction single-line start-section-p)
    repeat
     (when (< i (length instructions))
       (setf instruction (aref instructions i)
@@ -190,37 +190,37 @@
                                  (line stream)
                                  (line (aref instructions (1- i))))
             (index instruction) (length (fragments stream)))
-      (when (and sections
-                 (typep instruction 'section-start)
-                 (eq (section-end (first sections)) instruction))
-        (pop sections))
-      (print sections)
-      (setf success (layout client stream instruction
-                            (if sections
-                              (single-line (first sections))
-                              t)))
-      (when (and (not (eq (first sections) instruction))
+      (when (and (null section)
                  (typep instruction 'section-start))
-        (push instruction sections)
-        (setf (single-line instruction) t))
+        (setf section instruction
+              single-line t
+              previous nil))
+      #+(or)(print section)
+      (multiple-value-setq (success start-section-p)
+                           (layout client stream instruction single-line))
       (cond
-        ((and success
-              sections
-              (eq (section-end (first sections)) instruction))
-          (pop sections)
+        ((and success start-section-p)
+          (setf section instruction)
+          (incf i))
+        #+(or)((and success section (eq instruction (section-end section)))
+          (setf section nil)
           (incf i))
         (success
+          (when (typep instruction 'newline)
+            (setf previous instruction))
           (incf i))
-        ((null sections)
+        ((null section)
           (error "Layout failure outside of a section."))
-        ((single-line (first sections))
-          (loop while (and (cdr sections)
-                           (typep (second sections) 'section-start)
-                           (single-line (second sections)))
-                do (pop sections))
-          (setf i (position (first sections) instructions)
-                (single-line (first sections)) nil
-                (fill-pointer (fragments stream)) (index (first sections))))
+        (single-line
+          (when previous
+            (setf (single-line previous) nil))
+          (setf i (position section instructions)
+                single-line nil
+                (fill-pointer (fragments stream)) (index section)))
+        (previous
+          (setf i (position previous instructions)
+                (single-line previous) nil
+                (fill-pointer (fragments stream)) (index previous)))
         (t
           (error "layout failure while in non-newline section in multiline mode.")))
       (go repeat)))
@@ -279,7 +279,7 @@
     (unless (zerop break-width)
       (setf new-break-column (+ new-column break-width)))
     (incf new-column width)
-    (format t "Single Line: ~A, Line: ~2d -> ~2d, Column: ~2d -> ~2d, Break Column: ~2d -> ~2d, Text: ~s~%"
+    #+(or)(format t "Single Line: ~A, Line: ~2d -> ~2d, Column: ~2d -> ~2d, Break Column: ~2d -> ~2d, Text: ~s~%"
                    single-line
                   (line instruction) new-line
                   (column instruction) new-column
@@ -335,7 +335,7 @@
                              (+ (start-column (parent instruction))
                                 (indent (parent instruction)))
                              nil))
-      t)))
+      (values t t))))
 
 (defmethod layout (client stream (instruction indent) single-line)
   (setf (indent (parent instruction))
@@ -387,7 +387,7 @@
                                    :parent (car (blocks stream)))))
       (loop for instruction across instructions
             when (and (typep instruction 'section-start)
-                      (null (section-end instruction))
+                      ;(null (section-end instruction))
                       (<= (depth instruction) depth))
             do (setf (section-end instruction) newline))
       (vector-push-extend newline instructions)
