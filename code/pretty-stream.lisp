@@ -60,7 +60,7 @@
   ((kind
      :accessor kind
      :initarg :kind
-     :type (member :linear :fill :miser :literal-mandatory :mandatory))))
+     :type newline-kind)))
 
 (defclass tab (instruction)
   ((kind
@@ -159,7 +159,7 @@
               0))))
 
 (defun finalize-instructions (stream)
-  (loop with client = (client stream)
+  #+(or)(loop with client = (client stream)
         with instructions = (instructions stream)
         for instruction across instructions
         for i from 0
@@ -202,7 +202,7 @@
         ((and success start-section-p)
           (setf section instruction)
           (incf i))
-        #+(or)((and success section (eq instruction (section-end section)))
+        ((and success section (eq instruction (section-end section)))
           (setf section nil)
           (incf i))
         (success
@@ -316,17 +316,21 @@
 (defmethod layout (client stream (instruction newline) single-line)
   (cond
     ((and single-line
-          (member (kind instruction) '(:literal-mandatory :mandatory)))
+          (or (mandatory-kind-p (kind instruction))
+              (and (miser-kind-p (kind instruction))
+                   (miser-p client stream))))
       nil)
     ((or single-line
-         (and (eq (kind instruction) :fill)
-              (single-line instruction)))
+         (and (fill-kind-p (kind instruction))
+              (single-line instruction))
+         (and (miser-kind-p (kind instruction))
+              (not (miser-p client stream))))
       t)
     (t
       (layout-arrange-text client stream instruction single-line
                            (1+ (line instruction)) 0 nil)
       (unless (or (null (parent instruction))
-                  (member (kind instruction) '(:literal-fill :literal-linear :literal-mandatory)))
+                  (literal-kind-p (kind instruction)))
         (map nil (lambda (fragment)
                    (vector-push-extend fragment (fragments stream)))
              (prefix-fragments (parent instruction)))
@@ -339,12 +343,13 @@
 
 (defmethod layout (client stream (instruction indent) single-line)
   (setf (indent (parent instruction))
-        (+ (width instruction)
-           (ecase (kind instruction)
-             (:block
-               (start-column (parent instruction)))
-             (:current
-               (column instruction))))))
+        (ecase (kind instruction)
+          (:block
+            (width instruction))
+          (:current
+            (+ (width instruction)
+               (column instruction)
+               (- (start-column (parent instruction))))))))
 
 (defmethod layout (client stream (instruction block-start) single-line)
   (let* ((column (column instruction))
@@ -472,9 +477,22 @@
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :suffix (normalize-text client stream suffix)
-                                  :parent (car (blocks stream)))))
+                                  :parent (car (blocks stream))))
+        (depth (length (blocks stream))))
+      (loop for instruction across (instructions stream)
+            when (and (typep instruction 'section-start)
+                      ;(null (section-end instruction))
+                      (<= (depth instruction) depth))
+            do (setf (section-end instruction) block-end))
     (setf (block-end (car (blocks stream))) block-end)
     (pop (blocks stream))
     (vector-push-extend block-end (instructions stream))
     (process-instructions stream)))
+
+(defmethod miser-p (client (stream pretty-stream))
+  (and *print-miser-width*
+       (<= (- (right-margin client stream)
+              (column stream))
+           *print-miser-width*)))
+
 

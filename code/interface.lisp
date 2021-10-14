@@ -42,3 +42,10 @@
 
 (defgeneric right-margin (client stream))
 
+(defgeneric pprint-block (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-do (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-let (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-bindings (client stream object &optional colon-p at-sign-p))

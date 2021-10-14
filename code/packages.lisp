@@ -19,10 +19,14 @@
     #:client
     #:*client*
     #:copy-pprint-dispatch
+    #:pprint-bindings
+    #:pprint-block
     #:pprint-dispatch
+    #:pprint-do
     #:pprint-exit-if-list-exhausted
     #:pprint-fill
     #:pprint-indent
+    #:pprint-let
     #:pprint-linear
     #:pprint-logical-block
     #:pprint-newline
