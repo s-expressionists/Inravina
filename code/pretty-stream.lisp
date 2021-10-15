@@ -158,6 +158,33 @@
                 (trivial-gray-streams:stream-line-column (target instance)))
               0))))
 
+(defun print-instructions (stream)
+  (loop for instruction across (instructions stream)
+        do (typecase instruction
+             (block-start (write-char #\< *debug-io*))
+             (block-end (write-char #\> *debug-io*))
+             (newline (write-char #\| *debug-io*))
+             (text (dotimes (i (length (value instruction)))
+                     (write-char #\- *debug-io*)))))
+  (terpri *debug-io*)
+  (loop for instruction across (instructions stream)
+        when (typep instruction 'section-start)
+        do (progn (loop with ch = #\Space
+                 for sub across (instructions stream)
+                 do (cond ((eq sub instruction)
+                            (write-char #\[ *debug-io*)
+                            (setf ch #\-))
+                          ((eq sub (section-end instruction))
+                            (write-char #\] *debug-io*)
+                            (setf ch #\Space))
+                          ((typep sub '(or block-start block-end newline))
+                            (write-char ch *debug-io*))
+                          ((typep sub 'text)
+                            (dotimes (i (length (value sub)))
+                              (write-char ch *debug-io*)))))
+        (terpri *debug-io*))))
+
+
 (defun finalize-instructions (stream)
   #+(or)(loop with client = (client stream)
         with instructions = (instructions stream)
@@ -176,7 +203,7 @@
 
 (defun layout-instructions (stream &aux (client (client stream))
                             (instructions (instructions stream)))
-  (prog ((i 0) section previous success instruction single-line start-section-p)
+  (prog ((i 0) (section t) previous success instruction single-line start-section-p)
    repeat
     (when (< i (length instructions))
       (setf instruction (aref instructions i)
@@ -190,19 +217,25 @@
                                  (line stream)
                                  (line (aref instructions (1- i))))
             (index instruction) (length (fragments stream)))
-      (when (and (null section)
-                 (typep instruction 'section-start))
+      (if (and (null section)
+               (typep instruction 'section-start))
         (setf section instruction
-              single-line t
-              previous nil))
-      #+(or)(print section)
+              single-line nil
+              previous nil)
+        (setf single-line (or (eq section t)
+                              (null section)
+                              (not (eq instruction (section-end section))))))
+      #+(or)(format t "~A ~A ~A~%" section instruction single-line)
       (multiple-value-setq (success start-section-p)
                            (layout client stream instruction single-line))
       (cond
         ((and success start-section-p)
-          (setf section instruction)
+          (setf section instruction
+                single-line nil)
           (incf i))
-        ((and success section (eq instruction (section-end section)))
+        ((and success
+              (typep section 'section-start)
+              (eq instruction (section-end section)))
           (setf section nil)
           (incf i))
         (success
@@ -214,9 +247,12 @@
         (single-line
           (when previous
             (setf (single-line previous) nil))
-          (setf i (position section instructions)
+          (setf i (if (eq section t)
+                      0
+                      (1+ (position section instructions)))
+                section nil
                 single-line nil
-                (fill-pointer (fragments stream)) (index section)))
+                (fill-pointer (fragments stream)) (index (aref instructions i))))
         (previous
           (setf i (position previous instructions)
                 (single-line previous) nil
@@ -242,6 +278,7 @@
 
 (defun process-instructions (stream)
   (unless (blocks stream)
+    #+(or)(print-instructions stream)
     (finalize-instructions stream)
     (layout-instructions stream)
     (write-fragments stream)))
@@ -389,12 +426,20 @@
                   stream
     (let* ((depth (length (blocks stream)))
            (newline (make-instance 'newline :kind kind :depth depth
-                                   :parent (car (blocks stream)))))
-      (loop for instruction across instructions
-            when (and (typep instruction 'section-start)
-                      ;(null (section-end instruction))
-                      (<= (depth instruction) depth))
-            do (setf (section-end instruction) newline))
+                                   :parent (car (blocks stream))))
+           (section-start (find-if (lambda (ins)
+                                     (and (typep ins 'section-start)
+                                          (null (section-end ins))
+                                          (= (depth ins) depth)))
+                                   instructions
+                                   :from-end t)))
+      (when section-start
+        (setf (section-end section-start) newline))
+      (loop for ins across instructions
+            when (and (typep ins 'newline)
+                      (null (section-end ins))
+                      (> (depth ins) depth))
+            do (setf (section-end ins) newline))
       (vector-push-extend newline instructions)
       (process-instructions stream))))
 
@@ -469,7 +514,7 @@
   (let ((block-start (make-instance 'block-start
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix (normalize-text client stream per-line-prefix)
-                                    :depth (length (blocks stream))
+                                    :depth (1+ (length (blocks stream)))
                                     :parent (car (blocks stream)))))
     (push block-start (blocks stream))
     (vector-push-extend block-start (instructions stream))))
@@ -479,7 +524,7 @@
                                   :suffix (normalize-text client stream suffix)
                                   :parent (car (blocks stream))))
         (depth (length (blocks stream))))
-      (loop for instruction across (instructions stream)
+      #+(or)(loop for instruction across (instructions stream)
             when (and (typep instruction 'section-start)
                       ;(null (section-end instruction))
                       (<= (depth instruction) depth))
