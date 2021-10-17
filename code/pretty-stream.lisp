@@ -223,20 +223,22 @@
               single-line nil
               previous nil)
         (setf single-line (or (eq section t)
-                              (null section)
-                              (not (eq instruction (section-end section))))))
-      #+(or)(format t "~A ~A ~A~%" section instruction single-line)
+                              (and section
+                                   (not (eq instruction (section-end section)))))))
+      #+(or)(format t "section = ~A, previous = ~A, instruction = ~A, single-line = ~A~%" section previous instruction single-line)
       (multiple-value-setq (success start-section-p)
                            (layout client stream instruction single-line))
       (cond
         ((and success start-section-p)
           (setf section instruction
-                single-line nil)
+                ;single-line nil
+                previous instruction)
           (incf i))
         ((and success
               (typep section 'section-start)
               (eq instruction (section-end section)))
-          (setf section nil)
+          (setf section (when (typep instruction 'section-start) instruction)
+                previous section)
           (incf i))
         (success
           (when (typep instruction 'newline)
@@ -244,14 +246,16 @@
           (incf i))
         ((null section)
           (error "Layout failure outside of a section."))
+        ;((and single-line (eq previous section))
         (single-line
           (when previous
             (setf (single-line previous) nil))
           (setf i (if (eq section t)
                       0
-                      (1+ (position section instructions)))
+                      (position section instructions))
                 section nil
-                single-line nil
+                previous nil
+                ;single-line nil
                 (fill-pointer (fragments stream)) (index (aref instructions i))))
         (previous
           (setf i (position previous instructions)

@@ -49,3 +49,13 @@
 (defgeneric pprint-let (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-bindings (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-eval-when (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-progn (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-progv (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-tagbody (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-function-call (client stream object &optional colon-p at-sign-p argument-count))

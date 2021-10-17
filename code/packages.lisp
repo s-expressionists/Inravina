@@ -23,16 +23,21 @@
     #:pprint-block
     #:pprint-dispatch
     #:pprint-do
+    #:pprint-eval-when
     #:pprint-exit-if-list-exhausted
     #:pprint-fill
+    #:pprint-function-call
     #:pprint-indent
     #:pprint-let
     #:pprint-linear
     #:pprint-logical-block
     #:pprint-newline
     #:pprint-pop
+    #:pprint-progn
+    #:pprint-progv
     #:pprint-tab
     #:pprint-tabular
+    #:pprint-tagbody
     ;#:*print-pprint-dispatch*
     #:set-pprint-dispatch))
 

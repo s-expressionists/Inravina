@@ -32,8 +32,35 @@
 (defmethod print-object ((table dispatch-table) stream)
   (print-unreadable-object (table stream :type t :identity t)))
 
+(deftype block-form ()
+  `(member block catch defconstant defparameter defvar
+           multiple-value-call multiple-value-prog1
+           print-unreadable-object prog1 return-from throw
+           unless unwind-protect when))
+
+(deftype eval-when-form ()
+  `(member defstruct eval-when multiple-value-setq))
+
+(deftype body-form-1-lambda-list ()
+  `(member with-compilation-unit cl:pprint-logical-block
+           print-unreadable-object with-hash-table-iterator
+           with-input-from-string with-open-file
+           with-open-stream with-output-to-string
+           with-package-iterator with-simple-restart))
+
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
-  (make-instance 'dispatch-table))
+  (let ((new-table (make-instance 'dispatch-table)))
+    (set-pprint-dispatch client
+                         '(cons block-form)
+                         (lambda (stream object)
+                           (pprint-block client stream object t))
+                         -1 new-table)
+    (set-pprint-dispatch client
+                         '(cons eval-when-form)
+                         (lambda (stream object)
+                           (pprint-eval-when client stream object t))
+                         -1 new-table)
+    new-table))
 
 (defmethod pprint-dispatch (client object (table dispatch-table))
   (dolist (entry (dispatch-table-entries table) (values nil nil))
