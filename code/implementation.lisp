@@ -96,16 +96,14 @@
   `(pprint-format-logical-block (,client ,stream ,object ,colon-p ,at-sign-p)
      ,@body
      (pprint-exit-if-list-exhausted)
-     (write-char #\Space ,stream)
-     (pprint-newline ,client :linear ,stream)
      (loop for form-or-tag = (pprint-pop)
            do (pprint-indent ,client :block
                              (if (atom form-or-tag) 0 1)
                              ,stream)
-              (write form-or-tag :stream ,stream)
               (write-char #\Space ,stream)
-              (pprint-exit-if-list-exhausted)
-              (pprint-newline ,client :linear ,stream))))
+              (pprint-newline ,client :linear ,stream)
+              (write form-or-tag :stream ,stream)
+              (pprint-exit-if-list-exhausted))))
 
 (defmethod pprint-fill (client stream object &optional colon-p at-sign-p)
   (declare (ignore at-sign-p))
