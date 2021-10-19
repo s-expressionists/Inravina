@@ -57,3 +57,4 @@
   (inravina:pprint-dispatch inravina:*client* object (or table *print-pprint-dispatch*)))
 
 #+sbcl (setf sb-ext:*muffled-warnings* nil)    
+

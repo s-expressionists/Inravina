@@ -59,6 +59,25 @@ HIJKL"
       (with-env (stream :right-margin 10)
         (inravina:pprint-linear inravina:*client* stream '(abc defg hijkl) t nil))))
 
+(define-test pprint-block.1
+  (is equal
+      "(BLOCK FU
+  (WIBBLE 1)
+  (QUUX 2))"
+      (with-env (stream :right-margin 12)
+        (inravina:pprint-block inravina:*client* stream
+                               '(block fu (wibble 1) (quux 2)) t nil))))
+
+(define-test pprint-block.2
+  (is equal
+      "(BLOCK
+    FUBAR1
+  (WIBBLE 1)
+  (QUUX 2))"
+      (with-env (stream :right-margin 12)
+        (inravina:pprint-block inravina:*client* stream
+                               '(block fubar1 (wibble 1) (quux 2)) t nil))))
+
 (define-test pprint-tagbody.1
   (is equal
       "(TAGBODY

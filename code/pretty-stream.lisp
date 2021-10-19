@@ -30,11 +30,6 @@
      :initarg :depth
      :initform 0
      :type integer)
-   (single-line
-     :accessor single-line
-     :initarg :single-line
-     :initform t
-     :type boolean)
    (section-end
      :accessor section-end
      :initarg :section-end
@@ -185,25 +180,9 @@
         (terpri *debug-io*))))
 
 
-(defun finalize-instructions (stream)
-  #+(or)(loop with client = (client stream)
-        with instructions = (instructions stream)
-        for instruction across instructions
-        for i from 0
-        for block-end = (find-if (lambda (x) (typep x 'block-end))
-                                 instructions
-                                 :from-end t
-                                 :start i)
-        when (and block-end
-                  (typep instruction 'newline)
-                  (not (section-end instruction)))
-        do (setf (section-end instruction) block-end)
-        when (typep instruction 'text)
-        do (setf (value instruction) (normalize-text client stream (value instruction)))))
-
 (defun layout-instructions (stream &aux (client (client stream))
                             (instructions (instructions stream)))
-  (prog ((i 0) (section t) previous success instruction single-line start-section-p)
+  (prog ((i 0) (section t) previous status instruction (single-line t) force)
    repeat
     (when (< i (length instructions))
       (setf instruction (aref instructions i)
@@ -217,52 +196,63 @@
                                  (line stream)
                                  (line (aref instructions (1- i))))
             (index instruction) (length (fragments stream)))
-      (if (and (null section)
-               (typep instruction 'section-start))
+      (when (and (null section)
+                 (typep instruction 'section-start))
         (setf section instruction
-              single-line nil
-              previous nil)
-        (setf single-line (or (eq section t)
-                              (and section
-                                   (not (eq instruction (section-end section)))))))
-      #+(or)(format t "section = ~A, previous = ~A, instruction = ~A, single-line = ~A~%" section previous instruction single-line)
-      (multiple-value-setq (success start-section-p)
-                           (layout client stream instruction single-line))
-      (cond
-        ((and success start-section-p)
+              single-line t
+              previous nil))
+      (case (layout client stream instruction
+                    (and single-line
+                         (or (not (typep section 'section-start))
+                             (and (not (eq section instruction))
+                                  (not (eq (section-end section) instruction)))))
+                    force)
+        ((t)
+          (cond ((or (not (typep section 'section-start))
+                     (not (eq instruction (section-end section)))))
+                ((typep instruction 'section-start)
+                  (setf section instruction
+                        single-line t))
+                (t
+                  (setf section nil
+                        single-line nil)))
+          (setf force nil)
+          (incf i))
+        (:maybe-break
+          (cond ((and (typep section 'section-start)
+                      (eq instruction (section-end section)))
+                  (setf section instruction
+                        previous nil
+                        single-line t))
+                (t
+                  (setf previous instruction)))
+          (setf force nil)
+          (incf i))
+        (:break
           (setf section instruction
-                ;single-line nil
-                previous instruction)
+                single-line t
+                force nil
+                previous nil)
           (incf i))
-        ((and success
-              (typep section 'section-start)
-              (eq instruction (section-end section)))
-          (setf section (when (typep instruction 'section-start) instruction)
-                previous section)
-          (incf i))
-        (success
-          (when (typep instruction 'newline)
-            (setf previous instruction))
-          (incf i))
-        ((null section)
-          (error "Layout failure outside of a section."))
-        ;((and single-line (eq previous section))
-        (single-line
-          (when previous
-            (setf (single-line previous) nil))
-          (setf i (if (eq section t)
-                      0
-                      (position section instructions))
-                section nil
-                previous nil
-                ;single-line nil
-                (fill-pointer (fragments stream)) (index (aref instructions i))))
-        (previous
-          (setf i (position previous instructions)
-                (single-line previous) nil
-                (fill-pointer (fragments stream)) (index previous)))
-        (t
-          (error "layout failure while in non-newline section in multiline mode.")))
+        (otherwise
+          (cond
+            (single-line
+              (setf i (if (eq section t)
+                        0
+                        (position section instructions))
+                    single-line nil
+                    previous nil
+                    force nil
+                    (fill-pointer (fragments stream)) (index (aref instructions i))))
+            (previous
+              (setf i (position previous instructions)
+                    (fill-pointer (fragments stream)) (index previous)
+                    section previous
+                    previous nil
+                    single-line t
+                    force t))
+            (t
+              (setf force t)))))
       (go repeat)))
   (setf (fill-pointer (instructions stream)) 0))
 
@@ -282,8 +272,6 @@
 
 (defun process-instructions (stream)
   (unless (blocks stream)
-    #+(or)(print-instructions stream)
-    (finalize-instructions stream)
     (layout-instructions stream)
     (write-fragments stream)))
 
@@ -303,9 +291,9 @@
                   :end end)
     (incf (column stream) (text-width client stream text))))
 
-(defgeneric layout (client stream instruction single-line))
+(defgeneric layout (client stream instruction single-line force))
 
-(defun layout-arrange-text (client stream instruction single-line line column text)
+(defun layout-arrange-text (client stream instruction single-line force line column text)
   (let ((new-break-column (break-column instruction))
         (new-column (column instruction))
         (new-line (line instruction))
@@ -320,14 +308,8 @@
     (unless (zerop break-width)
       (setf new-break-column (+ new-column break-width)))
     (incf new-column width)
-    #+(or)(format t "Single Line: ~A, Line: ~2d -> ~2d, Column: ~2d -> ~2d, Break Column: ~2d -> ~2d, Text: ~s~%"
-                   single-line
-                  (line instruction) new-line
-                  (column instruction) new-column
-                  (break-column instruction) new-break-column
-                  text)
-    (unless (and single-line
-                 (< (right-margin client stream) new-break-column))
+    (when (or force
+              (>= (right-margin client stream) new-break-column))
       (setf (break-column instruction) new-break-column
             (column instruction) new-column
             (line instruction) new-line)
@@ -335,15 +317,15 @@
                           (fragments stream))
       t)))
 
-(defmethod layout (client stream (instruction text) single-line)
-  (layout-arrange-text client stream instruction single-line nil nil (value instruction)))
+(defmethod layout (client stream (instruction text) single-line force)
+  (layout-arrange-text client stream instruction single-line force nil nil (value instruction)))
 
-(defmethod layout (client stream (instruction tab) single-line)
+(defmethod layout (client stream (instruction tab) single-line force)
   (with-accessors ((column column)
                    (colnum colnum)
                    (colinc colinc))
                   instruction
-    (layout-arrange-text client stream instruction single-line nil
+    (layout-arrange-text client stream instruction single-line force nil
                          (cond
                            ((< column colnum)
                              colnum)
@@ -354,35 +336,37 @@
                                           colinc)))))
                          nil)))
 
-(defmethod layout (client stream (instruction newline) single-line)
+(defmethod layout (client stream (instruction newline) single-line force)
   (cond
     ((and single-line
           (or (mandatory-kind-p (kind instruction))
               (and (miser-kind-p (kind instruction))
                    (miser-p client stream))))
       nil)
-    ((or single-line
-         (and (fill-kind-p (kind instruction))
-              (single-line instruction))
-         (and (miser-kind-p (kind instruction))
-              (not (miser-p client stream))))
+    ((and (not force)
+          single-line)
       t)
+    ((and (not force)
+          (or (fill-kind-p (kind instruction))
+              (and (miser-kind-p (kind instruction))
+                   (not (miser-p client stream)))))
+      :maybe-break)
     (t
-      (layout-arrange-text client stream instruction single-line
+      (layout-arrange-text client stream instruction single-line force
                            (1+ (line instruction)) 0 nil)
       (unless (or (null (parent instruction))
                   (literal-kind-p (kind instruction)))
         (map nil (lambda (fragment)
                    (vector-push-extend fragment (fragments stream)))
              (prefix-fragments (parent instruction)))
-        (layout-arrange-text client stream instruction single-line
+        (layout-arrange-text client stream instruction single-line force
                              nil
                              (+ (start-column (parent instruction))
                                 (indent (parent instruction)))
                              nil))
-      (values t t))))
+      :break)))
 
-(defmethod layout (client stream (instruction indent) single-line)
+(defmethod layout (client stream (instruction indent) single-line force)
   (setf (indent (parent instruction))
         (ecase (kind instruction)
           (:block
@@ -390,9 +374,10 @@
           (:current
             (+ (width instruction)
                (column instruction)
-               (- (start-column (parent instruction))))))))
+               (- (start-column (parent instruction)))))))
+  t)
 
-(defmethod layout (client stream (instruction block-start) single-line)
+(defmethod layout (client stream (instruction block-start) single-line force)
   (let* ((column (column instruction))
          (start-column (+ column
                           (text-width client stream
@@ -418,12 +403,12 @@
         (setf (prefix-fragments instruction)
               (make-array 1 :element-type 'fragment
                           :initial-element (make-instance 'fragment :column column :text per-line-prefix)))))
-    (layout-arrange-text client stream instruction single-line nil nil
+    (layout-arrange-text client stream instruction single-line force nil nil
                          (or (per-line-prefix instruction)
                              (prefix instruction)))))
 
-(defmethod layout (client stream (instruction block-end) single-line)
-  (layout-arrange-text client stream instruction single-line nil nil (suffix instruction)))
+(defmethod layout (client stream (instruction block-end) single-line force)
+  (layout-arrange-text client stream instruction single-line force nil nil (suffix instruction)))
 
 (defmethod pprint-newline (client kind (stream pretty-stream))
   (with-accessors ((instructions instructions))
