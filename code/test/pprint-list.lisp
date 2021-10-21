@@ -59,6 +59,37 @@ HIJKL"
       (with-env (stream :right-margin 10)
         (inravina:pprint-linear inravina:*client* stream '(abc defg hijkl) t nil))))
 
+(define-test pprint-bindings.1
+  (is equal
+      "((FU 1) (BAR 2))"
+      (with-env (stream :right-margin 80)
+        (inravina:pprint-bindings inravina:*client* stream
+                                  '((fu 1) (bar 2)) t nil))))
+(define-test pprint-bindings.2
+  (is equal
+      "((FU 1)
+ (BAR 2))"
+      (with-env (stream :right-margin 9)
+        (inravina:pprint-bindings inravina:*client* stream
+                                  '((fu 1) (bar 2)) t nil))))
+(define-test pprint-bindings.3
+  (is equal
+      "((FU 1)
+ (BAR
+  2))"
+      (with-env (stream :right-margin 8)
+        (inravina:pprint-bindings inravina:*client* stream
+                                  '((fu 1) (bar 2)) t nil))))
+(define-test pprint-bindings.4
+  (is equal
+      "((FU
+  1)
+ (BAR
+  2))"
+      (with-env (stream :right-margin 6)
+        (inravina:pprint-bindings inravina:*client* stream
+                                  '((fu 1) (bar 2)) t nil))))
+
 (define-test pprint-block.1
   (is equal
       "(BLOCK FU

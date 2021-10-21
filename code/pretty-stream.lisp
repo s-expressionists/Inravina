@@ -9,6 +9,11 @@
      :initarg :index
      :initform nil
      :type (or null integer))
+   (instruction-index
+     :accessor instruction-index
+     :initarg :instruction-index
+     :initform nil
+     :type (or null integer))
    (line
      :accessor line
      :initarg :line
@@ -41,6 +46,10 @@
      :accessor value
      :initarg :value
      :initform "")))
+;(inravina:pprint-bindings inravina:*client* nil '((fu 1) (bar 2)) t)
+(defmethod print-object ((obj text) stream)
+   (print-unreadable-object (obj stream :type t :identity t)
+     (prin1 (value obj) stream)))
 
 (defclass indent (instruction)
   ((kind
@@ -51,11 +60,21 @@
      :accessor width
      :initarg :width)))
 
+(defmethod print-object ((obj indent) stream)
+   (print-unreadable-object (obj stream :type t :identity t)
+     (prin1 (kind obj) stream)
+     (write-char #\Space stream)
+     (prin1 (width obj) stream)))
+
 (defclass newline (section-start)
   ((kind
      :accessor kind
      :initarg :kind
      :type newline-kind)))
+
+(defmethod print-object ((obj newline) stream)
+   (print-unreadable-object (obj stream :type t :identity t)
+     (prin1 (kind obj) stream)))
 
 (defclass tab (instruction)
   ((kind
@@ -68,6 +87,14 @@
    (colinc
      :accessor colinc
      :initarg :colinc)))
+
+(defmethod print-object ((obj tab) stream)
+   (print-unreadable-object (obj stream :type t :identity t)
+     (prin1 (kind obj) stream)
+     (write-char #\Space stream)
+     (prin1 (colnum obj) stream)
+     (write-char #\Space stream)
+     (prin1 (colinc obj) stream)))
 
 (defclass block-start (section-start)
   ((prefix
@@ -182,7 +209,7 @@
 
 (defun layout-instructions (stream &aux (client (client stream))
                             (instructions (instructions stream)))
-  (prog ((i 0) (section t) previous status instruction (single-line t) force)
+  (prog ((i 0) (section t) previous status instruction force)
    repeat
     (when (< i (length instructions))
       (setf instruction (aref instructions i)
@@ -196,62 +223,68 @@
                                  (line stream)
                                  (line (aref instructions (1- i))))
             (index instruction) (length (fragments stream)))
-      (when (and (null section)
-                 (typep instruction 'section-start))
-        (setf section instruction
-              single-line t
-              previous nil))
-      (case (layout client stream instruction
-                    (and single-line
+      #+(or)(format t "section ~a single-line ~a force ~a previous ~a instruction ~a~%"
+                section                     (and section
+                         (or (not (typep section 'section-start))
+                             (and (not (eq section instruction))
+                                  (not (eq (section-end section) instruction))))) force previous instruction)
+      #+(or)(break)
+      (setf status (layout client stream instruction
+                    (and section
                          (or (not (typep section 'section-start))
                              (and (not (eq section instruction))
                                   (not (eq (section-end section) instruction)))))
-                    force)
+                    force))
+      #+(or)(format t "status ~A~%" status)
+      (case status
         ((t)
-          (cond ((or (not (typep section 'section-start))
-                     (not (eq instruction (section-end section)))))
-                ((typep instruction 'section-start)
-                  (setf section instruction
-                        single-line t))
-                (t
-                  (setf section nil
-                        single-line nil)))
+          #+(or)(format t "t ~a~%" instruction)
+          (cond ((and (null section)
+                      (typep instruction 'section-start))
+                  (setf section instruction))
+                ((or (eq section instruction)
+                     (and (typep section 'section-start)
+                          (eq instruction (section-end section))))
+                  (setf section nil)))
           (setf force nil)
           (incf i))
         (:maybe-break
-          (cond ((and (typep section 'section-start)
-                      (eq instruction (section-end section)))
-                  (setf section instruction
-                        previous nil
-                        single-line t))
-                (t
-                  (setf previous instruction)))
-          (setf force nil)
+          #+(or)(format t "maybe-break ~a~%" instruction)
+          (cond ((and (null section)
+                      (typep instruction 'section-start))
+                  (setf section instruction))
+                ((or (eq section instruction)
+                     (and (typep section 'section-start)
+                          (eq instruction (section-end section))))
+                  (setf section nil)))
+          (setf previous instruction
+                force nil)
           (incf i))
         (:break
-          (setf section instruction
-                single-line t
+          #+(or)(format t "break ~a~%" instruction)
+          (setf section (unless (eq section instruction) instruction)
                 force nil
                 previous nil)
           (incf i))
         (otherwise
           (cond
-            (single-line
-              (setf i (if (eq section t)
-                        0
-                        (position section instructions))
-                    single-line nil
-                    previous nil
-                    force nil
-                    (fill-pointer (fragments stream)) (index (aref instructions i))))
+            ((eq t section)
+              #+(or)(format t "nil section t ~a~%" instruction)
+              (setf i 0
+                    section nil
+                    (fill-pointer (fragments stream)) (index (aref instructions 0))))
+            (section
+              #+(or)(format t "nil section ~a~%" instruction)
+              (setf i (instruction-index section)
+                    (fill-pointer (fragments stream)) (index section)))
             (previous
-              (setf i (position previous instructions)
+              #+(or)(format t "nil previous ~a ~a~%" instruction previous)
+              (setf i (instruction-index previous)
                     (fill-pointer (fragments stream)) (index previous)
-                    section previous
                     previous nil
-                    single-line t
                     force t))
             (t
+              #+(or)(format t "nil ~a~%" instruction)
               (setf force t)))))
       (go repeat)))
   (setf (fill-pointer (instructions stream)) 0))
@@ -415,6 +448,7 @@
                   stream
     (let* ((depth (length (blocks stream)))
            (newline (make-instance 'newline :kind kind :depth depth
+                                   :instruction-index (length instructions)
                                    :parent (car (blocks stream))))
            (section-start (find-if (lambda (ins)
                                      (and (typep ins 'section-start)
@@ -434,11 +468,13 @@
 
 (defmethod pprint-tab (client kind colnum colinc (stream pretty-stream))
   (vector-push-extend (make-instance 'tab :kind kind :colnum colnum :colinc colinc
+                                     :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
                       (instructions stream)))
 
 (defmethod pprint-indent (client relative-to n (stream pretty-stream))
   (vector-push-extend (make-instance 'indent :kind relative-to :width n
+                                     :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
                       (instructions stream)))
 
@@ -460,6 +496,7 @@
         (setf (value instruction) (concatenate 'string (value instruction) (string text)))
         (vector-push-extend (make-instance 'text
                                            :value (string text)
+                                           :instruction-index (length instructions)
                                            :parent (car (blocks stream)))
                             instructions)))))
 
@@ -471,6 +508,7 @@
         (setf (value instruction)
               (concatenate 'string (value instruction) (subseq text start end)))
         (vector-push-extend (make-instance 'text
+                                           :instruction-index (length instructions)
                                            :value (subseq text start end)
                                            :parent (car (blocks stream)))
                             instructions)))))
@@ -501,6 +539,7 @@
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix)
   (let ((block-start (make-instance 'block-start
+                                    :instruction-index (length (instructions stream))
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix (normalize-text client stream per-line-prefix)
                                     :depth (1+ (length (blocks stream)))
@@ -510,14 +549,10 @@
 
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
+                                  :instruction-index (length (instructions stream))
                                   :suffix (normalize-text client stream suffix)
                                   :parent (car (blocks stream))))
         (depth (length (blocks stream))))
-      #+(or)(loop for instruction across (instructions stream)
-            when (and (typep instruction 'section-start)
-                      ;(null (section-end instruction))
-                      (<= (depth instruction) depth))
-            do (setf (section-end instruction) block-end))
     (setf (block-end (car (blocks stream))) block-end)
     (pop (blocks stream))
     (vector-push-extend block-end (instructions stream))
