@@ -164,10 +164,12 @@
      :initform 0)
    (fragments
      :accessor fragments
-     :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'fragment))
+     :initform (make-array 32 :adjustable t :fill-pointer 0
+                              :initial-element nil :element-type '(or null fragment)))
    (instructions
      :accessor instructions
-     :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'instruction))
+     :initform (make-array 32 :adjustable t :fill-pointer 0
+                              :initial-element nil :element-type '(or null instruction)))
    (blocks
      :accessor blocks
      :initform nil)))
@@ -206,7 +208,6 @@
                               (write-char ch *debug-io*)))))
         (terpri *debug-io*))))
 
-
 (defun layout-instructions (stream &aux (client (client stream))
                             (instructions (instructions stream)))
   (prog ((index 0) (section t) last-maybe-break status instruction margin-release-p)
@@ -224,45 +225,45 @@
                                    (line (aref instructions (1- index))))
             (fragment-index instruction) (length (fragments stream)))
       (setf status (layout client stream instruction
-                           (and section
-                                (or (not (typep section 'section-start))
-                                    (and (not (eq section instruction))
-                                         (not (eq (section-end section) instruction)))))
+                           (or (not section)
+                               (and (typep section 'section-start)
+                                    (or (eq section instruction)
+                                        (eq (section-end section) instruction))))
                            margin-release-p)
             margin-release-p nil)
       (case status
         ((t :maybe-break)
-          (cond ((and (null section)
-                      (typep instruction 'section-start))
-                 (setf section instruction))
-                ((or (eq section instruction)
-                     (and (typep section 'section-start)
-                          (eq instruction (section-end section))))
-                 (setf section nil)))
-          (when (eq status :maybe-break)
-            (setf last-maybe-break instruction))
-          (incf index))
+         (cond ((and (null section)
+                     (typep instruction 'section-start))
+                (setf section instruction))
+               ((or (eq section instruction)
+                    (and (typep section 'section-start)
+                         (eq instruction (section-end section))))
+                (setf section nil)))
+         (when (eq status :maybe-break)
+           (setf last-maybe-break instruction))
+         (incf index))
         (:break
-          (setf section (and (not (eq section instruction))
-                             instruction)
-                last-maybe-break nil)
-          (incf index))
+         (setf section (and (not (eq section instruction))
+                            instruction)
+               last-maybe-break nil)
+         (incf index))
         (otherwise
-          (cond
-            ((eq t section)
-             (setf index 0
-                   section nil
-                   (fill-pointer (fragments stream)) (fragment-index (aref instructions 0))))
-            (section
-             (setf index (instruction-index section)
-                   (fill-pointer (fragments stream)) (fragment-index section)))
-            (last-maybe-break
-             (setf index (instruction-index last-maybe-break)
-                   (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
-                   last-maybe-break nil
-                   margin-release-p t))
-            (t
-             (setf margin-release-p t)))))
+         (cond
+           ((eq t section)
+            (setf index 0
+                  section nil
+                  (fill-pointer (fragments stream)) (fragment-index (aref instructions 0))))
+           (section
+            (setf index (instruction-index section)
+                  (fill-pointer (fragments stream)) (fragment-index section)))
+           (last-maybe-break
+            (setf index (instruction-index last-maybe-break)
+                  (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
+                  last-maybe-break nil
+                  margin-release-p t))
+           (t
+            (setf margin-release-p t)))))
       (go repeat)))
   (setf (fill-pointer (instructions stream)) 0))
 
@@ -301,9 +302,10 @@
                   :end end)
     (incf (column stream) (text-width client stream text))))
 
-(defgeneric layout (client stream instruction single-line-p margin-release-p))
+(defgeneric layout (client stream instruction allow-break-p margin-release-p))
 
-(defun layout-arrange-text (client stream instruction single-line-p margin-release-p line column text)
+(defun layout-arrange-text (client stream instruction allow-break-p margin-release-p line column text)
+  (declare (ignore allow-break-p))
   (let ((new-break-column (break-column instruction))
         (new-column (column instruction))
         (new-line (line instruction))
@@ -327,67 +329,67 @@
                           (fragments stream))
       t)))
 
-(defmethod layout (client stream (instruction text) single-line-p margin-release-p)
-  (layout-arrange-text client stream instruction single-line-p margin-release-p nil nil (value instruction)))
+(defmethod layout (client stream (instruction text) allow-break-p margin-release-p)
+  (layout-arrange-text client stream instruction allow-break-p margin-release-p nil nil (value instruction)))
 
-(defmethod layout (client stream (instruction tab) single-line-p margin-release-p)
+(defmethod layout (client stream (instruction tab) allow-break-p margin-release-p)
   (with-accessors ((column column)
                    (colnum colnum)
                    (colinc colinc))
                   instruction
-    (layout-arrange-text client stream instruction single-line-p margin-release-p nil
+    (layout-arrange-text client stream instruction allow-break-p margin-release-p nil
                          (cond
                            ((< column colnum)
-                             colnum)
+                            colnum)
                            ((not (zerop (colinc instruction)))
-                             (+ colnum
-                                (* colinc
-                                   (floor (+ column (- colnum) colinc)
-                                          colinc)))))
+                            (+ colnum
+                               (* colinc
+                                  (floor (+ column (- colnum) colinc)
+                                         colinc)))))
                          nil)))
 
-(defmethod layout (client stream (instruction newline) single-line-p margin-release-p)
+(defmethod layout (client stream (instruction newline) allow-break-p margin-release-p)
   (cond
-    ((and single-line-p
+    ((and (not allow-break-p)
           (or (mandatory-kind-p (kind instruction))
               (and (miser-kind-p (kind instruction))
                    (miser-p client stream))))
-      nil)
+     nil)
     ((and (not margin-release-p)
-          single-line-p)
-      t)
+          (not allow-break-p))
+     t)
     ((and (not margin-release-p)
           (or (fill-kind-p (kind instruction))
               (and (miser-kind-p (kind instruction))
                    (not (miser-p client stream)))))
-      :maybe-break)
+     :maybe-break)
     (t
-      (layout-arrange-text client stream instruction single-line-p margin-release-p
-                           (1+ (line instruction)) 0 nil)
-      (unless (or (null (parent instruction))
-                  (literal-kind-p (kind instruction)))
-        (map nil (lambda (fragment)
-                   (vector-push-extend fragment (fragments stream)))
-             (prefix-fragments (parent instruction)))
-        (layout-arrange-text client stream instruction single-line-p margin-release-p
-                             nil
-                             (+ (start-column (parent instruction))
-                                (indent (parent instruction)))
-                             nil))
-      :break)))
+     (layout-arrange-text client stream instruction allow-break-p margin-release-p
+                          (1+ (line instruction)) 0 nil)
+     (unless (or (null (parent instruction))
+                 (literal-kind-p (kind instruction)))
+       (map nil (lambda (fragment)
+                  (vector-push-extend fragment (fragments stream)))
+            (prefix-fragments (parent instruction)))
+       (layout-arrange-text client stream instruction allow-break-p margin-release-p
+                            nil
+                            (+ (start-column (parent instruction))
+                               (indent (parent instruction)))
+                            nil))
+     :break)))
 
-(defmethod layout (client stream (instruction indent) single-line-p margin-release-p)
+(defmethod layout (client stream (instruction indent) allow-break-p margin-release-p)
   (setf (indent (parent instruction))
         (ecase (kind instruction)
           (:block
-            (width instruction))
+           (width instruction))
           (:current
-            (+ (width instruction)
-               (column instruction)
-               (- (start-column (parent instruction)))))))
+           (+ (width instruction)
+              (column instruction)
+              (- (start-column (parent instruction)))))))
   t)
 
-(defmethod layout (client stream (instruction block-start) single-line-p margin-release-p)
+(defmethod layout (client stream (instruction block-start) allow-break-p margin-release-p)
   (let* ((column (column instruction))
          (start-column (+ column
                           (text-width client stream
@@ -411,20 +413,22 @@
                      (prefix-fragments instruction)))
       (per-line-prefix
         (setf (prefix-fragments instruction)
-              (make-array 1 :element-type 'fragment
+              (make-array 1
+                          :element-type 'fragment
                           :initial-element (make-instance 'fragment :column column :text per-line-prefix)))))
-    (layout-arrange-text client stream instruction single-line-p margin-release-p nil nil
+    (layout-arrange-text client stream instruction allow-break-p margin-release-p nil nil
                          (or (per-line-prefix instruction)
                              (prefix instruction)))))
 
-(defmethod layout (client stream (instruction block-end) single-line-p margin-release-p)
-  (layout-arrange-text client stream instruction single-line-p margin-release-p nil nil (suffix instruction)))
+(defmethod layout (client stream (instruction block-end) allow-break-p margin-release-p)
+  (layout-arrange-text client stream instruction allow-break-p margin-release-p nil nil (suffix instruction)))
 
 (defmethod pprint-newline (client kind (stream pretty-stream))
   (with-accessors ((instructions instructions))
                   stream
     (let* ((depth (length (blocks stream)))
-           (newline (make-instance 'newline :kind kind :depth depth
+           (newline (make-instance 'newline
+                                   :kind kind :depth depth
                                    :instruction-index (length instructions)
                                    :parent (car (blocks stream))))
            (section-start (find-if (lambda (ins)
@@ -444,13 +448,15 @@
       (process-instructions stream))))
 
 (defmethod pprint-tab (client kind colnum colinc (stream pretty-stream))
-  (vector-push-extend (make-instance 'tab :kind kind :colnum colnum :colinc colinc
+  (vector-push-extend (make-instance 'tab
+                                     :kind kind :colnum colnum :colinc colinc
                                      :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
                       (instructions stream)))
 
 (defmethod pprint-indent (client relative-to n (stream pretty-stream))
-  (vector-push-extend (make-instance 'indent :kind relative-to :width n
+  (vector-push-extend (make-instance 'indent
+                                     :kind relative-to :width n
                                      :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
                       (instructions stream)))
@@ -460,35 +466,37 @@
 
 (defmethod trivial-gray-streams:stream-write-char ((stream pretty-stream) char)
   (if (char= char #\newline)
-    (pprint-newline (client stream) :literal-mandatory stream)
-    (pprint-text (client stream) stream char))
+      (pprint-newline (client stream) :literal-mandatory stream)
+      (pprint-text (client stream) stream char))
   char)
 
 (defmethod pprint-text (client (stream pretty-stream) (text character) &optional start end)
   (declare (ignore start end))
   (with-accessors ((instructions instructions))
                   stream
-    (let ((instruction (unless (zerop (length instructions)) (aref instructions (1- (length instructions))))))
+    (let ((instruction (and (plusp (length instructions))
+                            (aref instructions (1- (length instructions))))))
       (if (typep instruction 'text)
-        (setf (value instruction) (concatenate 'string (value instruction) (string text)))
-        (vector-push-extend (make-instance 'text
-                                           :value (string text)
-                                           :instruction-index (length instructions)
-                                           :parent (car (blocks stream)))
-                            instructions)))))
+          (setf (value instruction) (concatenate 'string (value instruction) (string text)))
+          (vector-push-extend (make-instance 'text
+                                             :value (string text)
+                                             :instruction-index (length instructions)
+                                             :parent (car (blocks stream)))
+                              instructions)))))
 
 (defmethod pprint-text (client (stream pretty-stream) (text string) &optional start end)
   (with-accessors ((instructions instructions))
                   stream
-    (let ((instruction (unless (zerop (length instructions)) (aref instructions (1- (length instructions))))))
+    (let ((instruction (and (plusp (length instructions))
+                            (aref instructions (1- (length instructions))))))
       (if (typep instruction 'text)
-        (setf (value instruction)
-              (concatenate 'string (value instruction) (subseq text start end)))
-        (vector-push-extend (make-instance 'text
-                                           :instruction-index (length instructions)
-                                           :value (subseq text start end)
-                                           :parent (car (blocks stream)))
-                            instructions)))))
+          (setf (value instruction)
+                (concatenate 'string (value instruction) (subseq text start end)))
+          (vector-push-extend (make-instance 'text
+                                             :instruction-index (length instructions)
+                                             :value (subseq text start end)
+                                             :parent (car (blocks stream)))
+                              instructions)))))
 
 (defmethod trivial-gray-streams:stream-write-string ((stream pretty-stream) string &optional start end)
   (pprint-split (client stream) stream string start end))
@@ -528,8 +536,7 @@
   (let ((block-end (make-instance 'block-end
                                   :instruction-index (length (instructions stream))
                                   :suffix (normalize-text client stream suffix)
-                                  :parent (car (blocks stream))))
-        (depth (length (blocks stream))))
+                                  :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
     (pop (blocks stream))
     (vector-push-extend block-end (instructions stream))

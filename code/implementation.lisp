@@ -79,6 +79,7 @@
             (write (pprint-pop) :stream ,stream)))
 
 (defmacro pprint-format-logical-block ((client stream object colon-p at-sign-p) &body body)
+  (declare (ignore at-sign-p))
   `(pprint-logical-block (,client ,stream ,object :prefix (if ,colon-p "(" "")
                                                   :suffix (if ,colon-p ")" ""))
      ,@body))
@@ -178,6 +179,7 @@
              (pprint-newline client :linear stream))))
 
 (defmethod pprint-block (client stream object &optional colon-p at-sign-p)
+  (declare (ignore at-sign-p))
   (pprint-body-form (client stream object colon-p at-sign-p)
     (pprint-exit-if-list-exhausted)
     (write (pprint-pop) :stream stream)
@@ -222,6 +224,7 @@
     (pprint-bindings client stream (pprint-pop) colon-p at-sign-p)))
 
 (defmethod pprint-progn (client stream object &optional colon-p at-sign-p)
+  (declare (ignore at-sign-p))
   (pprint-body-form (client stream object colon-p at-sign-p)
     (pprint-exit-if-list-exhausted)
     (write (pprint-pop) :stream stream)))
@@ -241,12 +244,13 @@
     (pprint-linear client stream object colon-p at-sign-p)))
 
 (defmethod pprint-tagbody (client stream object &optional colon-p at-sign-p)
+  (declare (ignore at-sign-p))
   (pprint-tagbody-form (client stream object colon-p at-sign-p)
     (pprint-exit-if-list-exhausted)
     (write (pprint-pop) :stream stream)))
 
 (defmethod pprint-function-call (client stream object &optional colon-p at-sign-p argument-count)
-  (declare (ignore at-sign))
+  (declare (ignore at-sign-p))
   (pprint-logical-block (client stream object :prefix (if colon-p "(" "")
                                               :suffix (if colon-p ")" ""))
     (pprint-exit-if-list-exhausted)
