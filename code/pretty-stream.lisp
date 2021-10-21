@@ -2,63 +2,66 @@
 
 (defclass instruction ()
   ((parent
-     :accessor parent
-     :initarg :parent)
+    :initarg :parent
+    :reader parent
+    :type (or null block-start))
    (fragment-index
-     :accessor fragment-index
-     :initarg :fragment-index
-     :initform nil
-     :type (or null integer))
+    :initarg :fragment-index
+    :initform nil
+    :accessor fragment-index
+    :type (or null integer))
    (instruction-index
-     :accessor instruction-index
-     :initarg :instruction-index
-     :initform nil
-     :type (or null integer))
+    :initarg :instruction-index
+    :initform nil
+    :accessor instruction-index
+    :type (or null integer))
    (line
-     :accessor line
-     :initarg :line
-     :initform nil
-     :type (or null integer))
+    :initarg :line
+    :initform nil
+    :accessor line
+    :type (or null integer))
    (break-column
-     :accessor break-column
-     :initform nil
-     :type (or null integer))
+    :initform nil
+    :accessor break-column
+    :type (or null real))
    (column
-     :accessor column
-     :initarg :column
-     :initform nil
-     :type (or null integer))))
+    :initarg :column
+    :initform nil
+    :accessor column
+    :type (or null real))))
 
 (defclass section-start (instruction)
   ((depth
-     :accessor depth
-     :initarg :depth
-     :initform 0
-     :type integer)
+    :initarg :depth
+    :initform 0
+    :reader depth
+    :type integer)
    (section-end
-     :accessor section-end
-     :initarg :section-end
-     :initform nil
-     :type (or null newline block-end))))
+    :initarg :section-end
+    :initform nil
+    :accessor section-end
+    :type (or null newline block-end))))
 
 (defclass text (instruction)
   ((value
-     :accessor value
-     :initarg :value
-     :initform "")))
-;(inravina:pprint-bindings inravina:*client* nil '((fu 1) (bar 2)) t)
+    :initarg :value
+    :initform ""
+    :accessor value
+    :type string)))
+
 (defmethod print-object ((obj text) stream)
    (print-unreadable-object (obj stream :type t :identity t)
      (prin1 (value obj) stream)))
 
 (defclass indent (instruction)
   ((kind
-     :accessor kind
-     :initarg :kind
-     :type (member :block :current))
+    :initarg :kind
+    :reader kind
+    :type (member :block :current))
    (width
-     :accessor width
-     :initarg :width)))
+    :initarg :width
+    :reader width
+    :type real)))
 
 (defmethod print-object ((obj indent) stream)
    (print-unreadable-object (obj stream :type t :identity t)
@@ -68,9 +71,9 @@
 
 (defclass newline (section-start)
   ((kind
-     :accessor kind
-     :initarg :kind
-     :type newline-kind)))
+    :initarg :kind
+    :reader kind
+    :type newline-kind)))
 
 (defmethod print-object ((obj newline) stream)
    (print-unreadable-object (obj stream :type t :identity t)
@@ -78,15 +81,17 @@
 
 (defclass tab (instruction)
   ((kind
-     :accessor kind
-     :initarg :kind
-     :type (member :line :line-relative :section :section-relative))
+    :initarg :kind
+    :reader kind
+    :type (member :line :line-relative :section :section-relative))
    (colnum
-     :accessor colnum
-     :initarg :colnum)
+    :initarg :colnum
+    :reader colnum
+    :type (or null real))
    (colinc
-     :accessor colinc
-     :initarg :colinc)))
+    :initarg :colinc
+    :reader colinc
+    :type (or null real))))
 
 (defmethod print-object ((obj tab) stream)
    (print-unreadable-object (obj stream :type t :identity t)
@@ -98,81 +103,87 @@
 
 (defclass block-start (section-start)
   ((prefix
-     :accessor prefix
-     :initarg :prefix)
+    :initarg :prefix
+    :reader prefix
+    :type (or null string))
    (per-line-prefix
-     :accessor per-line-prefix
-     :initarg :per-line-prefix)
+    :initarg :per-line-prefix
+    :reader per-line-prefix
+    :type (or null string))
    (prefix-fragments
-     :accessor prefix-fragments
-     :initform nil)
+    :initform nil
+    :accessor prefix-fragments)
    (start-column
-     :accessor start-column
-     :initarg :start-column
-     :initform 0
-     :type real)
+    :initarg :start-column
+    :initform 0
+    :accessor start-column
+    :type real)
    (section-column
-     :accessor section-column
-     :initarg :section-column
-     :initform 0
-     :type real)
+    :initarg :section-column
+    :initform 0
+    :accessor section-column
+    :type real)
    (indent
-     :accessor indent
-     :initarg :indent
-     :initform nil
-     :type (or null integer))
+    :initarg :indent
+    :initform nil
+    :accessor indent
+    :type (or null real))
    (block-end
-     :accessor block-end
-     :initarg :block-end
-     :initform nil
-     :type (or null block-end))))
+    :initarg :block-end
+    :initform nil
+    :accessor block-end
+    :type (or null block-end))))
 
 (defclass block-end (instruction)
   ((suffix
-     :accessor suffix
-     :initarg :suffix)))
+    :initarg :suffix
+    :reader suffix
+    :type (or null string))))
 
 (defclass fragment ()
   ((line
-     :accessor line
-     :initarg :line
-     :initform nil
-     :type (or null integer))
+    :initarg :line
+    :initform nil
+    :accessor line
+    :type (or null integer))
    (column
-     :accessor column
-     :initarg :column
-     :initform nil
-     :type (or null integer))
+    :initarg :column
+    :initform nil
+    :accessor column
+    :type (or null real))
    (text
-     :accessor text
-     :initarg :text
-     :initform nil
-     :type (or null string))))
+    :initarg :text
+    :initform nil
+    :accessor text
+    :type (or null string))))
 
 (defclass pretty-stream (trivial-gray-streams:fundamental-character-output-stream)
   ((target
-     :reader target
-     :initarg :target)
+    :initarg :target
+    :reader target)
    (client
-     :reader client
-     :initarg :client)
+    :initarg :client
+    :reader client)
    (line
-     :accessor line
-     :initform 0)
+    :initform 0
+    :accessor line
+    :type real)
    (column
-     :accessor column
-     :initform 0)
+    :initform 0
+    :accessor column
+    :type real)
    (fragments
-     :accessor fragments
-     :initform (make-array 32 :adjustable t :fill-pointer 0
-                              :initial-element nil :element-type '(or null fragment)))
+    :initform (make-array 32 :adjustable t :fill-pointer 0
+                             :initial-element nil :element-type '(or null fragment))
+    :accessor fragments)
    (instructions
-     :accessor instructions
-     :initform (make-array 32 :adjustable t :fill-pointer 0
-                              :initial-element nil :element-type '(or null instruction)))
+    :initform (make-array 32 :adjustable t :fill-pointer 0
+                             :initial-element nil :element-type '(or null instruction))
+    :accessor instructions)
    (blocks
-     :accessor blocks
-     :initform nil)))
+    :initform nil
+    :accessor blocks
+    :type list)))
 
 (defmethod initialize-instance :after ((instance pretty-stream) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
