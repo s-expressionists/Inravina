@@ -4,9 +4,9 @@
   ((parent
      :accessor parent
      :initarg :parent)
-   (index
-     :accessor index
-     :initarg :index
+   (fragment-index
+     :accessor fragment-index
+     :initarg :fragment-index
      :initform nil
      :type (or null integer))
    (instruction-index
@@ -209,83 +209,60 @@
 
 (defun layout-instructions (stream &aux (client (client stream))
                             (instructions (instructions stream)))
-  (prog ((i 0) (section t) previous status instruction force)
+  (prog ((index 0) (section t) last-maybe-break status instruction margin-release-p)
    repeat
-    (when (< i (length instructions))
-      (setf instruction (aref instructions i)
-            (break-column instruction) (if (zerop i)
-                                         (column stream)
-                                         (break-column (aref instructions (1- i))))
-            (column instruction) (if (zerop i)
-                                   (column stream)
-                                   (column (aref instructions (1- i))))
-            (line instruction) (if (zerop i)
-                                 (line stream)
-                                 (line (aref instructions (1- i))))
-            (index instruction) (length (fragments stream)))
-      #+(or)(format t "section ~a single-line ~a force ~a previous ~a instruction ~a~%"
-                section                     (and section
-                         (or (not (typep section 'section-start))
-                             (and (not (eq section instruction))
-                                  (not (eq (section-end section) instruction))))) force previous instruction)
-      #+(or)(break)
+    (when (< index (length instructions))
+      (setf instruction (aref instructions index)
+            (break-column instruction) (if (zerop index)
+                                           (column stream)
+                                           (break-column (aref instructions (1- index))))
+            (column instruction) (if (zerop index)
+                                     (column stream)
+                                     (column (aref instructions (1- index))))
+            (line instruction) (if (zerop index)
+                                   (line stream)
+                                   (line (aref instructions (1- index))))
+            (fragment-index instruction) (length (fragments stream)))
       (setf status (layout client stream instruction
-                    (and section
-                         (or (not (typep section 'section-start))
-                             (and (not (eq section instruction))
-                                  (not (eq (section-end section) instruction)))))
-                    force))
-      #+(or)(format t "status ~A~%" status)
+                           (and section
+                                (or (not (typep section 'section-start))
+                                    (and (not (eq section instruction))
+                                         (not (eq (section-end section) instruction)))))
+                           margin-release-p)
+            margin-release-p nil)
       (case status
-        ((t)
-          #+(or)(format t "t ~a~%" instruction)
+        ((t :maybe-break)
           (cond ((and (null section)
                       (typep instruction 'section-start))
-                  (setf section instruction))
+                 (setf section instruction))
                 ((or (eq section instruction)
                      (and (typep section 'section-start)
                           (eq instruction (section-end section))))
-                  (setf section nil)))
-          (setf force nil)
-          (incf i))
-        (:maybe-break
-          #+(or)(format t "maybe-break ~a~%" instruction)
-          (cond ((and (null section)
-                      (typep instruction 'section-start))
-                  (setf section instruction))
-                ((or (eq section instruction)
-                     (and (typep section 'section-start)
-                          (eq instruction (section-end section))))
-                  (setf section nil)))
-          (setf previous instruction
-                force nil)
-          (incf i))
+                 (setf section nil)))
+          (when (eq status :maybe-break)
+            (setf last-maybe-break instruction))
+          (incf index))
         (:break
-          #+(or)(format t "break ~a~%" instruction)
-          (setf section (unless (eq section instruction) instruction)
-                force nil
-                previous nil)
-          (incf i))
+          (setf section (and (not (eq section instruction))
+                             instruction)
+                last-maybe-break nil)
+          (incf index))
         (otherwise
           (cond
             ((eq t section)
-              #+(or)(format t "nil section t ~a~%" instruction)
-              (setf i 0
-                    section nil
-                    (fill-pointer (fragments stream)) (index (aref instructions 0))))
+             (setf index 0
+                   section nil
+                   (fill-pointer (fragments stream)) (fragment-index (aref instructions 0))))
             (section
-              #+(or)(format t "nil section ~a~%" instruction)
-              (setf i (instruction-index section)
-                    (fill-pointer (fragments stream)) (index section)))
-            (previous
-              #+(or)(format t "nil previous ~a ~a~%" instruction previous)
-              (setf i (instruction-index previous)
-                    (fill-pointer (fragments stream)) (index previous)
-                    previous nil
-                    force t))
+             (setf index (instruction-index section)
+                   (fill-pointer (fragments stream)) (fragment-index section)))
+            (last-maybe-break
+             (setf index (instruction-index last-maybe-break)
+                   (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
+                   last-maybe-break nil
+                   margin-release-p t))
             (t
-              #+(or)(format t "nil ~a~%" instruction)
-              (setf force t)))))
+             (setf margin-release-p t)))))
       (go repeat)))
   (setf (fill-pointer (instructions stream)) 0))
 
@@ -324,9 +301,9 @@
                   :end end)
     (incf (column stream) (text-width client stream text))))
 
-(defgeneric layout (client stream instruction single-line force))
+(defgeneric layout (client stream instruction single-line-p margin-release-p))
 
-(defun layout-arrange-text (client stream instruction single-line force line column text)
+(defun layout-arrange-text (client stream instruction single-line-p margin-release-p line column text)
   (let ((new-break-column (break-column instruction))
         (new-column (column instruction))
         (new-line (line instruction))
@@ -341,7 +318,7 @@
     (unless (zerop break-width)
       (setf new-break-column (+ new-column break-width)))
     (incf new-column width)
-    (when (or force
+    (when (or margin-release-p
               (>= (right-margin client stream) new-break-column))
       (setf (break-column instruction) new-break-column
             (column instruction) new-column
@@ -350,15 +327,15 @@
                           (fragments stream))
       t)))
 
-(defmethod layout (client stream (instruction text) single-line force)
-  (layout-arrange-text client stream instruction single-line force nil nil (value instruction)))
+(defmethod layout (client stream (instruction text) single-line-p margin-release-p)
+  (layout-arrange-text client stream instruction single-line-p margin-release-p nil nil (value instruction)))
 
-(defmethod layout (client stream (instruction tab) single-line force)
+(defmethod layout (client stream (instruction tab) single-line-p margin-release-p)
   (with-accessors ((column column)
                    (colnum colnum)
                    (colinc colinc))
                   instruction
-    (layout-arrange-text client stream instruction single-line force nil
+    (layout-arrange-text client stream instruction single-line-p margin-release-p nil
                          (cond
                            ((< column colnum)
                              colnum)
@@ -369,37 +346,37 @@
                                           colinc)))))
                          nil)))
 
-(defmethod layout (client stream (instruction newline) single-line force)
+(defmethod layout (client stream (instruction newline) single-line-p margin-release-p)
   (cond
-    ((and single-line
+    ((and single-line-p
           (or (mandatory-kind-p (kind instruction))
               (and (miser-kind-p (kind instruction))
                    (miser-p client stream))))
       nil)
-    ((and (not force)
-          single-line)
+    ((and (not margin-release-p)
+          single-line-p)
       t)
-    ((and (not force)
+    ((and (not margin-release-p)
           (or (fill-kind-p (kind instruction))
               (and (miser-kind-p (kind instruction))
                    (not (miser-p client stream)))))
       :maybe-break)
     (t
-      (layout-arrange-text client stream instruction single-line force
+      (layout-arrange-text client stream instruction single-line-p margin-release-p
                            (1+ (line instruction)) 0 nil)
       (unless (or (null (parent instruction))
                   (literal-kind-p (kind instruction)))
         (map nil (lambda (fragment)
                    (vector-push-extend fragment (fragments stream)))
              (prefix-fragments (parent instruction)))
-        (layout-arrange-text client stream instruction single-line force
+        (layout-arrange-text client stream instruction single-line-p margin-release-p
                              nil
                              (+ (start-column (parent instruction))
                                 (indent (parent instruction)))
                              nil))
       :break)))
 
-(defmethod layout (client stream (instruction indent) single-line force)
+(defmethod layout (client stream (instruction indent) single-line-p margin-release-p)
   (setf (indent (parent instruction))
         (ecase (kind instruction)
           (:block
@@ -410,7 +387,7 @@
                (- (start-column (parent instruction)))))))
   t)
 
-(defmethod layout (client stream (instruction block-start) single-line force)
+(defmethod layout (client stream (instruction block-start) single-line-p margin-release-p)
   (let* ((column (column instruction))
          (start-column (+ column
                           (text-width client stream
@@ -436,12 +413,12 @@
         (setf (prefix-fragments instruction)
               (make-array 1 :element-type 'fragment
                           :initial-element (make-instance 'fragment :column column :text per-line-prefix)))))
-    (layout-arrange-text client stream instruction single-line force nil nil
+    (layout-arrange-text client stream instruction single-line-p margin-release-p nil nil
                          (or (per-line-prefix instruction)
                              (prefix instruction)))))
 
-(defmethod layout (client stream (instruction block-end) single-line force)
-  (layout-arrange-text client stream instruction single-line force nil nil (suffix instruction)))
+(defmethod layout (client stream (instruction block-end) single-line-p margin-release-p)
+  (layout-arrange-text client stream instruction single-line-p margin-release-p nil nil (suffix instruction)))
 
 (defmethod pprint-newline (client kind (stream pretty-stream))
   (with-accessors ((instructions instructions))

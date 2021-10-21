@@ -109,6 +109,47 @@ HIJKL"
         (inravina:pprint-block inravina:*client* stream
                                '(block fubar1 (wibble 1) (quux 2)) t nil))))
 
+(define-test pprint-function-call.1
+  (is equal
+      "(FU 1 2 3 :BAR 1 :WIBBLE 2)"
+      (with-env (stream :right-margin 80)
+        (inravina:pprint-function-call inravina:*client* stream
+                                       '(fu 1 2 3 :bar 1 :wibble 2) t))))
+
+(define-test pprint-function-call.2
+  (is equal
+      "(FU 1 2 3 :BAR
+    1 :WIBBLE
+    2)"
+      (with-env (stream :right-margin 14)
+        (inravina:pprint-function-call inravina:*client* stream
+                                       '(fu 1 2 3 :bar 1 :wibble 2) t))))
+
+(define-test pprint-function-call.3
+  (is equal
+      "(FU 1 2 3
+    :BAR 1
+    :WIBBLE 2)"
+      (with-env (stream :right-margin 14)
+        (inravina:pprint-function-call inravina:*client* stream
+                                       '(fu 1 2 3 :bar 1 :wibble 2) t nil 3))))
+
+(define-test pprint-let.1
+  (is equal
+      "(LET ((FU 1) (BAR 2)) (+ FU BAR))"
+      (with-env (stream :right-margin 80)
+        (inravina:pprint-let inravina:*client* stream
+                             '(let ((fu 1) (bar 2)) (+ fu bar)) t))))
+
+(define-test pprint-let.2
+  (is equal
+      "(LET ((FU 1)
+      (BAR 2))
+  (+ FU BAR))"
+      (with-env (stream :right-margin 14)
+        (inravina:pprint-let inravina:*client* stream
+                             '(let ((fu 1) (bar 2)) (+ fu bar)) t))))
+
 (define-test pprint-tagbody.1
   (is equal
       "(TAGBODY
