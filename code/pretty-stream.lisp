@@ -175,11 +175,11 @@
    (fragments
     :initform (make-array 32 :adjustable t :fill-pointer 0
                              :initial-element nil :element-type '(or null fragment))
-    :accessor fragments)
+    :reader fragments)
    (instructions
     :initform (make-array 32 :adjustable t :fill-pointer 0
                              :initial-element nil :element-type '(or null instruction))
-    :accessor instructions)
+    :reader instructions)
    (blocks
     :initform nil
     :accessor blocks

@@ -109,6 +109,35 @@ HIJKL"
         (inravina:pprint-block inravina:*client* stream
                                '(block fubar1 (wibble 1) (quux 2)) t nil))))
 
+(define-test pprint-do.1
+  (is equal
+      "(DO ((FU 1 (INCF FU)) (BAR 2)) ((= FU 10) BAR) QUUX (INCF BAR FU))"
+      (with-env (stream :right-margin 80)
+        (inravina:pprint-do inravina:*client* stream
+                            '(do ((fu 1 (incf fu)) (bar 2)) ((= fu 10) bar) quux (incf bar fu)) t))))
+
+(define-test pprint-do.2
+  (is equal
+      "(DO ((FU 1 (INCF FU))
+     (BAR 2))
+    ((= FU 10) BAR)
+ QUUX
+  (INCF BAR FU))"
+      (with-env (stream :right-margin 21)
+        (inravina:pprint-do inravina:*client* stream
+                            '(do ((fu 1 (incf fu)) (bar 2)) ((= fu 10) bar) quux (incf bar fu)) t))))
+
+(define-test pprint-do.3
+  (is equal
+      "(DO* ((FU 1 (INCF FU))
+      (BAR 2))
+     ((= FU 10) BAR)
+ QUUX
+  (INCF BAR FU))"
+      (with-env (stream :right-margin 22)
+        (inravina:pprint-do inravina:*client* stream
+                            '(do* ((fu 1 (incf fu)) (bar 2)) ((= fu 10) bar) quux (incf bar fu)) t))))
+
 (define-test pprint-function-call.1
   (is equal
       "(FU 1 2 3 :BAR 1 :WIBBLE 2)"
@@ -134,6 +163,19 @@ HIJKL"
         (inravina:pprint-function-call inravina:*client* stream
                                        '(fu 1 2 3 :bar 1 :wibble 2) t nil 3))))
 
+(define-test pprint-eval-when
+  (let ((form '(eval-when (:fu :bar :quux) (wibble 1))))
+    (is equal
+        "(EVAL-WHEN (:FU :BAR :QUUX) (WIBBLE 1))"
+        (with-env (stream :right-margin 80)
+          (inravina:pprint-eval-when inravina:*client* stream form t)))
+    (is equal
+        "(EVAL-WHEN (:FU :BAR
+            :QUUX)
+  (WIBBLE 1))"
+        (with-env (stream :right-margin 20)
+          (inravina:pprint-eval-when inravina:*client* stream form t)))))
+
 (define-test pprint-let.1
   (is equal
       "(LET ((FU 1) (BAR 2)) (+ FU BAR))"
@@ -149,6 +191,28 @@ HIJKL"
       (with-env (stream :right-margin 14)
         (inravina:pprint-let inravina:*client* stream
                              '(let ((fu 1) (bar 2)) (+ fu bar)) t))))
+
+(define-test pprint-let.3
+  (is equal
+      "(LET* ((FU 1)
+       (BAR 2))
+  (+ FU BAR))"
+      (with-env (stream :right-margin 15)
+        (inravina:pprint-let inravina:*client* stream
+                             '(let* ((fu 1) (bar 2)) (+ fu bar)) t))))
+
+(define-test pprint-progn
+  (let ((form '(progn (+ fu bar) bar)))
+    (is equal
+        "(PROGN (+ FU BAR) BAR)"
+        (with-env (stream :right-margin 80)
+          (inravina:pprint-progn inravina:*client* stream form t)))
+    (is equal
+        "(PROGN
+  (+ FU BAR)
+  BAR)"
+        (with-env (stream :right-margin 11)
+          (inravina:pprint-progn inravina:*client* stream form t)))))
 
 (define-test pprint-tagbody.1
   (is equal
