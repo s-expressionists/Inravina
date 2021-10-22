@@ -24,6 +24,21 @@
   (and (member kind '(:literal-fill :literal-linear :literal-mandatory :literal-miser))
        t))
 
+(deftype tab-kind ()
+  `(member :line :line-relative :section :section-relative))
+
+(defun line-kind-p (kind)
+  (and (member kind '(:line :line-relative))
+       t))
+
+(defun section-kind-p (kind)
+  (and (member kind '(:section :section-relative))
+       t))
+
+(defun relative-kind-p (kind)
+  (and (member kind '(:line-relative :section-relative))
+       t))
+
 (defmacro pprint-logical-block ((client stream-symbol object &key
                                  (prefix nil prefix-p)
                                  (per-line-prefix nil per-line-prefix-p)

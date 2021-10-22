@@ -83,7 +83,7 @@
   ((kind
     :initarg :kind
     :reader kind
-    :type (member :line :line-relative :section :section-relative))
+    :type tab-kind)
    (colnum
     :initarg :colnum
     :reader colnum
@@ -343,21 +343,31 @@
 (defmethod layout (client stream (instruction text) allow-break-p margin-release-p)
   (layout-arrange-text client stream instruction allow-break-p margin-release-p nil nil (value instruction)))
 
+(defun compute-tab-size (column colnum colinc)
+  (cond ((< column colnum)
+         colnum)
+        ((zerop colinc)
+         0)
+        (t
+         (+ colnum
+            (* colinc
+               (floor (+ column (- colnum) colinc)
+                      colinc))))))
+
 (defmethod layout (client stream (instruction tab) allow-break-p margin-release-p)
-  (with-accessors ((column column)
-                   (colnum colnum)
-                   (colinc colinc))
-                  instruction
+  (let* ((section-column (if (section-kind-p (kind instruction))
+                             (section-column (parent instruction))
+                             0))
+         (column (- (column instruction) section-column)))
     (layout-arrange-text client stream instruction allow-break-p margin-release-p nil
-                         (cond
-                           ((< column colnum)
-                            colnum)
-                           ((not (zerop (colinc instruction)))
-                            (+ colnum
-                               (* colinc
-                                  (floor (+ column (- colnum) colinc)
-                                         colinc)))))
-                         nil)))
+                         (+ section-column
+                            (compute-tab-size column
+                                              (if (relative-kind-p (kind instruction))
+                                                  (+ column (colnum instruction))
+                                                  (colnum instruction))
+                                              (colinc instruction)))
+                         nil)
+    nil))
 
 (defmethod layout (client stream (instruction newline) allow-break-p margin-release-p)
   (cond
