@@ -62,17 +62,17 @@
                          -1 new-table)
     new-table))
 
-(defmethod pprint-dispatch (client object (table dispatch-table))
+(defmethod pprint-dispatch (client (table dispatch-table) object)
   (dolist (entry (dispatch-table-entries table) (values nil nil))
     (when (funcall (dispatch-entry-test-function entry) object)
       (return (values (dispatch-entry-function entry) t)))))
 
-(defmethod set-pprint-dispatch (client type-specifier (function (eql nil)) priority (table dispatch-table))
+(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
   (setf (dispatch-table-entries table)
         (delete type-specifier (dispatch-table-entries table) :test #'equal))
   nil)
 
-(defmethod set-pprint-dispatch (client type-specifier function priority (table dispatch-table))
+(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
   (let ((entry (find type-specifier (dispatch-table-entries table)
                      :test #'equal :key #'dispatch-entry-type-specifier))
         (wrapped-function (lambda (stream object &aux (*client* client))

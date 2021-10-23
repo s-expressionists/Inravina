@@ -456,7 +456,7 @@
 (defmethod layout (client stream (instruction block-end) previous-instruction allow-break-p margin-release-p)
   (layout-arrange-text client stream instruction previous-instruction allow-break-p margin-release-p nil nil (suffix instruction)))
 
-(defmethod pprint-newline (client kind (stream pretty-stream))
+(defmethod pprint-newline (client (stream pretty-stream) kind)
   (with-accessors ((instructions instructions)
                    (sections sections))
                   stream
@@ -486,7 +486,7 @@
       (vector-push-extend newline instructions)
       (process-instructions stream))))
 
-(defmethod pprint-tab (client kind colnum colinc (stream pretty-stream))
+(defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
   (vector-push-extend (make-instance 'tab
                                      :kind kind :colnum colnum :colinc colinc
                                      :section (car (sections stream))
@@ -494,7 +494,7 @@
                                      :parent (car (blocks stream)))
                       (instructions stream)))
 
-(defmethod pprint-indent (client relative-to n (stream pretty-stream))
+(defmethod pprint-indent (client (stream pretty-stream) relative-to n)
   (vector-push-extend (make-instance 'indent
                                      :kind relative-to :width n
                                      :section (car (sections stream))
@@ -507,7 +507,7 @@
 
 (defmethod trivial-gray-streams:stream-write-char ((stream pretty-stream) char)
   (if (char= char #\newline)
-      (pprint-newline (client stream) :literal-mandatory stream)
+      (pprint-newline (client stream) stream :literal-mandatory)
       (pprint-text (client stream) stream char))
   char)
 
@@ -548,7 +548,7 @@
   (process-instructions stream))
 
 (defmethod trivial-gray-streams:stream-terpri ((stream pretty-stream))
-  (pprint-newline (client stream) :literal-mandatory stream))
+  (pprint-newline (client stream) stream :literal-mandatory))
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
   (column stream))

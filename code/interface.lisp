@@ -4,9 +4,9 @@
 
 (defgeneric copy-pprint-dispatch (client table))
 
-(defgeneric pprint-dispatch (client object table))
+(defgeneric pprint-dispatch (client table object))
 
-(defgeneric set-pprint-dispatch (client type-specifier function priority table))
+(defgeneric set-pprint-dispatch (client table type-specifier function priority))
 
 (defgeneric pprint-fill (client stream object &optional colon-p at-sign-p))
 
@@ -14,11 +14,11 @@
 
 (defgeneric pprint-tabular (client stream object &optional colon-p at-sign-p tabsize))
 
-(defgeneric pprint-indent (client relative-to n stream))
+(defgeneric pprint-indent (client stream relative-to n))
 
-(defgeneric pprint-newline (client kind stream))
+(defgeneric pprint-newline (client stream kind))
 
-(defgeneric pprint-tab (client kind colnum colinc stream))
+(defgeneric pprint-tab (client stream kind colnum colinc))
 
 (defgeneric pprint-split (client stream text &optional start end))
 
