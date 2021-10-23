@@ -33,5 +33,6 @@
         :components
           ((:file "packages")
            (:file "dispatch")
+           (:file "pprint-tab")
            (:file "pprint-list")))))))
          
