@@ -19,10 +19,12 @@
     #:client
     #:*client*
     #:copy-pprint-dispatch
+    #:pprint-argument-list
     #:pprint-bindings
     #:pprint-block
     #:pprint-dispatch
     #:pprint-do
+    #:pprint-dolist
     #:pprint-eval-when
     #:pprint-exit-if-list-exhausted
     #:pprint-fill
@@ -33,11 +35,14 @@
     #:pprint-logical-block
     #:pprint-newline
     #:pprint-pop
+    #:pprint-pprint-logical-block
     #:pprint-progn
     #:pprint-progv
     #:pprint-tab
     #:pprint-tabular
     #:pprint-tagbody
+    #:pprint-with-compilation-unit
+    #:pprint-with-hash-table-iterator
     ;#:*print-pprint-dispatch*
     #:set-pprint-dispatch))
 

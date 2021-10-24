@@ -1,5 +1,7 @@
 (in-package #:inravina)
 
+(defconstant +default-dispatch-priority+ -1)
+
 (defclass dispatch-entry ()
   ((type-specifier
      :accessor dispatch-entry-type-specifier
@@ -38,28 +40,78 @@
            print-unreadable-object prog1 return-from throw
            unless unwind-protect when))
 
+(deftype do-form ()
+  `(member do do*))
+
+(deftype dolist-form ()
+  `(member dolist do-symbols do-external-symbols
+           do-all-symbols dotimes))
+
 (deftype eval-when-form ()
   `(member defstruct eval-when multiple-value-setq))
 
-(deftype body-form-1-lambda-list ()
-  `(member with-compilation-unit cl:pprint-logical-block
-           print-unreadable-object with-hash-table-iterator
-           with-input-from-string with-open-file
-           with-open-stream with-output-to-string
+(deftype let-form ()
+  `(member let let*))
+
+(deftype with-hash-table-iterator-form () ; No keys
+  `(member with-hash-table-iterator with-open-stream
            with-package-iterator with-simple-restart))
+
+(deftype with-compilation-unit-form () ; Zero argument
+  `(member with-compilation-unit))
+
+(deftype pprint-logical-block-form () ; Two argumens
+  `(member pprint-logical-block print-unreadable-object
+           with-input-from-string with-open-file
+           with-output-to-string))
 
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
   (let ((new-table (make-instance 'dispatch-table)))
-    (set-pprint-dispatch client
+    (set-pprint-dispatch client new-table
                          '(cons block-form)
                          (lambda (stream object)
                            (pprint-block client stream object t))
-                         -1 new-table)
-    (set-pprint-dispatch client
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons do-form)
+                         (lambda (stream object)
+                           (pprint-do client stream object t))
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons dolist-form)
+                         (lambda (stream object)
+                           (pprint-dolist client stream object t))
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
                          '(cons eval-when-form)
                          (lambda (stream object)
                            (pprint-eval-when client stream object t))
-                         -1 new-table)
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons let-form)
+                         (lambda (stream object)
+                           (pprint-let client stream object t))
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons with-hash-table-iterator-form)
+                         (lambda (stream object)
+                           (pprint-with-hash-table-iterator client stream object t))
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons with-compilation-unit-form)
+                         (lambda (stream object)
+                           (pprint-with-compilation-unit client stream object t))
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons pprint-logical-block-form)
+                         (lambda (stream object)
+                           (pprint-pprint-logical-block client stream object t))
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons symbol)
+                         (lambda (stream object)
+                           (pprint-function-call client stream object t))
+                         (1- +default-dispatch-priority+))
     new-table))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)

@@ -13,7 +13,11 @@
       :components
         ((:file "packages")
          (:file "interface")
+         (:file "types")
          (:file "client")
+         (:file "logical-block")
+         (:file "list-printers")
+         (:file "form-printers")
          (:file "dispatch")
          (:file "pretty-stream")
          (:file "implementation")))))
