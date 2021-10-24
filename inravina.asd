@@ -36,7 +36,9 @@
         :serial t
         :components
           ((:file "packages")
+           (:file "utilities")
            (:file "dispatch")
            (:file "pprint-tab")
+           (:file "list-printers")
            (:file "pprint-list")))))))
          

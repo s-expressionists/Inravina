@@ -28,10 +28,12 @@
     #:pprint-eval-when
     #:pprint-exit-if-list-exhausted
     #:pprint-fill
+    #:pprint-fill-plist
     #:pprint-function-call
     #:pprint-indent
     #:pprint-let
     #:pprint-linear
+    #:pprint-linear-plist
     #:pprint-logical-block
     #:pprint-newline
     #:pprint-pop
@@ -40,6 +42,7 @@
     #:pprint-progv
     #:pprint-tab
     #:pprint-tabular
+    #:pprint-tabular-plist
     #:pprint-tagbody
     #:pprint-with-compilation-unit
     #:pprint-with-hash-table-iterator

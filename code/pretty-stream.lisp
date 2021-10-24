@@ -280,6 +280,11 @@
         for i below (length (fragments stream))
         for fragment = (aref (fragments stream) i)
         for text = (text fragment)
+        unless (and (not text)
+                    (not (line fragment))
+                    (or (not (column fragment))
+                        (and (< (1+ i) (length (fragments stream)))
+                             (null (text (aref (fragments stream) (1+ i)))))))
         do (write-text client stream
                        (line fragment) (column fragment) text
                        0 (when (and text
@@ -302,12 +307,12 @@
   (when column
     (loop while (< (column stream) column)
           do (write-char #\Space (target stream))
-          do (incf (column stream))))
+          do (incf (column stream) (text-width client stream #\Space))))
   (when text
     (write-string text (target stream)
                   :start start
                   :end end)
-    (incf (column stream) (text-width client stream text))))
+    (incf (column stream) (text-width client stream text start end))))
 
 (defgeneric layout (client stream instruction previous-instruction allow-break-p margin-release-p))
 
@@ -355,16 +360,22 @@
 (defmethod layout (client stream (instruction text) previous-instruction allow-break-p margin-release-p)
   (layout-arrange-text client stream instruction previous-instruction allow-break-p margin-release-p nil nil (value instruction)))
 
-(defun compute-tab-size (column colnum colinc)
-  (cond ((< column colnum)
+(defun compute-tab-size (column colnum colinc relativep)
+  (cond (relativep
+         (unless (<= colinc 1)
+           (let ((newposn (+ column colnum)))
+             (let ((rem (rem newposn colinc)))
+               (unless (zerop rem)
+                 (incf colnum (- colinc rem))))))
          colnum)
-        ((zerop colinc)
-         0)
+        ((< column colnum)
+         (- colnum column))
+        ((= column colnum)
+         colinc)
+        ((plusp colinc)
+         (- colinc (rem (- column colnum) colinc)))
         (t
-         (+ colnum
-            (* colinc
-               (floor (+ column (- colnum) colinc)
-                      colinc))))))
+         0)))
 
 (defmethod layout (client stream (instruction tab) previous-instruction allow-break-p margin-release-p)
   (let* ((section-column (if (and (section instruction)
@@ -374,11 +385,11 @@
          (column (- (column instruction) section-column)))
     (layout-arrange-text client stream instruction previous-instruction allow-break-p margin-release-p nil
                          (+ section-column
+                            column
                             (compute-tab-size column
-                                              (if (relative-kind-p (kind instruction))
-                                                  (+ column (colnum instruction))
-                                                  (colnum instruction))
-                                              (colinc instruction)))
+                                              (colnum instruction)
+                                              (colinc instruction)
+                                              (relative-kind-p (kind instruction))))
                          nil)))
 
 (defmethod layout (client stream (instruction newline) previous-instruction allow-break-p margin-release-p)

@@ -24,6 +24,12 @@
 
 (defgeneric pprint-text (client stream text &optional start end))
 
+(defgeneric pprint-fill-plist (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-linear-plist (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-tabular-plist (client stream object &optional colon-p at-sign-p tabsize))
+
 (defgeneric pprint-start-logical-block (client stream prefix per-line-prefix))
 
 (defgeneric pprint-end-logical-block (client stream suffix))

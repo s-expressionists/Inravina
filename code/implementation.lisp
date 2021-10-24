@@ -1,8 +1,17 @@
 (in-package #:inravina)
 
-(defmethod text-width (client stream text &optional start end)
+(defmethod text-width (client stream (text string) &optional start end)
+  (declare (ignore client stream))
   (- (or end (length text))
      (or start 0)))
+
+(defmethod text-width (client stream (text character) &optional start end)
+  (declare (ignore client stream start end))
+  1)
+
+(defmethod text-width (client stream (text (eql nil)) &optional start end)
+  (declare (ignore client stream start end))
+  0)
 
 (defmethod break-position (client stream text)
   (1+ (or (position-if (lambda (ch)
