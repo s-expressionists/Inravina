@@ -166,3 +166,42 @@
         (inravina:pprint-tagbody inravina:*client* stream
                                  '(tagbody fu (wibble 1) bar (quux 2)) t nil))))
 
+(define-test pprint-argument-list
+  (let ((form '(1 2 3 :fu 1 :bar 2 :quux 3)))
+    (is equal
+        "(1 2 3 :FU 1 :BAR 2 :QUUX 3)"
+        (with-env (stream :right-margin 80)
+          (inravina:pprint-argument-list inravina:*client* stream form t nil nil)))
+    (is equal
+        "(1 2 3 :FU
+ 1 :BAR 2
+ :QUUX 3)"
+        (with-env (stream :right-margin 10)
+          (inravina:pprint-argument-list inravina:*client* stream form t nil nil)))
+    (is equal
+        "(1 2 3
+ :FU 1
+ :BAR 2
+ :QUUX 3)"
+        (with-env (stream :right-margin 10)
+          (inravina:pprint-argument-list inravina:*client* stream form t nil 3)))
+    (is equal
+        "(1 2 3 :FU 1
+ :BAR 2 :QUUX 3)"
+        (with-env (stream :right-margin 16)
+          (inravina:pprint-argument-list inravina:*client* stream form t nil 3)))))
+
+(define-test pprint-with-hash-table-iterator
+  (let ((form '(fu (bar quux wibble) quux gronk)))
+    (is equal
+        "(FU (BAR QUUX WIBBLE) QUUX GRONK)"
+        (with-env (stream :right-margin 80)
+          (inravina:pprint-with-hash-table-iterator inravina:*client* stream form t nil)))
+    (is equal
+        "(FU (BAR QUUX
+     WIBBLE)
+  QUUX
+  GRONK)"
+        (with-env (stream :right-margin 13)
+          (inravina:pprint-with-hash-table-iterator inravina:*client* stream form t nil)))))
+

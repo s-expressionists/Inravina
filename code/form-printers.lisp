@@ -112,7 +112,7 @@
     (pprint-indent client stream :block 3)
     (write-char #\Space stream)
     (pprint-newline client stream :miser)
-    (pprint-argument-list client stream object colon-p at-sign-p nil)))
+    (pprint-argument-list client stream (pprint-pop) colon-p at-sign-p nil)))
 
 (defmethod pprint-with-compilation-unit (client stream object &optional colon-p at-sign-p)
   (pprint-body-form (client stream object colon-p at-sign-p)
@@ -122,7 +122,7 @@
     (pprint-indent client stream :block 3)
     (write-char #\Space stream)
     (pprint-newline client stream :miser)
-    (pprint-argument-list client stream object colon-p at-sign-p 0)))
+    (pprint-argument-list client stream (pprint-pop) colon-p at-sign-p 0)))
 
 (defmethod pprint-pprint-logical-block (client stream object &optional colon-p at-sign-p)
   (pprint-body-form (client stream object colon-p at-sign-p)
@@ -132,5 +132,5 @@
     (pprint-indent client stream :block 3)
     (write-char #\Space stream)
     (pprint-newline client stream :miser)
-    (pprint-argument-list client stream object colon-p at-sign-p 2)))
+    (pprint-argument-list client stream (pprint-pop) colon-p at-sign-p 2)))
 
