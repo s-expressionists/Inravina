@@ -1,5 +1,14 @@
 (in-package #:inravina)
 
+(defun pprint-pop-p (client stream object)
+  (declare (ignore client))
+  (cond ((listp object)
+         t)
+        (t
+         (write-string ". " stream)
+         (write object :stream stream)
+         nil)))
+
 (defun do-pprint-logical-block (client stream object prefix per-line-prefix suffix function)
   (let ((*client* client)
         (stream (make-pretty-stream client
@@ -42,7 +51,10 @@
                                                '(unless ,object-var
                                                   (return-from ,tag-name)))
                                              (pprint-pop ()
-                                               '(pop ,object-var)))
+                                               '(progn
+                                                  (unless (pprint-pop-p ,client ,stream-var ,object-var)
+                                                    (return-from ,tag-name))
+                                                  (pop ,object-var))))
                                     ,@body))))))
 
 (defmacro pprint-exit-if-list-exhausted ()
