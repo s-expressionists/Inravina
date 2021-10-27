@@ -262,8 +262,9 @@
                   section nil
                   (fill-pointer (fragments stream)) (fragment-index (aref instructions 0))))
            (section
-            (setf index (instruction-index section)
-                  (fill-pointer (fragments stream)) (fragment-index section)))
+            (setf index (1+ (instruction-index section))
+                  section nil
+                  (fill-pointer (fragments stream)) (fragment-index (aref instructions index))))
            (last-maybe-break
             (setf index (instruction-index last-maybe-break)
                   (fill-pointer (fragments stream)) (fragment-index last-maybe-break)

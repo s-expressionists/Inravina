@@ -134,3 +134,64 @@
     (pprint-newline client stream :miser)
     (pprint-argument-list client stream (pprint-pop) colon-p at-sign-p 2)))
 
+(defmethod pprint-lambda-list (client stream object &optional colon-p at-sign-p)
+  (pprint-format-logical-block (client stream object colon-p at-sign-p)
+    (let ((state :required)
+          (first t)
+          (group nil))
+      (loop (pprint-exit-if-list-exhausted)
+            (unless first
+              (write-char #\Space stream))
+            (when group
+              (pprint-indent client stream :current 0)
+              (setf group nil))
+            (let ((arg (pprint-pop)))
+              (unless first
+                (case arg
+                  (&optional
+                   (setf state :optional
+                         group t)
+                   (pprint-indent client stream :block 0)
+                   (pprint-newline client stream :linear))
+                  ((&rest &body)
+                   (setf state :required
+                         group t)
+                   (pprint-indent client stream :block 0)
+                   (pprint-newline client stream :linear))
+                  (&key
+                   (setf state :key
+                         group t)
+                   (pprint-indent client stream :block 0)
+                   (pprint-newline client stream :linear))
+                  (&aux
+                   (setf state :optional
+                         group t)
+                   (pprint-indent client stream :block 0)
+                   (pprint-newline client stream :linear))
+                  (otherwise
+                   (pprint-newline client stream :fill))))
+              (ecase state
+                (:required
+                 (pprint-lambda-list client stream arg colon-p at-sign-p))
+                ((:optional :key)
+                 (pprint-format-logical-block (client stream arg colon-p at-sign-p)
+                   (pprint-exit-if-list-exhausted)
+                   (if (eq state :key)
+                       (pprint-format-logical-block (client stream (pprint-pop) colon-p at-sign-p)
+                         (pprint-exit-if-list-exhausted)
+                         (write (pprint-pop) :stream stream)
+                         (pprint-exit-if-list-exhausted)
+                         (write-char #\Space stream)
+                         (pprint-newline client stream :fill)
+                         (pprint-lambda-list stream (pprint-pop) colon-p at-sign-p)
+                         (loop (pprint-exit-if-list-exhausted)
+                               (write-char #\Space stream)
+                               (pprint-newline client stream :fill)
+                               (write (pprint-pop) :stream stream)))
+                       (pprint-lambda-list client stream (pprint-pop) colon-p at-sign-p))
+                   (loop (pprint-exit-if-list-exhausted)
+                         (write-char #\Space stream)
+                         (pprint-newline client stream :linear)
+                         (write (pprint-pop) :stream stream))))))
+            (setf first nil)))))
+

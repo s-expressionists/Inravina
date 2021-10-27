@@ -31,6 +31,7 @@
     #:pprint-fill-plist
     #:pprint-function-call
     #:pprint-indent
+    #:pprint-lambda-list
     #:pprint-let
     #:pprint-linear
     #:pprint-linear-plist

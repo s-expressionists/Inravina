@@ -76,3 +76,5 @@
 
 (defgeneric pprint-pprint-logical-block (client stream object &optional colon-p at-sign-p))
 
+(defgeneric pprint-lambda-list (client stream object &optional colon-p at-sign-p))
+

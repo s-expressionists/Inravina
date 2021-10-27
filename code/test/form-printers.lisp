@@ -205,3 +205,34 @@
         (with-env (stream :right-margin 13)
           (inravina:pprint-with-hash-table-iterator inravina:*client* stream form t nil)))))
 
+(define-test pprint-lambda-list
+  (let ((form '(x y z &key fu (bar nil bar-p) &aux a (b 4))))
+    (is equal
+        "(X Y Z &KEY FU (BAR NIL BAR-P) &AUX A (B 4))"
+        (with-env (stream :right-margin 80)
+          (inravina:pprint-lambda-list inravina:*client* stream form t nil)))
+    (is equal
+        "(X Y Z
+ &KEY FU (BAR NIL BAR-P)
+ &AUX A (B 4))"
+        (with-env (stream :right-margin 40)
+          (inravina:pprint-lambda-list inravina:*client* stream form t nil)))
+    (is equal
+        "(X Y Z
+ &KEY FU (BAR
+          NIL
+          BAR-P)
+ &AUX A (B 4))"
+        (with-env (stream :right-margin 20)
+          (inravina:pprint-lambda-list inravina:*client* stream form t nil)))
+    (is equal
+        "(X Y Z
+ &KEY FU
+      (BAR
+       NIL
+       BAR-P)
+ &AUX A (B
+         4))"
+        (with-env (stream :right-margin 12)
+          (inravina:pprint-lambda-list inravina:*client* stream form t nil)))))
+
