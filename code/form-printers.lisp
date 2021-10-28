@@ -21,7 +21,6 @@
     (write (pprint-pop) :stream stream)))
 
 (defmethod pprint-defun (client stream object &optional colon-p at-sign-p)
-  (declare (ignore at-sign-p))
   (pprint-body-form (client stream object colon-p at-sign-p)
     (pprint-exit-if-list-exhausted)
     (write (pprint-pop) :stream stream)
@@ -99,7 +98,6 @@
     (write (pprint-pop) :stream stream)))
 
 (defmethod pprint-progv (client stream object &optional colon-p at-sign-p)
-  (declare (ignore at-sign-p))
   (pprint-body-form (client stream object colon-p at-sign-p)
     (pprint-exit-if-list-exhausted)
     (write (pprint-pop) :stream stream)
@@ -167,7 +165,6 @@
     (pprint-argument-list client stream (pprint-pop) t nil 2)))
 
 (defmethod pprint-lambda-list (client stream object &optional colon-p at-sign-p)
-  (declare (ignore at-sign-p))
   (pprint-format-logical-block (client stream object colon-p at-sign-p)
     (let ((state :required)
           (first t)

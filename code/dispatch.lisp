@@ -34,6 +34,22 @@
 (defmethod print-object ((table dispatch-table) stream)
   (print-unreadable-object (table stream :type t :identity t)))
 
+(defun simple-loop-form-p (form)
+  (and (listp form)
+       (eql (first form) 'loop)
+       (not (symbolp (second form)))))
+
+(deftype simple-loop-form ()
+  `(satisfies simple-loop-form-p))
+
+(defun extended-loop-form-p (form)
+  (and (listp form)
+       (eql (first form) 'loop)
+       (symbolp (second form))))
+
+(deftype extended-loop-form ()
+  `(satisfies extended-loop-form-p))
+
 (deftype block-form ()
   `(member block catch defconstant defparameter defvar
            multiple-value-call multiple-value-prog1
