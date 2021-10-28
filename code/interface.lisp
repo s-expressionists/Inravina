@@ -50,6 +50,8 @@
 
 (defgeneric pprint-block (client stream object &optional colon-p at-sign-p))
 
+(defgeneric pprint-defun (client stream object &optional colon-p at-sign-p))
+
 (defgeneric pprint-do (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-dolist (client stream object &optional colon-p at-sign-p))

@@ -257,12 +257,10 @@
          (incf index))
         (otherwise
          (cond
-           ((eq t section)
-            (setf index 0
-                  section nil
-                  (fill-pointer (fragments stream)) (fragment-index (aref instructions 0))))
            (section
-            (setf index (1+ (instruction-index section))
+            (setf index (if (eq t section)
+                            0
+                            (1+ (instruction-index section)))
                   section nil
                   (fill-pointer (fragments stream)) (fragment-index (aref instructions index))))
            (last-maybe-break

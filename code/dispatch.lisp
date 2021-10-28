@@ -60,10 +60,17 @@
 (deftype with-compilation-unit-form () ; Zero argument
   `(member with-compilation-unit))
 
-(deftype pprint-logical-block-form () ; Two argumens
+(deftype pprint-logical-block-form () ; Two arguments
   `(member pprint-logical-block print-unreadable-object
            with-input-from-string with-open-file
            with-output-to-string))
+
+(deftype defun-form ()
+  `(member define-modify-macro define-setf-expander
+           defmacro defsetf deftype defun))
+
+(deftype defmethod-form ()
+  `(member defmethod))
 
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
   (let ((new-table (make-instance 'dispatch-table)))
@@ -106,6 +113,16 @@
                          '(cons pprint-logical-block-form)
                          (lambda (stream object)
                            (pprint-pprint-logical-block client stream object t))
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons defun-form)
+                         (lambda (stream object)
+                           (pprint-defun client stream object t nil))
+                         +default-dispatch-priority+)
+    (set-pprint-dispatch client new-table
+                         '(cons defmethod-form)
+                         (lambda (stream object)
+                           (pprint-defun client stream object t t))
                          +default-dispatch-priority+)
     (set-pprint-dispatch client new-table
                          '(cons symbol)

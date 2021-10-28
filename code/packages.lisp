@@ -22,6 +22,7 @@
     #:pprint-argument-list
     #:pprint-bindings
     #:pprint-block
+    #:pprint-defun
     #:pprint-dispatch
     #:pprint-do
     #:pprint-dolist
