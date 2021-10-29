@@ -48,37 +48,39 @@
 
 (defgeneric right-margin (client stream))
 
-(defgeneric pprint-block (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-block (client stream object))
 
-(defgeneric pprint-defun (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-defun (client stream object))
 
-(defgeneric pprint-do (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-defmethod-with-qualifier (client stream object))
 
-(defgeneric pprint-dolist (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-do (client stream object))
 
-(defgeneric pprint-let (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-dolist (client stream object))
 
-(defgeneric pprint-bindings (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-let (client stream object))
 
-(defgeneric pprint-eval-when (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-bindings (client stream object))
 
-(defgeneric pprint-progn (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-eval-when (client stream object))
 
-(defgeneric pprint-progv (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-progn (client stream object))
 
-(defgeneric pprint-tagbody (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-progv (client stream object))
 
-(defgeneric pprint-function-call (client stream object &optional colon-p at-sign-p argument-count))
+(defgeneric pprint-tagbody (client stream object))
 
-(defgeneric pprint-argument-list (client stream object &optional colon-p at-sign-p argument-count))
+(defgeneric pprint-function-call (client stream object &optional argument-count))
 
-(defgeneric pprint-with-hash-table-iterator (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-argument-list (client stream object &optional argument-count))
 
-(defgeneric pprint-with-compilation-unit (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-with-hash-table-iterator (client stream object))
 
-(defgeneric pprint-pprint-logical-block (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-with-compilation-unit (client stream object))
 
-(defgeneric pprint-lambda-list (client stream object &optional colon-p at-sign-p))
+(defgeneric pprint-pprint-logical-block (client stream object))
+
+(defgeneric pprint-lambda-list (client stream object))
 
 (defgeneric pprint-extended-loop (client stream object))
 

@@ -23,10 +23,12 @@
     #:pprint-bindings
     #:pprint-block
     #:pprint-defun
+    #:pprint-defmethod-with-qualifier
     #:pprint-dispatch
     #:pprint-do
     #:pprint-dolist
     #:pprint-eval-when
+    #:pprint-extended-loop
     #:pprint-exit-if-list-exhausted
     #:pprint-fill
     #:pprint-fill-plist

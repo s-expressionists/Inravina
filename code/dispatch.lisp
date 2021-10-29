@@ -50,101 +50,125 @@
 (deftype extended-loop-form ()
   `(satisfies extended-loop-form-p))
 
+(defun block-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(block catch defconstant defparameter defvar
+                 multiple-value-call multiple-value-prog1
+                 print-unreadable-object prog1 return-from throw
+                 unless unwind-protect when))))
+
 (deftype block-form ()
-  `(member block catch defconstant defparameter defvar
-           multiple-value-call multiple-value-prog1
-           print-unreadable-object prog1 return-from throw
-           unless unwind-protect when))
+  `(satisfies block-form-p))
+
+(defun do-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(do do*))))
 
 (deftype do-form ()
-  `(member do do*))
+  `(satisfies do-form-p))
+
+(defun dolist-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(dolist do-symbols do-external-symbols
+                 do-all-symbols dotimes))))
 
 (deftype dolist-form ()
-  `(member dolist do-symbols do-external-symbols
-           do-all-symbols dotimes))
+  `(satisfies dolist-form-p))
+
+(defun eval-when-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(defstruct eval-when multiple-value-setq))))
 
 (deftype eval-when-form ()
-  `(member defstruct eval-when multiple-value-setq))
+  `(satisfies eval-when-form-p))
+
+(defun let-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(let let*))))
 
 (deftype let-form ()
-  `(member let let*))
+  `(satisfies let-form-p))
 
-(deftype with-hash-table-iterator-form () ; No keys
-  `(member with-hash-table-iterator with-open-stream
-           with-package-iterator with-simple-restart))
+(defun with-hash-table-iterator-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(with-hash-table-iterator with-open-stream
+                 with-package-iterator with-simple-restart))))
 
-(deftype with-compilation-unit-form () ; Zero argument
-  `(member with-compilation-unit))
+(deftype with-hash-table-iterator-form ()
+  `(satisfies with-hash-table-iterator-form-p))
 
-(deftype pprint-logical-block-form () ; Two arguments
-  `(member pprint-logical-block print-unreadable-object
-           with-input-from-string with-open-file
-           with-output-to-string))
+(defun with-compilation-unit-form-p (form)
+  (and (listp form)
+       (eql (first form) 'with-compilation-unit)))
+
+(deftype with-compilation-unit-form ()
+  `(satisfies with-compilation-unit-form-p))
+
+(defun pprint-logical-block-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(pprint-logical-block print-unreadable-object
+                 with-input-from-string with-open-file
+                 with-output-to-string))))
+
+(deftype pprint-logical-block-form ()
+  `(satisfies pprint-logical-block-form-p))
+
+(defun defun-form-p (form)
+  (and (listp form)
+       (or (member (first form)
+                   '(define-modify-macro define-setf-expander
+                     defmacro defsetf deftype defun))
+           (and (eql (first form) 'defmethod)
+                (listp (third form))))))
 
 (deftype defun-form ()
-  `(member define-modify-macro define-setf-expander
-           defmacro defsetf deftype defun))
+  `(satisfies defun-form-p))
 
-(deftype defmethod-form ()
-  `(member defmethod))
+(defun defmethod-with-qualifier-form-p (form)
+  (and (listp form)
+       (eql (first form) 'defmethod)
+       (not (listp (third form)))))
+
+(deftype defmethod-with-qualifier-form ()
+  `(satisfies defmethod-with-qualifier-form-p))
+
+(defun function-call-form-p (form)
+  (and form
+       (listp form)
+       (symbolp (first form))))
+
+(deftype function-call-form ()
+  `(satisfies function-call-form-p))
+
+(defvar +default-dispatch-entries+
+  '((block-form                    pprint-block                    -1)
+    (do-form                       pprint-do                       -1)
+    (dolist-form                   pprint-dolist                   -1)
+    (defun-form                    pprint-defun                    -1)
+    (defmethod-with-qualifier-form pprint-defmethod-with-qualifier -1)
+    (eval-when-form                pprint-eval-when                -1)
+    (let-form                      pprint-let                      -1)
+    (with-hash-table-iterator-form pprint-with-hash-table-iterator -1)
+    (with-compilation-unit-form    pprint-with-compilation-unit    -1)
+    (pprint-logical-block-form     pprint-pprint-logical-block     -1)
+    (extended-loop-form            pprint-extended-loop            -1)
+    (function-call-form            pprint-function-call            -2)))
 
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
   (let ((new-table (make-instance 'dispatch-table)))
-    (set-pprint-dispatch client new-table
-                         '(cons block-form)
-                         (lambda (stream object)
-                           (pprint-block client stream object t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons do-form)
-                         (lambda (stream object)
-                           (pprint-do client stream object t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons dolist-form)
-                         (lambda (stream object)
-                           (pprint-dolist client stream object t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons eval-when-form)
-                         (lambda (stream object)
-                           (pprint-eval-when client stream object t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons let-form)
-                         (lambda (stream object)
-                           (pprint-let client stream object t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons with-hash-table-iterator-form)
-                         (lambda (stream object)
-                           (pprint-with-hash-table-iterator client stream object t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons with-compilation-unit-form)
-                         (lambda (stream object)
-                           (pprint-with-compilation-unit client stream object t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons pprint-logical-block-form)
-                         (lambda (stream object)
-                           (pprint-pprint-logical-block client stream object t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons defun-form)
-                         (lambda (stream object)
-                           (pprint-defun client stream object t nil))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons defmethod-form)
-                         (lambda (stream object)
-                           (pprint-defun client stream object t t))
-                         +default-dispatch-priority+)
-    (set-pprint-dispatch client new-table
-                         '(cons symbol)
-                         (lambda (stream object)
-                           (pprint-function-call client stream object t))
-                         (1- +default-dispatch-priority+))
+    (loop for (type name priority) in +default-dispatch-entries+
+          do (set-pprint-dispatch client new-table
+                                  type
+                                  (lambda (stream object)
+                                    (funcall (fdefinition name) client stream object))
+                                  priority))
     new-table))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
