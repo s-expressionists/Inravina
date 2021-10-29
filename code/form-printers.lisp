@@ -225,3 +225,113 @@
                          (write (pprint-pop) :stream stream))))))
             (setf first nil)))))
 
+(defun top-level-clause-p (item)
+  (and (symbolp item)
+       (member item
+               '(named with initially finally for as while until repeat
+                 always never thereis)
+               :key #'symbol-name :test #'string=)))
+
+(defun conditional-clause-p (item)
+  (and (symbolp item)
+       (member item
+               '(if when unless else)
+               :key #'symbol-name :test #'string=)))
+
+(defun selectable-clause-p (item)
+  (and (symbolp item)
+       (member item
+               '(do doing if when unless else collect collecting append appending
+                 nconc nconcing count counting sum summing maximize maximizing
+                 minimize minimizing)
+               :key #'symbol-name :test #'string=)))
+
+(defun break-before-clause-p (item parent)
+  (and (symbolp parent)
+       (and (member parent
+                    '(do doing initially finally)
+                    :key #'symbol-name :test #'string=)
+            (listp item))))
+
+(defun break-after-clause-p (item parent)
+  (and (symbolp parent)
+       (and (member parent
+                    '(with)
+                    :key #'symbol-name :test #'string=)
+            (symbolp item)
+            (member item '(and) :key #'symbol-name :test #'string=))))
+
+(defun end-clause-p (item parent)
+  nil
+  #+(or)(and (symbolp parent)
+       (or (and (member parent
+                        '(do doing initially finally)
+                        :key #'symbol-name :test #'string=)
+                (listp item))
+           (and (member parent
+                        '(with)
+                        :key #'symbol-name :test #'string=)
+                (symbolp item)
+                (member item '(and) :key #'symbol-name :test #'string=)))))
+
+(defun block-indent-clause-p (item)
+  (and (symbolp item)
+       (member item
+               '(if when unless)
+               :key #'symbol-name :test #'string=)))
+
+(defun current-indent-clause-p (item)
+  (and (symbolp item)
+       (member item
+               '(with initially finally do doing)
+               :key #'symbol-name :test #'string=)))
+
+(defun allow-break-p (item)
+  (or (not (symbolp item))
+      (not (member item '(do doing finally initially)
+                   :key #'symbol-name :test #'string=))))
+
+(defmethod pprint-extended-loop (client stream object)
+  (pprint-format-logical-block (client stream object t nil)
+    (pprint-exit-if-list-exhausted)
+    (write (pprint-pop) :stream stream)
+    (pprint-exit-if-list-exhausted)
+    (write-char #\Space stream)
+    (pprint-indent client stream :current 0)
+    (let (allow-break-p clauses)
+      (flet ((do-break ()
+               (if allow-break-p
+                 (pprint-newline client stream :mandatory)
+                 (setf allow-break-p t)))
+             (end-all-clauses ()
+               (loop while clauses
+                     do (pop clauses)
+                        (pprint-end-logical-block client stream ""))))
+        (unwind-protect
+            (loop for item = (pprint-pop)
+                  when (end-clause-p item (car clauses))
+                    do (pop clauses)
+                       (pprint-end-logical-block client stream "")
+                  when (or (top-level-clause-p item)
+                           (and (not (conditional-clause-p (car clauses)))
+                                (selectable-clause-p item)))
+                    do (end-all-clauses)
+                  when (break-before-clause-p item (car clauses))
+                    do (do-break)
+                  when (or (top-level-clause-p item)
+                           (selectable-clause-p item))
+                    do (do-break)
+                       (pprint-start-logical-block client stream "" nil)
+                       (push item clauses)
+                  do (write item :stream stream)
+                     (pprint-exit-if-list-exhausted)
+                     (write-char #\Space stream)
+                  when (break-after-clause-p item (car clauses))
+                    do (do-break)
+                  when (block-indent-clause-p item)
+                    do (pprint-indent client stream :block 2)
+                  when (current-indent-clause-p item)
+                    do (setf allow-break-p (allow-break-p item))
+                       (pprint-indent client stream :current 0))
+          (end-all-clauses))))))
+          
