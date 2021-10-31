@@ -273,6 +273,12 @@
       (go repeat)))
   (setf (fill-pointer (instructions stream)) 0))
 
+(defun positioning-fragment (fragment &aux (text (text fragment)))
+  (and (or (line fragment)
+           (column fragment))
+       (or (null text)
+           (zerop (length text)))))
+
 (defun write-fragments (stream)
   (loop with client = (client stream)
         with fragments = (fragments stream)
@@ -283,12 +289,12 @@
                     (not (line fragment))
                     (or (not (column fragment))
                         (and (< (1+ i) (length (fragments stream)))
-                             (null (text (aref (fragments stream) (1+ i)))))))
+                             (positioning-fragment (aref (fragments stream) (1+ i))))))
         do (write-text client stream
                        (line fragment) (column fragment) text
                        0 (when (and text
                                     (< (1+ i) (length (fragments stream)))
-                                    (null (text (aref (fragments stream) (1+ i)))))
+                                    (positioning-fragment (aref (fragments stream) (1+ i))))
                            (break-position client stream text))))
   (setf (fill-pointer (fragments stream)) 0))
 
@@ -331,8 +337,14 @@
         (line instruction) (line previous-instruction)
         (fragment-index instruction) (length (fragments stream))))
 
-(defun layout-arrange-text (client stream instruction previous-instruction allow-break-p margin-release-p line column text)
+(defun layout-arrange-text (client stream instruction previous-instruction allow-break-p
+                            margin-release-p line column text)
   (declare (ignore allow-break-p previous-instruction))
+  (unless (or line
+              column
+              (and text
+                   (not (zerop (length text)))))
+    (return-from layout-arrange-text t))
   (let ((new-break-column (break-column instruction))
         (new-column (column instruction))
         (new-line (line instruction))

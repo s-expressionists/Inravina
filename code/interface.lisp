@@ -2,6 +2,18 @@
 
 ;(defvar *print-pprint-dispatch* nil)
 
+(defvar *options*
+  `(:loop-current-indent-clauses (:as :for :with :initially :finally :do :doing)
+    :loop-block-indent-clauses (:if :when :else :unless)
+    :loop-top-level-clauses (:always :as :finally :for :initially :named :never
+                             :repeat :thereis :until :while :with)
+    :loop-compound-clauses (:do :doing :finally :initially)
+    :loop-conditional-clauses (:if :when :unless :else)
+    :loop-selectable-clauses (:append :appending :collect :collecting :count
+                              :counting :do :doing :else :end :if :maximize :maximizing
+                              :minimize :minimizing :nconc :nconcing :sum :summing
+                              :unless :when)))
+
 (defgeneric copy-pprint-dispatch (client table))
 
 (defgeneric pprint-dispatch (client table object))

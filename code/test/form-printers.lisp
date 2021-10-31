@@ -236,3 +236,59 @@
         (with-env (stream :right-margin 12)
           (inravina:pprint-lambda-list inravina:*client* stream form)))))
 
+(define-test pprint-extended-loop
+  (let ((form '(loop named fu
+                     with bar
+                          and baz = 7
+                          and quux integer = 9
+                     initially (wibble 1)
+                               (gronk t)
+                     finally (wibble baz)
+                             (gronk bar)
+                     for i from 1
+                         and j below 20
+                     for k in '(a b c d)
+                     doing (zap k)
+                           (wibble z)
+                     collect z into q
+                     when (zerop bar)
+                       collect bar
+                       and do (zum bar)
+                              (zim bar)
+                     else when (never k)
+                       maximize k
+                     else
+                       minimize k
+                     end
+                     when (zero baz)
+                       do (something baz))))
+
+    (is equal
+"(LOOP NAMED FU
+      WITH BAR
+           AND BAZ = 7
+           AND QUUX INTEGER = 9
+      INITIALLY (WIBBLE 1)
+                (GRONK T)
+      FINALLY (WIBBLE BAZ)
+              (GRONK BAR)
+      FOR I FROM 1
+          AND J BELOW 20
+      FOR K IN '(A B C D)
+      DOING (ZAP K)
+            (WIBBLE Z)
+      COLLECT Z INTO Q
+      WHEN (ZEROP BAR)
+        COLLECT BAR
+        AND DO (ZUM BAR)
+               (ZIM BAR)
+      ELSE WHEN (NEVER K)
+        MAXIMIZE K
+      ELSE
+        MINIMIZE K
+      END
+      WHEN (ZERO BAZ)
+        DO (SOMETHING BAZ))"
+        (with-env (stream :right-margin 80)
+          (inravina:pprint-extended-loop inravina:*client* stream form)))))
+
