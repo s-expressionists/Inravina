@@ -1,7 +1,5 @@
 (in-package #:inravina)
 
-(defconstant +default-dispatch-priority+ -1)
-
 (defclass dispatch-entry ()
   ((type-specifier
      :accessor dispatch-entry-type-specifier
@@ -37,6 +35,7 @@
 (defun simple-loop-form-p (form)
   (and (listp form)
        (eql (first form) 'loop)
+       (cdr form)
        (not (symbolp (second form)))))
 
 (deftype simple-loop-form ()
@@ -45,6 +44,7 @@
 (defun extended-loop-form-p (form)
   (and (listp form)
        (eql (first form) 'loop)
+       (cdr form)
        (symbolp (second form))))
 
 (deftype extended-loop-form ()
@@ -148,26 +148,27 @@
   `(satisfies function-call-form-p))
 
 (defvar +default-dispatch-entries+
-  '((block-form                    pprint-block                    -1)
-    (do-form                       pprint-do                       -1)
-    (dolist-form                   pprint-dolist                   -1)
-    (defun-form                    pprint-defun                    -1)
-    (defmethod-with-qualifier-form pprint-defmethod-with-qualifier -1)
-    (eval-when-form                pprint-eval-when                -1)
-    (let-form                      pprint-let                      -1)
-    (with-hash-table-iterator-form pprint-with-hash-table-iterator -1)
-    (with-compilation-unit-form    pprint-with-compilation-unit    -1)
-    (pprint-logical-block-form     pprint-pprint-logical-block     -1)
-    (extended-loop-form            pprint-extended-loop            -1)
-    (function-call-form            pprint-function-call            -2)))
+  '((block-form                    -10 pprint-block)
+    (do-form                       -10 pprint-do)
+    (dolist-form                   -10 pprint-dolist)
+    (defun-form                    -10 pprint-defun)
+    (defmethod-with-qualifier-form -10 pprint-defmethod-with-qualifier)
+    (eval-when-form                -10 pprint-eval-when)
+    (let-form                      -10 pprint-let)
+    (with-hash-table-iterator-form -10 pprint-with-hash-table-iterator)
+    (with-compilation-unit-form    -10 pprint-with-compilation-unit)
+    (pprint-logical-block-form     -10 pprint-pprint-logical-block)
+    (extended-loop-form            -10 pprint-extended-loop)
+    (simple-loop-form              -10 pprint-simple-loop)
+    (function-call-form            -20 pprint-function-call)))
 
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
   (let ((new-table (make-instance 'dispatch-table)))
-    (loop for (type name priority) in +default-dispatch-entries+
+    (loop for (type priority name . rest) in +default-dispatch-entries+
           do (set-pprint-dispatch client new-table
                                   type
                                   (lambda (stream object)
-                                    (funcall (fdefinition name) client stream object))
+                                    (apply (fdefinition name) *client* stream object rest))
                                   priority))
     new-table))
 
@@ -194,22 +195,22 @@
                          ((third type-specifier)
                            (lambda (object)
                              (and (consp object)
-                                  (typep (car object) (second type-specifier))
-                                  (typep (car object) (third type-specifier)))))
+                                  (typep (first object) (second type-specifier))
+                                  (typep (second object) (third type-specifier)))))
                          (t
                            (lambda (object)
                              (and (consp object)
-                                  (typep (car object) (second type-specifier))))))))
+                                  (typep (first object) (second type-specifier))))))))
     (if entry
-      (setf (dispatch-entry-function entry) wrapped-function
+      (setf (dispatch-entry-function entry) function
             (dispatch-entry-test-function entry) test-function
             (dispatch-entry-priority entry) (or priority 0))
       (push (make-instance 'dispatch-entry
                            :type-specifier type-specifier
                            :test-function test-function
-                           :function wrapped-function
+                           :function function
                            :priority (or priority 0))
             (dispatch-table-entries table)))
     (setf (dispatch-table-entries table)
-          (sort (dispatch-table-entries table) #'> :key #'dispatch-entry-priority)))
+          (stable-sort (dispatch-table-entries table) #'> :key #'dispatch-entry-priority)))
   nil)
