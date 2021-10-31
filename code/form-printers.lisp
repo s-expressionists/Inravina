@@ -1,7 +1,7 @@
 (in-package #:inravina)
 
 (defmacro pprint-body-form ((client stream object) &body body)
-  `(pprint-linear-form (,client ,stream ,object t nil)
+  `(pprint-list (,client ,stream ,object :paren t :newline :linear)
      ,@body
      (pprint-exit-if-list-exhausted)
      (pprint-indent ,client ,stream :block 1)
@@ -9,7 +9,7 @@
      (pprint-newline ,client ,stream :linear)))
 
 (defmacro pprint-tagbody-form ((client stream object) &body body)
-  `(pprint-format-logical-block (,client ,stream ,object t nil)
+  `(pprint-format-logical-block (,client ,stream ,object :paren t)
      ,@body
      (pprint-exit-if-list-exhausted)
      (loop for form-or-tag = (pprint-pop)
@@ -21,7 +21,7 @@
               (pprint-exit-if-list-exhausted))))
 
 (defmacro pprint-function-call-form ((client stream object argument-count) &body body)
-  `(pprint-fill-plist-form (,client ,stream ,object t nil)
+  `(pprint-plist (,client ,stream ,object :paren t :newline :fill)
      ,@body
      (pprint-exit-if-list-exhausted)
      (loop for i below (or ,argument-count most-positive-fixnum)
@@ -31,7 +31,7 @@
               (pprint-newline ,client ,stream :fill))))
 
 (defmethod pprint-bindings (client stream object)
-  (pprint-format-logical-block (client stream object t nil)
+  (pprint-format-logical-block (client stream object :paren t)
     (pprint-exit-if-list-exhausted)
     (loop do (pprint-linear client stream (pprint-pop) t nil)
              (pprint-exit-if-list-exhausted)
@@ -191,7 +191,7 @@
     (pprint-argument-list client stream (pprint-pop) 2)))
 
 (defmethod pprint-lambda-list (client stream object)
-  (pprint-format-logical-block (client stream object t nil)
+  (pprint-format-logical-block (client stream object :paren t)
     (let ((state :required)
           (first t)
           (group nil))
@@ -230,10 +230,10 @@
                 (:required
                  (pprint-lambda-list client stream arg))
                 ((:optional :key)
-                 (pprint-format-logical-block (client stream arg t nil)
+                 (pprint-format-logical-block (client stream arg :paren t)
                    (pprint-exit-if-list-exhausted)
                    (if (eq state :key)
-                       (pprint-format-logical-block (client stream (pprint-pop) t nil)
+                       (pprint-format-logical-block (client stream (pprint-pop) :paren t)
                          (pprint-exit-if-list-exhausted)
                          (write (pprint-pop) :stream stream)
                          (pprint-exit-if-list-exhausted)
@@ -318,7 +318,7 @@
            (member parent '(:as :for :with)))))
 
 (defmethod pprint-extended-loop (client stream object)
-  (pprint-format-logical-block (client stream object t nil)
+  (pprint-format-logical-block (client stream object :paren t)
     (pprint-exit-if-list-exhausted)
     (write (pprint-pop) :stream stream)
     (pprint-exit-if-list-exhausted)
@@ -327,8 +327,8 @@
     (let (allow-break-p clauses)
       (flet ((do-newline ()
                (if allow-break-p
-                 (pprint-newline client stream :mandatory)
-                 (setf allow-break-p t)))
+                   (pprint-newline client stream :mandatory)
+                   (setf allow-break-p t)))
              (end-all-clauses ()
                (loop while clauses
                      do (pop clauses)
@@ -355,4 +355,11 @@
                     do (pprint-indent client stream :current 0)
                   do (setf allow-break-p (allow-break-p item parent)))
           (end-all-clauses))))))
-          
+
+(defmethod pprint-simple-loop (client stream object)
+  (pprint-list (client stream object :paren t :newline :mandatory)
+    (pprint-exit-if-list-exhausted)
+    (write (pprint-pop) :stream stream)
+    (pprint-exit-if-list-exhausted)
+    (write-char #\Space stream)
+    (pprint-indent client stream :current 0)))
