@@ -41,4 +41,18 @@
            (:file "pprint-tab")
            (:file "list-printers")
            (:file "form-printers")))))))
-         
+
+(asdf:defsystem #:inravina/intrinsic
+  :description "Inravina intrinsic"
+  :author "Tarn W. Burton"
+  :license "MIT"
+  :depends-on
+    (:inravina)
+  :components
+    ((:module code
+      :components
+      ((:module intrinsic
+        :serial t
+        :components
+          ((:file "packages")
+           (:file "print")))))))
