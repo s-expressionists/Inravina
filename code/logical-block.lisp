@@ -1,13 +1,17 @@
 (in-package #:inravina)
 
-(defun pprint-pop-p (client stream object)
+(defun pprint-pop-p (client stream object count)
   (declare (ignore client))
-  (cond ((listp object)
-         t)
-        (t
+  (cond ((not (listp object))
          (write-string ". " stream)
          (write object :stream stream)
-         nil)))
+         nil)
+        ((and (not *print-readably*)
+              (eql count *print-length*))
+         (write-string "..." stream)
+         nil)
+        ((listp object)
+         t)))
 
 (defun do-pprint-logical-block (client stream object prefix per-line-prefix suffix function)
   (let ((*client* client)
@@ -36,6 +40,7 @@
   (check-type stream-symbol symbol)
   (let ((tag-name (gensym))
         (object-var (gensym))
+        (count-var (gensym))
         (stream-var (cond ((null stream-symbol)
                            '*standard-output*)
                           ((eq t stream-symbol)
@@ -44,7 +49,7 @@
                            stream-symbol))))
     `(do-pprint-logical-block ,client ,stream-symbol ,object
                               ,prefix ,per-line-prefix ,suffix
-                              (lambda (,stream-var ,object-var)
+                              (lambda (,stream-var ,object-var &aux (,count-var 0))
                                 (declare (ignorable ,stream-var ,object-var))
                                 (block ,tag-name
                                   (macrolet ((pprint-exit-if-list-exhausted ()
@@ -52,8 +57,9 @@
                                                   (return-from ,tag-name)))
                                              (pprint-pop ()
                                                '(progn
-                                                  (unless (pprint-pop-p ,client ,stream-var ,object-var)
+                                                  (unless (pprint-pop-p ,client ,stream-var ,object-var ,count-var)
                                                     (return-from ,tag-name))
+                                                  (incf ,count-var)
                                                   (pop ,object-var))))
                                     ,@body))))))
 
