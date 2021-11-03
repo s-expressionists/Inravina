@@ -3,6 +3,8 @@
 \usepackage[utf8]{inputenc}
 \usepackage{hyperref}
 \usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
 
 \title{A Portable and Extensible Common Lisp Pretty Printer}
 \author{Tarn W. Burton}
@@ -42,9 +44,48 @@
 
 \section{Introduction}
 
-\section{Terminology}
+\section{Previous Work}
 
-\section{Conclusion and Future Work}
+% Define block styles
+\tikzstyle{block} = [rectangle, draw, text width=5em, text centered, minimum height=4em]
+\tikzstyle{line} = [draw, -latex']
+
+\begin{tikzpicture}[node distance = 2cm, auto]
+    % Place nodes
+    \node [block] (print) at (0,0) {\#print MacLisp 1977};
+    \node [block] (gprint) at (2.25,0) {Gprint MacLisp 1980};
+    \node [block] (gprint-s) at (4.5,-.75) {Gprint Symbolics 1982};
+    \node [block] (gprint-dec) at (4.5,.75) {Gprint DEC-CL 1983};
+    \node [block] (pp) at (0,-2.5) {PP Symbolics 1984};
+    \node [block] (pp-dec) at (2.25,-2.5) {PP\\ DEC-CL 1985};
+    \node [block] (xp) at (0,-5) {XP\\ CL\\ 1988};
+    \node [block] (xp-abcl) at (2.25,-4.25) {XP\\ ABCL\\ 2008};
+    \node [block] (xp-ccl) at (2.25,-5.75) {XP\\ CCL\\ 2008};
+    \node [block] (lott) at (0,-7.25) {Lott\\ CMUCL\\ 1991};
+    \node [block] (lott-ecl) at (2.25,-7.25) {Lott\\ ECL\\ 2004};
+    \node [block] (lott-clasp) at (4.5,-7.25) {Lott\\ CLASP\\ 2014};
+    \node [block] (lott-sbcl) at (0,-9) {Lott\\ SBCL\\ 1991};
+    \path [line] (print) -- (gprint);
+    \path [line] (gprint) -- (gprint-s);
+    \path [line] (gprint) -- (gprint-dec);
+    \path [line,dashed] (gprint-s) -- (pp);
+    \path [line] (pp) -- (pp-dec);
+    \path [line,dashed] (pp) -- (xp);
+    \path [line,dashed] (xp) -- (lott);
+    \path [line] (xp) -- (xp-ccl);
+    \path [line] (xp) -- (xp-abcl);
+    \path [line] (lott) -- (lott-ecl);
+    \path [line] (lott-ecl) -- (lott-clasp);
+    \path [line] (lott) -- (lott-sbcl);
+\end{tikzpicture}
+
+\section{Current Limitations}
+
+\section{Improved Methods}
+
+\section{Extensibility}
+
+\section{Conclusions and Future Work}
 
 \bibliographystyle{plainnat}
 \bibliography{main}
