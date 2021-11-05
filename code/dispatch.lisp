@@ -160,6 +160,7 @@
     (pprint-logical-block-form     -10 pprint-pprint-logical-block)
     (extended-loop-form            -10 pprint-extended-loop)
     (simple-loop-form              -10 pprint-simple-loop)
+    ((and array (not string))      -10 pprint-vector)
     (function-call-form            -20 pprint-function-call)))
 
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
@@ -173,9 +174,12 @@
     new-table))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
-  (dolist (entry (dispatch-table-entries table) (values nil nil))
-    (when (funcall (dispatch-entry-test-function entry) object)
-      (return (values (dispatch-entry-function entry) t)))))
+  (if (and (not *print-array*)
+           (arrayp object))
+      (values nil nil)
+      (dolist (entry (dispatch-table-entries table) (values nil nil))
+        (when (funcall (dispatch-entry-test-function entry) object)
+          (return (values (dispatch-entry-function entry) t))))))
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
   (setf (dispatch-table-entries table)

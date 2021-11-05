@@ -20,6 +20,7 @@
     #:*client*
     #:copy-pprint-dispatch
     #:*options*
+    #:pprint-array
     #:pprint-argument-list
     #:pprint-bindings
     #:pprint-block

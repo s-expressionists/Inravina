@@ -363,3 +363,35 @@
     (pprint-exit-if-list-exhausted)
     (write-char #\Space stream)
     (pprint-indent client stream :current 0)))
+
+(defmethod pprint-array (client stream (object vector))
+  (pprint-logical-block (client stream nil :prefix "#(" :suffix ")")
+    (dotimes (pos (length object))
+      (unless (zerop pos)
+        (write-char #\Space stream)
+        (pprint-newline client stream :fill))
+      (pprint-pop)
+      (write (aref object pos) :stream stream))))
+
+(defmethod pprint-array (client stream object)
+  (let ((stream (make-pretty-stream client stream)))
+    (labels ((pprint-subarray (index dimensions)
+               (pprint-logical-block (client stream nil :prefix (if (= (length dimensions)
+                                                                       (array-rank object))
+                                                                    (format nil "#~DA(" (array-rank object))
+                                                                    "(")
+                                                        :suffix ")")
+                 (loop with dimension = (car dimensions)
+                       with remaining-dimensions = (cdr dimensions)
+                       for pos below dimension
+                       for new-index = (+ pos (* index dimension))
+                       unless (zerop pos)
+                         do (write-char #\Space stream)
+                            (pprint-newline client stream :fill)
+                       do (pprint-pop)
+                       if remaining-dimensions
+                         do (pprint-subarray new-index remaining-dimensions)
+                       else
+                         do (write (row-major-aref object new-index) :stream stream)))))
+      (pprint-subarray 0 (array-dimensions object)))))
+

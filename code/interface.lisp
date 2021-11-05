@@ -98,3 +98,4 @@
 
 (defgeneric pprint-simple-loop (client stream object))
 
+(defgeneric pprint-array (client stream object))
