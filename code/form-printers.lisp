@@ -395,3 +395,20 @@
                          do (write (row-major-aref object new-index) :stream stream)))))
       (pprint-subarray 0 (array-dimensions object)))))
 
+(defmethod pprint-lambda (client stream object)
+  (pprint-body-form (client stream object)
+    (pprint-exit-if-list-exhausted)
+    (write (pprint-pop) :stream stream)
+    (pprint-exit-if-list-exhausted)
+    (write-char #\Space stream)
+    (pprint-newline client stream :fill)
+    (pprint-lambda-list client stream (pprint-pop))))
+
+(defmethod pprint-quote (client stream object)
+  (write-char #\' stream)
+  (write (car object) :stream stream))
+
+(defmethod pprint-function-quote (client stream object)
+  (write-string "#'" stream)
+  (write (car object) :stream stream))
+

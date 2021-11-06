@@ -94,8 +94,15 @@
 
 (defgeneric pprint-lambda-list (client stream object))
 
+(defgeneric pprint-lambda (client stream object))
+
 (defgeneric pprint-extended-loop (client stream object))
 
 (defgeneric pprint-simple-loop (client stream object))
 
 (defgeneric pprint-array (client stream object))
+
+(defgeneric pprint-quote (client stream object))
+
+(defgeneric pprint-function-quote (client stream object))
+

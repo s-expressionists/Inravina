@@ -147,6 +147,20 @@
 (deftype function-call-form ()
   `(satisfies function-call-form-p))
 
+(defun quote-form-p (form)
+  (and (listp form)
+       (eql (first form) 'quote)))
+
+(deftype quote-form ()
+  `(satisfies quote-form-p))
+
+(defun function-quote-form-p (form)
+  (and (listp form)
+       (eql (first form) 'function)))
+
+(deftype function-quote-form ()
+  `(satisfies function-quote-form-p))
+
 (defvar +default-dispatch-entries+
   '((block-form                    -10 pprint-block)
     (do-form                       -10 pprint-do)
@@ -159,8 +173,12 @@
     (with-compilation-unit-form    -10 pprint-with-compilation-unit)
     (pprint-logical-block-form     -10 pprint-pprint-logical-block)
     (extended-loop-form            -10 pprint-extended-loop)
+    (quote-form                    -10 pprint-quote)
+    (function-quote-form           -10 pprint-function-quote)
     (simple-loop-form              -10 pprint-simple-loop)
-    ((and array (not string))      -10 pprint-vector)
+    ((and array
+          (not string)
+          (not bit-vector))        -10 pprint-array)
     (function-call-form            -20 pprint-function-call)))
 
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))

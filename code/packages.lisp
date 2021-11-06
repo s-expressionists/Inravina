@@ -16,26 +16,28 @@
     ;"*PRINT-PPRINT-DISPATCH*"
     "SET-PPRINT-DISPATCH")
   (:export
-    #:client
     #:*client*
+    #:client
     #:copy-pprint-dispatch
     #:*options*
-    #:pprint-array
     #:pprint-argument-list
+    #:pprint-array
     #:pprint-bindings
     #:pprint-block
-    #:pprint-defun
     #:pprint-defmethod-with-qualifier
+    #:pprint-defun
     #:pprint-dispatch
     #:pprint-do
     #:pprint-dolist
     #:pprint-eval-when
-    #:pprint-extended-loop
     #:pprint-exit-if-list-exhausted
+    #:pprint-extended-loop
     #:pprint-fill
     #:pprint-fill-plist
     #:pprint-function-call
+    #:pprint-function-quote
     #:pprint-indent
+    #:pprint-lambda
     #:pprint-lambda-list
     #:pprint-let
     #:pprint-linear
@@ -46,6 +48,7 @@
     #:pprint-pprint-logical-block
     #:pprint-progn
     #:pprint-progv
+    #:pprint-quote
     #:pprint-simple-loop
     #:pprint-tab
     #:pprint-tabular
