@@ -13,12 +13,13 @@
     "PPRINT-POP"
     "PPRINT-TAB"
     "PPRINT-TABULAR"
-    ;"*PRINT-PPRINT-DISPATCH*"
+    "*PRINT-PPRINT-DISPATCH*"
     "SET-PPRINT-DISPATCH")
   (:export
     #:*client*
     #:client
     #:copy-pprint-dispatch
+    #:make-pretty-stream
     #:*options*
     #:pprint-argument-list
     #:pprint-array
@@ -56,6 +57,7 @@
     #:pprint-tagbody
     #:pprint-with-compilation-unit
     #:pprint-with-hash-table-iterator
-    ;#:*print-pprint-dispatch*
+    #:pretty-stream-p
+    #:*print-pprint-dispatch*
     #:set-pprint-dispatch))
 

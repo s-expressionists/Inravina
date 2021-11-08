@@ -152,7 +152,7 @@
         "(PROGN
   (+ FU BAR)
   BAR)"
-        (with-env (stream :right-margin 11)
+        (with-env (stream :right-margin 12)
           (inravina:pprint-progn inravina:*client* stream form)))))
 
 (define-test pprint-tagbody.1

@@ -39,4 +39,9 @@
       (go next))
     (pprint-text client stream text start end)))
 
+(defmethod write-object (client stream object)
+  (if *print-pretty*
+      (funcall (pprint-dispatch client *print-pprint-dispatch* object)
+               stream object)
+      (print-object object stream)))
 

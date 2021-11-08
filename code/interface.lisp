@@ -1,7 +1,5 @@
 (in-package #:inravina)
 
-;(defvar *print-pprint-dispatch* nil)
-
 (defvar *options*
   `(:loop-current-indent-clauses (:as :for :with :initially :finally :do :doing)
     :loop-block-indent-clauses (:if :when :else :unless)
@@ -16,9 +14,16 @@
 
 (defgeneric copy-pprint-dispatch (client table))
 
-(defgeneric pprint-dispatch (client table object))
+(defgeneric pprint-dispatch (client table object)
+  (:method (client table object)
+    (declare (ignore client table object))
+    (values (lambda (stream object)
+              (print-object object stream))
+            nil)))
 
 (defgeneric set-pprint-dispatch (client table type-specifier function priority))
+
+(defgeneric write-object (client stream object))
 
 (defgeneric pprint-fill (client stream object &optional colon-p at-sign-p))
 
@@ -26,9 +31,13 @@
 
 (defgeneric pprint-tabular (client stream object &optional colon-p at-sign-p tabsize))
 
-(defgeneric pprint-indent (client stream relative-to n))
+(defgeneric pprint-indent (client stream relative-to n)
+  (:method (client stream relative-to n)
+    (declare (ignore client stream relative-to n))))
 
-(defgeneric pprint-newline (client stream kind))
+(defgeneric pprint-newline (client stream kind)
+  (:method (client stream kind)
+    (declare (ignore client stream relative-to n))))
 
 (defgeneric pprint-tab (client stream kind colnum colinc))
 
@@ -47,6 +56,11 @@
 (defgeneric pprint-end-logical-block (client stream suffix))
 
 (defgeneric make-pretty-stream (client stream))
+
+(defgeneric pretty-stream-p (client stream)
+  (:method (client stream)
+    (declare (ignore client stream))
+    nil))
 
 (defgeneric text-width (client stream text &optional start end))
 

@@ -186,53 +186,61 @@
     (loop for (type priority name . rest) in +default-dispatch-entries+
           do (set-pprint-dispatch client new-table
                                   type
-                                  (lambda (stream object)
-                                    (apply (fdefinition name) *client* stream object rest))
+                                  (eval `(lambda (stream object)
+                                           (,name *client* stream object ,@rest)))
                                   priority))
     new-table))
+
+(defun default-dispatch-print (stream object)
+  (print-object object stream))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
   (if (and (not *print-array*)
            (arrayp object))
-      (values nil nil)
-      (dolist (entry (dispatch-table-entries table) (values nil nil))
+      (values #'default-dispatch-print nil)
+      (dolist (entry (dispatch-table-entries table) (values #'default-dispatch-print nil))
         (when (funcall (dispatch-entry-test-function entry) object)
-          (return (values (dispatch-entry-function entry) t))))))
+          (return (values (dispatch-entry-function entry) t (dispatch-entry-type-specifier entry)))))))
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
   (setf (dispatch-table-entries table)
         (delete type-specifier (dispatch-table-entries table) :test #'equal))
   nil)
 
+(defun make-test-function (type-specifier)
+  (cond ((or (not (listp type-specifier))
+             (not (equal 'cons (car type-specifier))))
+         (lambda (object)
+           (typep object type-specifier)))
+        ((third type-specifier)
+         (lambda (object)
+           (and (consp object)
+                (typep (first object) (second type-specifier))
+                (typep (second object) (third type-specifier)))))
+        (t
+         (lambda (object)
+           (and (consp object)
+                (typep (first object) (second type-specifier)))))))
+
+(defmethod initialize-instance :after ((instance dispatch-entry) &rest initargs &key &allow-other-keys)
+  (setf (dispatch-entry-test-function instance)
+        (make-test-function (dispatch-entry-type-specifier instance))))
+
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
   (let ((entry (find type-specifier (dispatch-table-entries table)
-                     :test #'equal :key #'dispatch-entry-type-specifier))
-        (wrapped-function (lambda (stream object &aux (*client* client))
-                            (funcall function stream object)))
-        (test-function (cond
-                         ((or (not (listp type-specifier))
-                              (not (equal 'cons (car type-specifier))))
-                           (lambda (object)
-                             (typep object type-specifier)))
-                         ((third type-specifier)
-                           (lambda (object)
-                             (and (consp object)
-                                  (typep (first object) (second type-specifier))
-                                  (typep (second object) (third type-specifier)))))
-                         (t
-                           (lambda (object)
-                             (and (consp object)
-                                  (typep (first object) (second type-specifier))))))))
+                     :test #'equal :key #'dispatch-entry-type-specifier)))
     (if entry
-      (setf (dispatch-entry-function entry) function
-            (dispatch-entry-test-function entry) test-function
-            (dispatch-entry-priority entry) (or priority 0))
-      (push (make-instance 'dispatch-entry
-                           :type-specifier type-specifier
-                           :test-function test-function
-                           :function function
-                           :priority (or priority 0))
-            (dispatch-table-entries table)))
+        (setf (dispatch-entry-function entry) function
+              (dispatch-entry-priority entry) (or priority 0))
+        (push (make-instance 'dispatch-entry
+                             :type-specifier type-specifier
+                             :function function
+                             :priority (or priority 0))
+              (dispatch-table-entries table)))
     (setf (dispatch-table-entries table)
           (stable-sort (dispatch-table-entries table) #'> :key #'dispatch-entry-priority)))
   nil)
+
+(defvar *print-pprint-dispatch* (copy-pprint-dispatch *client* nil))
+
+  
