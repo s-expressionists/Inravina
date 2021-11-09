@@ -4,7 +4,7 @@
   (declare (ignore client))
   (cond ((not (listp object))
          (write-string ". " stream)
-         (write-object client stream object)
+         (incless:write-object client stream object)
          nil)
         ((and (not *print-readably*)
               (eql count *print-length*))
@@ -28,7 +28,7 @@
                (funcall function stream object)
              (pprint-end-logical-block client stream suffix)))
           (t
-           (write-object client stream object)))))
+           (incless:write-object client stream object)))))
 
 (defmacro pprint-logical-block ((client stream-symbol object &key
                                  (prefix nil prefix-p)

@@ -192,7 +192,7 @@
     new-table))
 
 (defun default-dispatch-print (stream object)
-  (print-object object stream))
+  (incless:print-object-using-client *client* object stream))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
   (if (and (not *print-array*)

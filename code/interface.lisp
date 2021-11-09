@@ -23,8 +23,6 @@
 
 (defgeneric set-pprint-dispatch (client table type-specifier function priority))
 
-(defgeneric write-object (client stream object))
-
 (defgeneric pprint-fill (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-linear (client stream object &optional colon-p at-sign-p))
