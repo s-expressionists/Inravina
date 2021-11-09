@@ -1,10 +1,9 @@
 (in-package #:inravina)
 
 (defun pprint-pop-p (client stream object count)
-  (declare (ignore client))
   (cond ((not (listp object))
          (write-string ". " stream)
-         (incless:write-object client stream object)
+         (incless:write-object client object stream)
          nil)
         ((and (not *print-readably*)
               (eql count *print-length*))
@@ -28,7 +27,7 @@
                (funcall function stream object)
              (pprint-end-logical-block client stream suffix)))
           (t
-           (incless:write-object client stream object)))))
+           (incless:write-object client object stream)))))
 
 (defmacro pprint-logical-block ((client stream-symbol object &key
                                  (prefix nil prefix-p)

@@ -5,4 +5,8 @@
      (with-output-to-string (,stream)
        ,@body)))
 
+(setf incless:*client* inravina:*client*)
 
+(defmethod incless:print-object-using-client (client (object symbol) stream)
+  (declare (ignore client))
+  (print-object object stream))

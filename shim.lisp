@@ -11,7 +11,7 @@
 
 #+(or)(sb-ext:with-unlocked-packages (#:sb-kernel)
   (defun sb-impl::output-object (object stream)
-    (inravina/intrinsic::write-object object stream)))
+    (incless:write-object object stream)))
 
 (setf sb-pretty::*standard-pprint-dispatch-table* *print-pprint-dispatch*)
 

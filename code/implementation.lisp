@@ -39,7 +39,7 @@
       (go next))
     (pprint-text client stream text start end)))
 
-(defmethod incless:write-object ((client client) stream object)
+(defmethod incless:write-object ((client client) object stream)
   (multiple-value-bind (func presentp)
       (and *print-pretty*
            (pprint-dispatch client *print-pprint-dispatch* object))
