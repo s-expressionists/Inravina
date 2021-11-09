@@ -59,5 +59,6 @@
     #:pprint-with-hash-table-iterator
     #:pretty-stream-p
     #:*print-pprint-dispatch*
-    #:set-pprint-dispatch))
+    #:set-pprint-dispatch
+    #:write-object))
 

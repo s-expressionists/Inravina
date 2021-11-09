@@ -39,7 +39,9 @@
   (:method (client stream kind)
     (declare (ignore client stream relative-to n))))
 
-(defgeneric pprint-tab (client stream kind colnum colinc))
+(defgeneric pprint-tab (client stream kind colnum colinc)
+  (:method (client stream kind colnum colinc)
+    (declare (ignore client stream kind colnum colinc))))
 
 (defgeneric pprint-split (client stream text &optional start end))
 
@@ -51,9 +53,13 @@
 
 (defgeneric pprint-tabular-plist (client stream object &optional colon-p at-sign-p tabsize))
 
-(defgeneric pprint-start-logical-block (client stream prefix per-line-prefix))
+(defgeneric pprint-start-logical-block (client stream prefix per-line-prefix)
+  (:method (client stream prefix per-line-prefix)
+    (declare (ignore client stream prefix per-line-prefix))))
 
-(defgeneric pprint-end-logical-block (client stream suffix))
+(defgeneric pprint-end-logical-block (client stream suffix)
+  (:method (client stream suffix)
+    (declare (ignore client stream suffix))))
 
 (defgeneric make-pretty-stream (client stream))
 

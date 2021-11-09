@@ -575,6 +575,11 @@
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
   (column stream))
 
+(defmethod make-pretty-stream ((client client) (stream broadcast-stream))
+  (if (broadcast-stream-streams stream)
+      (call-next-method)
+      stream))
+
 (defmethod make-pretty-stream ((client client) (stream pretty-stream))
   stream)
 

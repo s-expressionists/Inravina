@@ -39,9 +39,49 @@
       (go next))
     (pprint-text client stream text start end)))
 
-(defmethod write-object (client stream object)
-  (if *print-pretty*
-      (funcall (pprint-dispatch client *print-pprint-dispatch* object)
-               stream object)
-      (print-object object stream)))
+(defvar *circularity-hash-table* nil)
 
+(defvar *circularity-counter* nil)
+
+(defun uniquely-identified-by-print-p (x)
+  (or (numberp x)
+      (characterp x)
+      (symbolp x)))
+
+(defmethod write-object (client stream object)
+  (flet ((do-print (stream)
+           (when (and *circularity-hash-table*
+                      (not (uniquely-identified-by-print-p object)))
+             (multiple-value-bind (current presentp)
+                 (gethash object *circularity-hash-table*)
+               (cond ((and *circularity-hash-table*
+                           *circularity-counter*
+                           (eq t current))
+                      (setf (gethash object *circularity-hash-table*)
+                            (incf *circularity-counter*))
+                      (write-char #\# stream)
+                      (write *circularity-counter* :stream stream)
+                      (write-char #\= stream))
+                     ((and *circularity-hash-table*
+                           *circularity-counter*
+                           current)
+                      (write-char #\# stream)
+                      (write *circularity-counter* :stream stream)
+                      (write-char #\# stream)
+                      (return-from do-print))
+                   (*circularity-hash-table*
+                    (setf (gethash object *circularity-hash-table*) presentp)))))
+           (if *print-pretty*
+               (funcall (pprint-dispatch client *print-pprint-dispatch* object)
+                        stream object)
+               (print-object object stream))))
+    (cond ((and *print-circle*
+                (not *circularity-hash-table*))
+           (let ((*circularity-hash-table* (make-hash-table :test #'eq))
+                 (*circularity-counter* nil))
+             (do-print (make-broadcast-stream))
+             (setf *circularity-counter* 0)
+             (do-print stream)))
+          (t
+           (do-print stream))))
+  nil)
