@@ -1,13 +1,13 @@
 (in-package #:inravina/intrinsic)
 
-(fmakunbound 'pprint-dispatch)
+;(fmakunbound 'pprint-dispatch)
 
 (defun pprint-dispatch (object &optional table)
   (declare (ignore object table))
   (values nil nil))
 
-(fmakunbound 'copy-pprint-dispatch)
-(fmakunbound 'set-pprint-dispatch)
+;(fmakunbound 'copy-pprint-dispatch)
+;(fmakunbound 'set-pprint-dispatch)
 
 (declaim (ftype (function (&optional (or null inravina::dispatch-table))
                           inravina::dispatch-table)
@@ -60,3 +60,4 @@
 (defun pprint-dispatch (object &optional table)
   (inravina:pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) object))
 
+(setf incless:*client* inravina:*client*)

@@ -113,7 +113,7 @@
 (defun pprint-logical-block-form-p (form)
   (and (listp form)
        (member (first form)
-               '(pprint-logical-block print-unreadable-object
+               '(cl:pprint-logical-block print-unreadable-object
                  with-input-from-string with-open-file
                  with-output-to-string))))
 
@@ -139,6 +139,36 @@
 (deftype defmethod-with-qualifier-form ()
   `(satisfies defmethod-with-qualifier-form-p))
 
+(defun flet-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(flet labels macrolet))))
+
+(deftype flet-form ()
+  `(satisfies flet-form-p))
+
+(defun if-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(if))))
+
+(deftype if-form ()
+  `(satisfies if-form-p))
+
+(defun cond-form-p (form)
+  (and (listp form)
+       (eql (first form) 'cond)))
+
+(deftype cond-form ()
+  `(satisfies cond-form-p))
+
+(defun lambda-form-p (form)
+  (and (listp form)
+       (eql (first form) 'lambda)))
+
+(deftype lambda-form ()
+  `(satisfies lambda-form-p))
+
 (defun function-call-form-p (form)
   (and form
        (listp form)
@@ -163,19 +193,23 @@
 
 (defvar +default-dispatch-entries+
   '((block-form                    -10 pprint-block)
+    (cond-form                     -10 pprint-cond)
+    (defmethod-with-qualifier-form -10 pprint-defmethod-with-qualifier)
+    (defun-form                    -10 pprint-defun)
     (do-form                       -10 pprint-do)
     (dolist-form                   -10 pprint-dolist)
-    (defun-form                    -10 pprint-defun)
-    (defmethod-with-qualifier-form -10 pprint-defmethod-with-qualifier)
     (eval-when-form                -10 pprint-eval-when)
-    (let-form                      -10 pprint-let)
-    (with-hash-table-iterator-form -10 pprint-with-hash-table-iterator)
-    (with-compilation-unit-form    -10 pprint-with-compilation-unit)
-    (pprint-logical-block-form     -10 pprint-pprint-logical-block)
     (extended-loop-form            -10 pprint-extended-loop)
-    (quote-form                    -10 pprint-quote)
+    (flet-form                     -10 pprint-flet)
     (function-quote-form           -10 pprint-function-quote)
+    (if-form                       -10 pprint-if)
+    (lambda-form                   -10 pprint-lambda)
+    (let-form                      -10 pprint-let)
+    (pprint-logical-block-form     -10 pprint-pprint-logical-block)
+    (quote-form                    -10 pprint-quote)
     (simple-loop-form              -10 pprint-simple-loop)
+    (with-compilation-unit-form    -10 pprint-with-compilation-unit)
+    (with-hash-table-iterator-form -10 pprint-with-hash-table-iterator)
     ((and array
           (not string)
           (not bit-vector))        -10 pprint-array)
@@ -192,7 +226,7 @@
     new-table))
 
 (defun default-dispatch-print (stream object)
-  (incless:print-object-using-client *client* object stream))
+  (print-object object stream))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
   (if (and (not *print-array*)

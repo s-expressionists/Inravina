@@ -35,7 +35,7 @@
 
 (defgeneric pprint-newline (client stream kind)
   (:method (client stream kind)
-    (declare (ignore client stream relative-to n))))
+    (declare (ignore client stream kind))))
 
 (defgeneric pprint-tab (client stream kind colnum colinc)
   (:method (client stream kind colnum colinc)
@@ -123,4 +123,10 @@
 (defgeneric pprint-quote (client stream object))
 
 (defgeneric pprint-function-quote (client stream object))
+
+(defgeneric pprint-cond (client stream object))
+
+(defgeneric pprint-flet (client stream object))
+
+(defgeneric pprint-if (client stream object))
 

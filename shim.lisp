@@ -1,5 +1,7 @@
 #+sbcl (setf sb-ext:*muffled-warnings* 'warning)
 
+(setf *print-pretty* nil)
+
 (sb-ext:with-unlocked-packages (#:common-lisp)
   (require :incless-intrinsic)
   (require :inravina/intrinsic))

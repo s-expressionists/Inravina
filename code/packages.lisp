@@ -25,6 +25,7 @@
     #:pprint-array
     #:pprint-bindings
     #:pprint-block
+    #:pprint-cond
     #:pprint-defmethod-with-qualifier
     #:pprint-defun
     #:pprint-dispatch
@@ -35,8 +36,10 @@
     #:pprint-extended-loop
     #:pprint-fill
     #:pprint-fill-plist
+    #:pprint-flet
     #:pprint-function-call
     #:pprint-function-quote
+    #:pprint-if
     #:pprint-indent
     #:pprint-lambda
     #:pprint-lambda-list
