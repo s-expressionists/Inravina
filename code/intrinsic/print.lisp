@@ -23,7 +23,7 @@
 (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
   (inravina:copy-pprint-dispatch inravina:*client* table))
 
-(defparameter *print-pprint-dispatch* (copy-pprint-dispatch nil))
+(defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
 
 (defun set-pprint-dispatch (type-specifier function &optional priority table)
   (inravina:set-pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) type-specifier function priority))

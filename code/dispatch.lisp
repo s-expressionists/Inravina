@@ -120,6 +120,14 @@
 (deftype pprint-logical-block-form ()
   `(satisfies pprint-logical-block-form-p))
 
+(defun pprint-logical-block-form-p/2 (form)
+  (and (listp form)
+       (member (first form)
+               '(pprint-logical-block))))
+
+(deftype pprint-logical-block-form/2 ()
+  `(satisfies pprint-logical-block-form-p/2))
+
 (defun defun-form-p (form)
   (and (listp form)
        (or (member (first form)
@@ -184,6 +192,50 @@
 (deftype quote-form ()
   `(satisfies quote-form-p))
 
+#+(or clasp ecl sbcl)
+(defun quasiquote-form-p (form)
+  (and (listp form)
+       (eql (first form)
+            #+clasp 'eclector.reader:quasiquote
+            #+ecl 'si:quasiquote
+            #+sbcl 'sb-int:quasiquote)))
+
+#+(or clasp ecl sbcl)
+(deftype quasiquote-form ()
+  `(satisfies quasiquote-form-p))
+
+#+(or clasp ecl)
+(defun unquote-form-p (form)
+  (and (listp form)
+       (eql (first form)
+            #+clasp 'eclector.reader:unquote
+            #+ecl 'si:unquote)))
+
+#+(or clasp ecl)
+(deftype unquote-form ()
+  `(satisfies unquote-form-p))
+
+#+(or clasp ecl)
+(defun unquote-splice-form-p (form)
+  (and (listp form)
+       (eql (first form)
+            #+clasp 'eclector.reader:unquote-splicing
+            #+ecl 'si:unquote-splice)))
+
+#+(or clasp ecl)
+(deftype unquote-splice-form ()
+  `(satisfies unquote-splice-form-p))
+
+#+ecl
+(defun unquote-nsplice-form-p (form)
+  (and (listp form)
+       (eql (first form)
+            'si:unquote-nsplice)))
+
+#+ecl
+(deftype unquote-nsplice-form ()
+  `(satisfies unquote-nsplice-form-p))
+
 (defun function-quote-form-p (form)
   (and (listp form)
        (eql (first form) 'function)))
@@ -201,27 +253,56 @@
     (eval-when-form                -10 pprint-eval-when)
     (extended-loop-form            -10 pprint-extended-loop)
     (flet-form                     -10 pprint-flet)
-    (function-quote-form           -10 pprint-function-quote)
+    (function-quote-form           -10 pprint-macro-char :prefix "#'")
     (if-form                       -10 pprint-if)
     (lambda-form                   -10 pprint-lambda)
     (let-form                      -10 pprint-let)
-    (pprint-logical-block-form     -10 pprint-pprint-logical-block)
-    (quote-form                    -10 pprint-quote)
+    (pprint-logical-block-form     -10 pprint-with :argument-count 2)
+    (pprint-logical-block-form/2   -10 pprint-with :argument-count 3)
+    #+(or clasp ecl sbcl)
+    (quasiquote-form               -10 pprint-macro-char :prefix "`")
+    #+(or clasp ecl)
+    (unquote-form                  -10 pprint-macro-char :prefix ",")
+    #+(or clasp ecl)
+    (unquote-splice-form           -10 pprint-macro-char :prefix ",@")
+    #+ecl
+    (unquote-nsplice-form          -10 pprint-macro-char :prefix ",.")
+    #+sbcl
+    (sb-impl::comma                -10 pprint-sbcl-comma)
+    (quote-form                    -10 pprint-macro-char :prefix "'")
     (simple-loop-form              -10 pprint-simple-loop)
-    (with-compilation-unit-form    -10 pprint-with-compilation-unit)
-    (with-hash-table-iterator-form -10 pprint-with-hash-table-iterator)
+    (with-compilation-unit-form    -10 pprint-with :argument-count 0)
+    (with-hash-table-iterator-form -10 pprint-with)
     ((and array
           (not string)
           (not bit-vector))        -10 pprint-array)
     (function-call-form            -20 pprint-function-call)))
 
+(defun make-dispatch-function (name rest &aux (func (fdefinition name)))
+  (lambda (stream object)
+    (apply func *client* stream object rest)))
+
+(defun add-dispatch-entry (table type-specifier function priority)
+  (let ((entry (find type-specifier (dispatch-table-entries table)
+                     :test #'equal :key #'dispatch-entry-type-specifier)))
+    (if entry
+        (setf (dispatch-entry-function entry) function
+              (dispatch-entry-priority entry) (or priority 0))
+        (push (make-instance 'dispatch-entry
+                             :type-specifier type-specifier
+                             :function function
+                             :priority (or priority 0))
+              (dispatch-table-entries table)))
+    (setf (dispatch-table-entries table)
+          (sort (dispatch-table-entries table) #'> :key #'dispatch-entry-priority)))
+  nil)
+
 (defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
   (let ((new-table (make-instance 'dispatch-table)))
     (loop for (type priority name . rest) in +default-dispatch-entries+
-          do (set-pprint-dispatch client new-table
+          do (add-dispatch-entry new-table
                                   type
-                                  (eval `(lambda (stream object)
-                                           (,name *client* stream object ,@rest)))
+                                  (make-dispatch-function name rest)
                                   priority))
     new-table))
 
@@ -261,19 +342,7 @@
         (make-test-function (dispatch-entry-type-specifier instance))))
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
-  (let ((entry (find type-specifier (dispatch-table-entries table)
-                     :test #'equal :key #'dispatch-entry-type-specifier)))
-    (if entry
-        (setf (dispatch-entry-function entry) function
-              (dispatch-entry-priority entry) (or priority 0))
-        (push (make-instance 'dispatch-entry
-                             :type-specifier type-specifier
-                             :function function
-                             :priority (or priority 0))
-              (dispatch-table-entries table)))
-    (setf (dispatch-table-entries table)
-          (stable-sort (dispatch-table-entries table) #'> :key #'dispatch-entry-priority)))
-  nil)
+  (add-dispatch-entry table type-specifier function priority))
 
 (defvar *print-pprint-dispatch* (copy-pprint-dispatch *client* nil))
 

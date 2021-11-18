@@ -6,7 +6,8 @@
   :homepage "https://yitzchak.github.io/Inravina/"
   :bug-tracker "https://github.com/yitzchak/Inravina/issues"
   :in-order-to ((asdf:test-op (asdf:test-op #:inravina/test)))
-  :depends-on (#:incless #:trivial-gray-streams)
+  :depends-on (#:incless
+               (:feature (:not :sicl) #:trivial-gray-streams))
   :components
     ((:module code
       :serial t

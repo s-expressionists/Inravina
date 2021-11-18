@@ -29,10 +29,10 @@
           (t
            (incless:write-object client object stream)))))
 
-(defmacro pprint-logical-block ((client stream-symbol object &key
-                                 (prefix nil prefix-p)
-                                 (per-line-prefix nil per-line-prefix-p)
-                                 (suffix ""))
+(defmacro pprint-logical-block ((client stream-symbol object
+                                &key (prefix nil prefix-p)
+                                     (per-line-prefix nil per-line-prefix-p)
+                                     (suffix ""))
                                 &body body)
   (when (and prefix-p per-line-prefix-p)
     (error 'program-error))

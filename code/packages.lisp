@@ -2,7 +2,7 @@
   (:use #:common-lisp)
   (:documentation "A portable and extensible Common Lisp pretty printer.")
   (:shadow
-    "COPY-PPRINT-DISPATCH"
+    #:COPY-PPRINT-DISPATCH
     "PPRINT-DISPATCH"
     "PPRINT-EXIT-IF-LIST-EXHAUSTED"
     "PPRINT-FILL"
@@ -15,6 +15,7 @@
     "PPRINT-TABULAR"
     "*PRINT-PPRINT-DISPATCH*"
     "SET-PPRINT-DISPATCH")
+  #+sicl (:local-nicknames (:trivial-gray-streams :cyclosis))
   (:export
     #:*client*
     #:client
@@ -38,7 +39,6 @@
     #:pprint-fill-plist
     #:pprint-flet
     #:pprint-function-call
-    #:pprint-function-quote
     #:pprint-if
     #:pprint-indent
     #:pprint-lambda
@@ -49,17 +49,15 @@
     #:pprint-logical-block
     #:pprint-newline
     #:pprint-pop
-    #:pprint-pprint-logical-block
     #:pprint-progn
     #:pprint-progv
-    #:pprint-quote
+    #:pprint-macro-char
     #:pprint-simple-loop
     #:pprint-tab
     #:pprint-tabular
     #:pprint-tabular-plist
     #:pprint-tagbody
-    #:pprint-with-compilation-unit
-    #:pprint-with-hash-table-iterator
+    #:pprint-with
     #:pretty-stream-p
     #:*print-pprint-dispatch*
     #:set-pprint-dispatch))

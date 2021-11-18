@@ -104,12 +104,6 @@
 
 (defgeneric pprint-argument-list (client stream object &optional argument-count))
 
-(defgeneric pprint-with-hash-table-iterator (client stream object))
-
-(defgeneric pprint-with-compilation-unit (client stream object))
-
-(defgeneric pprint-pprint-logical-block (client stream object))
-
 (defgeneric pprint-lambda-list (client stream object))
 
 (defgeneric pprint-lambda (client stream object))
@@ -120,9 +114,7 @@
 
 (defgeneric pprint-array (client stream object))
 
-(defgeneric pprint-quote (client stream object))
-
-(defgeneric pprint-function-quote (client stream object))
+(defgeneric pprint-macro-char (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-cond (client stream object))
 
@@ -130,3 +122,6 @@
 
 (defgeneric pprint-if (client stream object))
 
+(defgeneric pprint-with (client stream object &rest options &key &allow-other-keys))
+
+(defgeneric pprint-sbcl-comma (client stream object &rest options &key &allow-other-keys))

@@ -191,19 +191,19 @@
         (with-env (stream :right-margin 16)
           (inravina:pprint-argument-list inravina:*client* stream form 3)))))
 
-(define-test pprint-with-hash-table-iterator
+(define-test pprint-with
   (let ((form '(fu (bar quux wibble) quux gronk)))
     (is equal
         "(FU (BAR QUUX WIBBLE) QUUX GRONK)"
         (with-env (stream :right-margin 80)
-          (inravina:pprint-with-hash-table-iterator inravina:*client* stream form)))
+          (inravina:pprint-with inravina:*client* stream form)))
     (is equal
         "(FU (BAR QUUX
      WIBBLE)
   QUUX
   GRONK)"
         (with-env (stream :right-margin 13)
-          (inravina:pprint-with-hash-table-iterator inravina:*client* stream form)))))
+          (inravina:pprint-with inravina:*client* stream form)))))
 
 (define-test pprint-lambda-list
   (let ((form '(x y z &key fu (bar nil bar-p) &aux a (b 4))))

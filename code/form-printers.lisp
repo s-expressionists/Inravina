@@ -160,7 +160,8 @@
 (defmethod pprint-argument-list (client stream object &optional argument-count)
   (pprint-function-call-form (client stream object argument-count)))
 
-(defmethod pprint-with-hash-table-iterator (client stream object)
+(defmethod pprint-with (client stream object &rest options &key argument-count &allow-other-keys)
+  (declare (ignore options))
   (pprint-body-form (client stream object)
     (pprint-exit-if-list-exhausted)
     (incless:write-object client (pprint-pop) stream)
@@ -168,27 +169,7 @@
     (pprint-indent client stream :block 3)
     (write-char #\Space stream)
     (pprint-newline client stream :miser)
-    (pprint-argument-list client stream (pprint-pop))))
-
-(defmethod pprint-with-compilation-unit (client stream object)
-  (pprint-body-form (client stream object)
-    (pprint-exit-if-list-exhausted)
-    (incless:write-object client (pprint-pop) stream)
-    (pprint-exit-if-list-exhausted)
-    (pprint-indent client stream :block 3)
-    (write-char #\Space stream)
-    (pprint-newline client stream :miser)
-    (pprint-argument-list client stream (pprint-pop) 0)))
-
-(defmethod pprint-pprint-logical-block (client stream object)
-  (pprint-body-form (client stream object)
-    (pprint-exit-if-list-exhausted)
-    (incless:write-object client (pprint-pop) stream)
-    (pprint-exit-if-list-exhausted)
-    (pprint-indent client stream :block 3)
-    (write-char #\Space stream)
-    (pprint-newline client stream :miser)
-    (pprint-argument-list client stream (pprint-pop) 2)))
+    (pprint-argument-list client stream (pprint-pop) argument-count)))
 
 (defmethod pprint-lambda-list (client stream object)
   (pprint-format-logical-block (client stream object :paren t)
@@ -376,11 +357,17 @@
 (defmethod pprint-array (client stream object)
   (let ((stream (make-pretty-stream client stream)))
     (labels ((pprint-subarray (index dimensions)
-               (pprint-logical-block (client stream nil :prefix (if (= (length dimensions)
-                                                                       (array-rank object))
-                                                                    (format nil "#~DA(" (array-rank object))
-                                                                    "(")
-                                                        :suffix ")")
+               (pprint-logical-block (client stream nil
+                                      :prefix (if (= (length dimensions)
+                                                     (array-rank object))
+                                                  (with-output-to-string (s)
+                                                    (write-char #\# s)
+                                                    (incless:write-object client
+                                                                          (array-rank object)
+                                                                          s)
+                                                    (write-string "A(" s))
+                                                  "(")
+                                      :suffix ")")
                  (loop with dimension = (car dimensions)
                        with remaining-dimensions = (cdr dimensions)
                        for pos below dimension
@@ -392,7 +379,8 @@
                        if remaining-dimensions
                          do (pprint-subarray new-index remaining-dimensions)
                        else
-                         do (incless:write-object client (row-major-aref object new-index) stream)))))
+                         do (incless:write-object client (row-major-aref object new-index)
+                                                  stream)))))
       (pprint-subarray 0 (array-dimensions object)))))
 
 (defmethod pprint-lambda (client stream object)
@@ -404,12 +392,9 @@
     (pprint-newline client stream :fill)
     (pprint-lambda-list client stream (pprint-pop))))
 
-(defmethod pprint-quote (client stream object)
-  (write-char #\' stream)
-  (incless:write-object client (second object) stream))
-
-(defmethod pprint-function-quote (client stream object)
-  (write-string "#'" stream)
+(defmethod pprint-macro-char (client stream object &rest options &key prefix &allow-other-keys)
+  (declare (ignore options))
+  (write-string prefix stream)
   (incless:write-object client (second object) stream))
 
 (defmethod pprint-cond (client stream object)
@@ -445,3 +430,13 @@
     (write-char #\Space stream)
     (pprint-indent client stream :current 0)))
 
+#+sbcl
+(defmethod pprint-sbcl-comma (client stream object &rest options &key &allow-other-keys)
+  (declare (ignore options))
+  (write-string (ecase (sb-impl::comma-kind object)
+                  (0 ",")
+                  (1 ",.")
+                  (2 ",@"))
+                stream)
+  (incless:write-object client (sb-impl::comma-expr object) stream))
+  
