@@ -338,6 +338,7 @@
                 (typep (first object) (second type-specifier)))))))
 
 (defmethod initialize-instance :after ((instance dispatch-entry) &rest initargs &key &allow-other-keys)
+  (declare (ignore initargs))
   (setf (dispatch-entry-test-function instance)
         (make-test-function (dispatch-entry-type-specifier instance))))
 

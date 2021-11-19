@@ -21,13 +21,17 @@
                                             *terminal-io*)
                                           (t
                                             stream)))))
-    (cond ((listp object)
-           (pprint-start-logical-block client stream prefix per-line-prefix)
-           (unwind-protect
-               (funcall function stream object)
-             (pprint-end-logical-block client stream suffix)))
+    (cond ((not (listp object))
+           (incless:write-object client object stream))
+          ((and (not *print-readably*)
+                (eql 0 *print-level*))
+           (write-char #\# stream))
           (t
-           (incless:write-object client object stream)))))
+           (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
+             (pprint-start-logical-block client stream prefix per-line-prefix)
+             (unwind-protect
+                 (funcall function stream object)
+               (pprint-end-logical-block client stream suffix)))))))
 
 (defmacro pprint-logical-block ((client stream-symbol object
                                 &key (prefix nil prefix-p)

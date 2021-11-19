@@ -43,8 +43,8 @@
            (:file "list-printers")
            (:file "form-printers")))))))
 
-(asdf:defsystem #:inravina/intrinsic
-  :description "Inravina intrinsic"
+(asdf:defsystem #:inravina/ext.extrinsic
+  :description "Inravina/ext extrinsic"
   :author "Tarn W. Burton"
   :license "MIT"
   :depends-on
@@ -52,8 +52,23 @@
   :components
     ((:module code
       :components
-      ((:module intrinsic
+      ((:module ext
         :serial t
         :components
-          ((:file "packages")
+          ((:file "packages-extrinsic")
+           (:file "print")))))))
+
+(asdf:defsystem #:inravina/ext.intrinsic
+  :description "Inravina/ext intrinsic"
+  :author "Tarn W. Burton"
+  :license "MIT"
+  :depends-on
+    (:inravina)
+  :components
+    ((:module code
+      :components
+      ((:module ext
+        :serial t
+        :components
+          ((:file "packages-instrinsic")
            (:file "print")))))))
