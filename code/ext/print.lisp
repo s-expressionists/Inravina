@@ -2,14 +2,16 @@
 
 ;(fmakunbound 'pprint-dispatch)
 
-(defun pprint-dispatch (object &optional table)
+#+(or)(defun pprint-dispatch (object &optional table)
   (declare (ignore object table))
   (values nil nil))
 
 ;(fmakunbound 'copy-pprint-dispatch)
 ;(fmakunbound 'set-pprint-dispatch)
 
-(declaim (ftype (function (&optional (or null inravina::dispatch-table))
+(defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
+
+#+(or)(declaim (ftype (function (&optional (or null inravina::dispatch-table))
                           inravina::dispatch-table)
                 copy-pprint-dispatch)
          (ftype (function (t &optional (or null inravina::dispatch-table))
@@ -22,8 +24,6 @@
 
 (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
   (inravina:copy-pprint-dispatch inravina:*client* table))
-
-(defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
 
 (defun set-pprint-dispatch (type-specifier function &optional priority table)
   (inravina:set-pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) type-specifier function priority))

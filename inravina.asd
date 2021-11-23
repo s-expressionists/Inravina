@@ -70,5 +70,5 @@
       ((:module ext
         :serial t
         :components
-          ((:file "packages-instrinsic")
+          ((:file "packages-intrinsic")
            (:file "print")))))))

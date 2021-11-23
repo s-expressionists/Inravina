@@ -308,13 +308,15 @@
 (defmethod write-text (client (stream pretty-stream) line column text &optional start end)
   (when line
     (loop while (< (line stream) line)
-          do (write-char #\Newline (target stream))
+          do (terpri (target stream))
           do (incf (line stream)))
     (setf (column stream) 0))
   (when column
-    (loop while (< (column stream) column)
-          do (write-char #\Space (target stream))
-          do (incf (column stream) (text-width client stream #\Space))))
+    (if (ignore-errors (trivial-gray-streams:stream-advance-to-column (target stream) column))
+      (setf (column stream) column)
+      (loop while (< (column stream) column)
+                do (write-char #\Space (target stream))
+                do (incf (column stream) (text-width client stream #\Space)))))
   (when text
     (write-string text (target stream)
                   :start start
