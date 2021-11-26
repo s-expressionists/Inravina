@@ -177,13 +177,13 @@
 (deftype lambda-form ()
   `(satisfies lambda-form-p))
 
-(defun function-call-form-p (form)
+(defun call-form-p (form)
   (and form
        (listp form)
        (symbolp (first form))))
 
-(deftype function-call-form ()
-  `(satisfies function-call-form-p))
+(deftype call-form ()
+  `(satisfies call-form-p))
 
 (defun quote-form-p (form)
   (and (listp form)
@@ -254,7 +254,7 @@
     (extended-loop-form            -10 pprint-extended-loop)
     (flet-form                     -10 pprint-flet)
     (function-quote-form           -10 pprint-macro-char :prefix "#'")
-    (if-form                       -10 pprint-if)
+    (if-form                       -10 pprint-function-call :newline :linear)
     (lambda-form                   -10 pprint-lambda)
     (let-form                      -10 pprint-let)
     (pprint-logical-block-form     -10 pprint-with :argument-count 2)
@@ -276,7 +276,7 @@
     ((and array
           (not string)
           (not bit-vector))        -10 pprint-array)
-    (function-call-form            -20 pprint-function-call)))
+    (call-form                     -20 pprint-call)))
 
 (defun make-dispatch-function (name rest &aux (func (fdefinition name)))
   (lambda (stream object)

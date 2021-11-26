@@ -100,9 +100,9 @@
 
 (defgeneric pprint-tagbody (client stream object))
 
-(defgeneric pprint-function-call (client stream object &optional argument-count))
+(defgeneric pprint-function-call (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-argument-list (client stream object &optional argument-count))
+(defgeneric pprint-argument-list (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-lambda-list (client stream object))
 
@@ -125,3 +125,6 @@
 (defgeneric pprint-with (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-sbcl-comma (client stream object &rest options &key &allow-other-keys))
+
+(defgeneric pprint-call (client stream object &rest options &key &allow-other-keys))
+

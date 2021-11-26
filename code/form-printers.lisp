@@ -1,5 +1,38 @@
 (in-package #:inravina)
 
+(defun lambda-list (sym)
+  #+ccl
+    (ccl:arglist sym)
+  #+clisp
+    (system::arglist sym)
+  #+(or clasp ecl)
+    (ext:function-lambda-list sym)
+  #+sbcl
+    (sb-introspect:function-lambda-list sym)
+  #+lispworks
+    (lispworks:function-lambda-list sym)
+  #-(or ccl clisp clasp ecl lispworks sbcl)
+    (second (function-lambda-expression (or (macro-function sym)
+                                            (fdefinition sym)))))
+
+(defun parse-lambda-list (lambda-list)
+  (loop with required = t
+        for token = (and (listp lambda-list) (car lambda-list))
+        while lambda-list
+        when (or (symbolp lambda-list) ; dotted &rest type
+                 (eq token '&aux))
+          do (return (values patterns nil))
+        else when (member token '(&body &key)) ; plist or body
+          do (return (values patterns token))
+        else when (member token '(&environment &rest &whole)) ; ignore
+          do (pop lambda-list)
+        else when (eq token '&optional) ; prevent collection of destructuring lambdas
+          do (setf required nil)
+        else ; collect destructuring lambda if appropriate
+          collect (and required (listp token) token) into patterns
+        do (pop lambda-list)
+        finally (return (values patterns nil))))
+
 (defmacro pprint-body-form ((client stream object) &body body)
   `(pprint-list (,client ,stream ,object :paren t :newline :linear)
      ,@body
@@ -20,15 +53,15 @@
               (incless:write-object ,client form-or-tag ,stream)
               (pprint-exit-if-list-exhausted))))
 
-(defmacro pprint-function-call-form ((client stream object argument-count) &body body)
-  `(pprint-plist (,client ,stream ,object :paren t :newline :fill)
+(defmacro pprint-function-call-form ((client stream object &key argument-count newline) &body body)
+  `(pprint-plist (,client ,stream ,object :paren t :newline (or ,newline :fill))
      ,@body
      (pprint-exit-if-list-exhausted)
      (loop for i below (or ,argument-count most-positive-fixnum)
            do (incless:write-object ,client (pprint-pop) ,stream)
               (pprint-exit-if-list-exhausted)
               (write-char #\Space ,stream)
-              (pprint-newline ,client ,stream :fill))))
+              (pprint-newline ,client ,stream (or ,newline :fill)))))
 
 (defmethod pprint-bindings (client stream object)
   (pprint-format-logical-block (client stream object :paren t)
@@ -148,8 +181,9 @@
     (pprint-exit-if-list-exhausted)
     (incless:write-object client (pprint-pop) stream)))
 
-(defmethod pprint-function-call (client stream object &optional argument-count)
-  (pprint-function-call-form (client stream object argument-count)
+(defmethod pprint-function-call (client stream object &rest options &key argument-count newline &allow-other-keys)
+  (declare (ignore options))
+  (pprint-function-call-form (client stream object :argument-count argument-count :newline newline)
     (pprint-exit-if-list-exhausted)
     (incless:write-object client (pprint-pop) stream)
     (pprint-exit-if-list-exhausted)
@@ -157,11 +191,10 @@
     (pprint-indent client stream :current 0)
     #+(or)(pprint-newline client stream :fill)))
 
-(defmethod pprint-argument-list (client stream object &optional argument-count)
-  (pprint-function-call-form (client stream object argument-count)))
+(defmethod pprint-argument-list (client stream object &key argument-count newline &allow-other-keys)
+  (pprint-function-call-form (client stream object :argument-count argument-count :newline newline)))
 
-(defmethod pprint-with (client stream object &rest options &key argument-count &allow-other-keys)
-  (declare (ignore options))
+(defmethod pprint-with (client stream object &rest options &key &allow-other-keys)
   (pprint-body-form (client stream object)
     (pprint-exit-if-list-exhausted)
     (incless:write-object client (pprint-pop) stream)
@@ -169,7 +202,7 @@
     (pprint-indent client stream :block 3)
     (write-char #\Space stream)
     (pprint-newline client stream :miser)
-    (pprint-argument-list client stream (pprint-pop) argument-count)))
+    (apply #'pprint-argument-list client stream (pprint-pop) options)))
 
 (defmethod pprint-lambda-list (client stream object)
   (pprint-format-logical-block (client stream object :paren t)
@@ -439,4 +472,60 @@
                   (2 ",@"))
                 stream)
   (incless:write-object client (sb-impl::comma-expr object) stream))
-  
+
+(defmethod pprint-call (client stream (object list) &rest options &key &allow-other-keys)
+  (if (fboundp (first object))
+      (let ((macrop (and (macro-function (first object)) t)))
+        (flet ((write-object (client stream object pattern)
+                 (if (and macrop pattern)
+                     (multiple-value-bind (sub-patterns sub-terminator)
+                         (parse-lambda-list pattern)
+                       (if sub-terminator
+                           (pprint-argument-list client stream object
+                                                 :argument-count (length sub-patterns))
+                           (pprint-argument-list client stream object)))
+                     (incless:write-object client object stream))))
+          (multiple-value-bind (patterns terminator)
+              (parse-lambda-list (lambda-list (first object)))
+            (case terminator
+              (&body
+               (pprint-body-form (client stream object)
+                 (pprint-exit-if-list-exhausted)
+                 (incless:write-object client (pprint-pop) stream)
+                 (pprint-exit-if-list-exhausted)
+                 (write-char #\Space stream)
+                 (pprint-indent client stream :block 3)
+                 (pprint-newline client stream :miser)
+                 (loop for pattern in patterns
+                       for index from 0
+                       when (plusp index)
+                         do (write-char #\Space stream)
+                            (pprint-newline client stream :linear)
+                       do (write-object client stream (pprint-pop) pattern)
+                          (pprint-exit-if-list-exhausted))))
+              (&key
+               (pprint-plist (client stream object :paren t :newline :fill)
+                 (pprint-exit-if-list-exhausted)
+                 (incless:write-object client (pprint-pop) stream)
+                 (pprint-exit-if-list-exhausted)
+                 (write-char #\Space stream)
+                 (pprint-indent client stream :current 0)
+                 (loop for pattern in patterns
+                       do (write-object client stream (pprint-pop) pattern)
+                          (pprint-exit-if-list-exhausted)
+                          (write-char #\Space stream)
+                          (pprint-newline client stream :fill))))
+              (otherwise
+               (pprint-list (client stream object :paren t :newline :fill)
+                 (pprint-exit-if-list-exhausted)
+                 (incless:write-object client (pprint-pop) stream)
+                 (pprint-exit-if-list-exhausted)
+                 (write-char #\Space stream)
+                 (pprint-indent client stream :current 0)
+                 (loop for pattern in patterns
+                       do (write-object client stream (pprint-pop) pattern)
+                          (pprint-exit-if-list-exhausted)
+                          (write-char #\Space stream)
+                          (pprint-newline client stream :fill))))))))
+      (pprint-function-call client stream object)))
+

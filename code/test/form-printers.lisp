@@ -102,7 +102,7 @@
     :WIBBLE 2)"
       (with-env (stream :right-margin 14)
         (inravina:pprint-function-call inravina:*client* stream
-                                       '(fu 1 2 3 :bar 1 :wibble 2) 3))))
+                                       '(fu 1 2 3 :bar 1 :wibble 2) :argument-count 3))))
 
 (define-test pprint-eval-when
   (let ((form '(eval-when (:fu :bar :quux) (wibble 1))))
@@ -184,12 +184,12 @@
  :BAR 2
  :QUUX 3)"
         (with-env (stream :right-margin 10)
-          (inravina:pprint-argument-list inravina:*client* stream form 3)))
+          (inravina:pprint-argument-list inravina:*client* stream form :argument-count 3)))
     (is equal
         "(1 2 3 :FU 1
  :BAR 2 :QUUX 3)"
         (with-env (stream :right-margin 16)
-          (inravina:pprint-argument-list inravina:*client* stream form 3)))))
+          (inravina:pprint-argument-list inravina:*client* stream form :argument-count 3)))))
 
 (define-test pprint-with
   (let ((form '(fu (bar quux wibble) quux gronk)))
