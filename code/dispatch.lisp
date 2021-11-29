@@ -50,6 +50,14 @@
 (deftype extended-loop-form ()
   `(satisfies extended-loop-form-p))
 
+(defun apply-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(apply))))
+
+(deftype apply-form ()
+  `(satisfies apply-form-p))
+
 (defun block-form-p (form)
   (and (listp form)
        (member (first form)
@@ -243,8 +251,17 @@
 (deftype function-quote-form ()
   `(satisfies function-quote-form-p))
 
+(defun setf-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(psetq set setf setq))))
+
+(deftype setf-form ()
+  `(satisfies setf-form-p))
+
 (defvar +default-dispatch-entries+
-  '((block-form                    -10 pprint-block)
+  '((apply-form                    -10 pprint-apply)
+    (block-form                    -10 pprint-block)
     (cond-form                     -10 pprint-cond)
     (defmethod-with-qualifier-form -10 pprint-defmethod-with-qualifier)
     (defun-form                    -10 pprint-defun)
@@ -270,6 +287,7 @@
     #+sbcl
     (sb-impl::comma                -10 pprint-sbcl-comma)
     (quote-form                    -10 pprint-macro-char :prefix "'")
+    (setf-form                     -10 pprint-function-call :argument-count 0)
     (simple-loop-form              -10 pprint-simple-loop)
     (with-compilation-unit-form    -10 pprint-with :argument-count 0)
     (with-hash-table-iterator-form -10 pprint-with)

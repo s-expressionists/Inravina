@@ -23,6 +23,7 @@
     #:do-pprint-logical-block
     #:make-pretty-stream
     #:*options*
+    #:pprint-apply
     #:pprint-argument-list
     #:pprint-array
     #:pprint-bindings

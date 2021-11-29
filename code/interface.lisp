@@ -128,3 +128,5 @@
 
 (defgeneric pprint-call (client stream object &rest options &key &allow-other-keys))
 
+(defgeneric pprint-apply (client stream object &rest options &key &allow-other-keys))
+

@@ -188,8 +188,7 @@
     (incless:write-object client (pprint-pop) stream)
     (pprint-exit-if-list-exhausted)
     (write-char #\Space stream)
-    (pprint-indent client stream :current 0)
-    #+(or)(pprint-newline client stream :fill)))
+    (pprint-indent client stream :current 0)))
 
 (defmethod pprint-argument-list (client stream object &key argument-count newline &allow-other-keys)
   (pprint-function-call-form (client stream object :argument-count argument-count :newline newline)))
@@ -528,4 +527,16 @@
                           (write-char #\Space stream)
                           (pprint-newline client stream :fill))))))))
       (pprint-function-call client stream object)))
+
+(defmethod pprint-apply (client stream object &rest options &key argument-count newline &allow-other-keys)
+  (declare (ignore options))
+  (pprint-function-call-form (client stream object :argument-count argument-count :newline newline)
+    (pprint-exit-if-list-exhausted)
+    (incless:write-object client (pprint-pop) stream)
+    (pprint-exit-if-list-exhausted)
+    (write-char #\Space stream)
+    (incless:write-object client (pprint-pop) stream)
+    (pprint-exit-if-list-exhausted)
+    (write-char #\Space stream)
+    (pprint-indent client stream :current 0)))
 
