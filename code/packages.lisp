@@ -28,6 +28,7 @@
     #:pprint-array
     #:pprint-bindings
     #:pprint-block
+    #:pprint-case
     #:pprint-cond
     #:pprint-defmethod-with-qualifier
     #:pprint-defun
@@ -42,7 +43,6 @@
     #:pprint-fill-plist
     #:pprint-flet
     #:pprint-function-call
-    #:pprint-if
     #:pprint-indent
     #:pprint-lambda
     #:pprint-lambda-list

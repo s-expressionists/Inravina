@@ -78,49 +78,49 @@
 
 (defgeneric right-margin (client stream))
 
-(defgeneric pprint-block (client stream object))
+(defgeneric pprint-block (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-defun (client stream object))
+(defgeneric pprint-defun (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-defmethod-with-qualifier (client stream object))
+(defgeneric pprint-defmethod-with-qualifier (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-do (client stream object))
+(defgeneric pprint-do (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-dolist (client stream object))
+(defgeneric pprint-dolist (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-let (client stream object))
+(defgeneric pprint-let (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-bindings (client stream object))
+(defgeneric pprint-bindings (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-eval-when (client stream object))
+(defgeneric pprint-eval-when (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-progn (client stream object))
+(defgeneric pprint-progn (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-progv (client stream object))
+(defgeneric pprint-progv (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-tagbody (client stream object))
+(defgeneric pprint-tagbody (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-function-call (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-argument-list (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-lambda-list (client stream object))
+(defgeneric pprint-lambda-list (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-lambda (client stream object))
+(defgeneric pprint-lambda (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-extended-loop (client stream object))
+(defgeneric pprint-extended-loop (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-simple-loop (client stream object))
+(defgeneric pprint-simple-loop (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-array (client stream object))
+(defgeneric pprint-array (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-macro-char (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-cond (client stream object))
+(defgeneric pprint-cond (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-flet (client stream object))
+(defgeneric pprint-case (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-if (client stream object))
+(defgeneric pprint-flet (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-with (client stream object &rest options &key &allow-other-keys))
 

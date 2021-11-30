@@ -178,6 +178,14 @@
 (deftype cond-form ()
   `(satisfies cond-form-p))
 
+(defun case-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(case ccase ecase typecase ctypecase etypecase))))
+
+(deftype case-form ()
+  `(satisfies case-form-p))
+
 (defun lambda-form-p (form)
   (and (listp form)
        (eql (first form) 'lambda)))
@@ -262,6 +270,7 @@
 (defvar +default-dispatch-entries+
   '((apply-form                    -10 pprint-apply)
     (block-form                    -10 pprint-block)
+    (case-form                     -10 pprint-case)
     (cond-form                     -10 pprint-cond)
     (defmethod-with-qualifier-form -10 pprint-defmethod-with-qualifier)
     (defun-form                    -10 pprint-defun)
