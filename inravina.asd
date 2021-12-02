@@ -8,6 +8,7 @@
   :in-order-to ((asdf:test-op (asdf:test-op #:inravina/test)))
   :depends-on (#:incless
                (:feature (:not :sicl) #:trivial-gray-streams)
+               #:trivial-stream-column
                (:feature :sbcl #:sb-introspect))
   :components
     ((:module code

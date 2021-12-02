@@ -2,12 +2,6 @@
 
 (require :cl-pdf)
 
-(defclass my-client (inravina:client)
-  ())
-
-(setf inravina:*client* (make-instance 'my-client)
-      incless:*client* inravina:*client*)
-
 (defclass pdf-stream (trivial-gray-streams:fundamental-character-output-stream)
   ((line :accessor line
          :initform 0)
@@ -17,25 +11,22 @@
            :initform 0)))
 
 (defun measure-string (text)
-  (/ (pdf::text-width text pdf::*font* pdf::*font-size*)
-     (pdf::get-char-width #\M pdf::*font* pdf::*font-size*)))
+  (/ (pdf::text-width text pdf::*font* pdf::*font-size*) 12.0))
 
 (defun measure-char (text)
-  (/ (pdf:get-char-width text pdf::*font* pdf::*font-size*)
-     (pdf:get-char-width #\M pdf::*font* pdf::*font-size*)))
+  (/ (pdf:get-char-width text pdf::*font* pdf::*font-size*) 12.0))
 
-(defmethod inravina::text-width ((client my-client) stream (text string) &optional start end)
-  (declare (ignore client stream))
-  (measure-string (subseq text (or start 0) end)))
+(defmethod trivial-stream-column:stream-measure-string ((stream pdf-stream) string &optional start end)
+  (declare (ignore stream))
+  (measure-string (subseq string (or start 0) end)))
 
-(defmethod inravina::text-width ((client my-client) stream (text character) &optional start end)
-  (declare (ignore client stream start end))
-  (measure-char text))
+(defmethod trivial-stream-column:stream-measure-char ((stream pdf-stream) char)
+  (declare (ignore stream))
+  (measure-char char))
 
 (defmethod trivial-gray-streams:stream-terpri ((stream pdf-stream))
   #+(or) (pdf:move-to-next-line)
-  (pdf:move-text (* (- (indent stream))
-                    (pdf:get-char-width #\M pdf::*font* pdf::*font-size*))
+  (pdf:move-text (* (- (indent stream)) 12.0)
                  (* pdf::*font-size* -1.2))
   (incf (line stream))
   (setf (column stream) 0
@@ -43,8 +34,7 @@
 
 (defmethod trivial-gray-streams:stream-advance-to-column ((stream pdf-stream) column)
   (unless (zerop column)
-    (pdf:move-text (* column
-                      (pdf:get-char-width #\M pdf::*font* pdf::*font-size*))
+    (pdf:move-text (* column 12.0)
                    0)
     (setf (column stream) column
           (indent stream) column)))
@@ -70,6 +60,8 @@
 	        (pdf:move-text 100 800)
 	        (pdf:set-font helvetica 12.0)
 	        (pdf:set-text-leading (* 1.2 12.0))
-	        (incless:pprint '(loop for i in '(1 2 3) do (print i) (wibble i) collect i)
+	        (incless:pprint '(if (quux 'a)
+	                             (loop for i in '(1 2 3) do (print i) (wibble i) collect i)
+	                             (write-line "gronk"))
 	                        (make-instance 'pdf-stream))))))
     (pdf:write-document #P"t.pdf"))

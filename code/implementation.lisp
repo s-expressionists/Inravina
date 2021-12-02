@@ -25,9 +25,6 @@
 (defmethod arrange-text (client stream (text (eql nil)))
   (values nil 0 0))
 
-(defmethod right-margin (client stream)
-  (or *print-right-margin* 100))
-
 (defmethod pprint-split (client stream text &optional start end)
   (prog (pos)
    next

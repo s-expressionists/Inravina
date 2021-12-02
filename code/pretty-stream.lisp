@@ -191,10 +191,7 @@
 (defmethod initialize-instance :after ((instance pretty-stream) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
   (when (slot-boundp instance 'target)
-    (setf (column instance)
-          (or (ignore-errors
-                (trivial-gray-streams:stream-line-column (target instance)))
-              0))))
+    (setf (column instance) (trivial-stream-column:line-column (target instance)))))
 
 (defmethod describe-object ((object pretty-stream) stream)
   (loop for instruction across (instructions object)
@@ -221,6 +218,11 @@
                             (dotimes (i (length (value sub)))
                               (write-char ch stream)))))
         (terpri stream))))
+
+(defun line-length (stream)
+  (or (trivial-stream-column:line-length (target stream))
+      *print-right-margin*
+      100))
 
 (defun layout-instructions (stream)
   (prog ((index 0) (section t) last-maybe-break status instruction mode
@@ -309,19 +311,14 @@
   (when line
     (loop while (< (line stream) line)
           do (terpri (target stream))
-          do (incf (line stream)))
-    (setf (column stream) 0))
+          do (incf (line stream))))
   (when column
-    (if (ignore-errors (trivial-gray-streams:stream-advance-to-column (target stream) column))
-      (setf (column stream) column)
-      (loop while (< (column stream) column)
-                do (write-char #\Space (target stream))
-                do (incf (column stream) (text-width client stream #\Space)))))
+    (trivial-stream-column:advance-to-column column (target stream)))
   (when text
     (write-string text (target stream)
                   :start start
-                  :end end)
-    (incf (column stream) (text-width client stream text start end))))
+                  :end end))
+  (setf (column stream) (trivial-stream-column:line-column (target stream))))
 
 (defgeneric layout (client stream mode instruction previous-instruction allow-break-p)
   (:method (client stream (mode (eql :overflow)) instruction previous-instruction allow-break-p)
@@ -353,8 +350,13 @@
   (let ((new-break-column (break-column instruction))
         (new-column (column instruction))
         (new-line (line instruction))
-        (width (text-width client stream text))
-        (break-width (text-width client stream text 0 (break-position client stream text))))
+        (width (if text
+                   (trivial-stream-column:measure-string text (target stream))
+                   0))
+        (break-width (if text
+                         (trivial-stream-column:measure-string text (target stream)
+                                                               :end (break-position client stream text))
+                         0)))
     (when line
       (setf new-line line
             new-break-column 0
@@ -365,7 +367,7 @@
       (setf new-break-column (+ new-column break-width)))
     (incf new-column width)
     (when (or mode
-              (>= (right-margin client stream) new-break-column))
+              (>= (line-length stream) new-break-column))
       (setf (break-column instruction) new-break-column
             (column instruction) new-column
             (line instruction) new-line)
@@ -460,10 +462,10 @@
 (defmethod layout (client stream mode (instruction block-start) previous-instruction allow-break-p)
   (let* ((column (column instruction))
          (start-column (+ column
-                          (text-width client stream
-                                      (or (prefix instruction)
-                                          (per-line-prefix instruction)
-                                          ""))))
+                          (trivial-stream-column:measure-string (or (prefix instruction)
+                                                                    (per-line-prefix instruction)
+                                                                    "")
+                                                                (target stream))))
          (parent-prefix-fragments (when (parent instruction)
                                     (prefix-fragments (parent instruction))))
          (per-line-prefix (per-line-prefix instruction)))
@@ -631,7 +633,7 @@
 
 (defmethod miser-p (client (stream pretty-stream))
   (and *print-miser-width*
-       (<= (- (right-margin client stream)
+       (<= (- (line-length stream)
               (column stream))
            *print-miser-width*)))
 

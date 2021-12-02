@@ -66,8 +66,6 @@
     (declare (ignore client stream))
     nil))
 
-(defgeneric text-width (client stream text &optional start end))
-
 (defgeneric break-position (client stream text))
 
 (defgeneric normalize-text (client stream text))
@@ -75,8 +73,6 @@
 (defgeneric write-text (client stream line column text &optional start end))
 
 (defgeneric miser-p (client stream))
-
-(defgeneric right-margin (client stream))
 
 (defgeneric pprint-block (client stream object &rest options &key &allow-other-keys))
 
