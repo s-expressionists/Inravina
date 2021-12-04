@@ -70,7 +70,7 @@
 
 (defgeneric normalize-text (client stream text))
 
-(defgeneric write-text (client stream line column text &optional start end))
+(defgeneric write-text (client stream style line column text &optional start end))
 
 (defgeneric miser-p (client stream))
 
