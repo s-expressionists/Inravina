@@ -78,3 +78,14 @@
    block, obeying *print-length* and *print-circle*."
   (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
 
+(defmacro pprint-logical-sub-block ((client stream
+                                     &key (prefix nil prefix-p)
+                                          (per-line-prefix nil per-line-prefix-p)
+                                          (suffix ""))
+                                    &body body)
+  (when (and prefix-p per-line-prefix-p)
+    (error 'program-error))
+  `(unwind-protect
+       (progn (pprint-start-logical-block ,client ,stream ,prefix ,per-line-prefix)
+              ,@body)
+     (pprint-end-logical-block ,client ,stream ,suffix)))

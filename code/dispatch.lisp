@@ -163,13 +163,13 @@
 (deftype flet-form ()
   `(satisfies flet-form-p))
 
-(defun if-form-p (form)
+(defun spread-form-p (form)
   (and (listp form)
        (member (first form)
-               '(if))))
+               '(if and or))))
 
-(deftype if-form ()
-  `(satisfies if-form-p))
+(deftype spread-form ()
+  `(satisfies spread-form-p))
 
 (defun cond-form-p (form)
   (and (listp form)
@@ -280,7 +280,7 @@
     (extended-loop-form            -10 pprint-extended-loop)
     (flet-form                     -10 pprint-flet)
     (function-quote-form           -10 pprint-macro-char :prefix "#'")
-    (if-form                       -10 pprint-function-call :newline :linear)
+    (spread-form                   -10 pprint-function-call :newline :linear)
     (lambda-form                   -10 pprint-lambda)
     (let-form                      -10 pprint-let)
     (pprint-logical-block-form     -10 pprint-with :argument-count 2)

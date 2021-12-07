@@ -111,8 +111,8 @@
         (with-env (stream :right-margin 80)
           (inravina:pprint-eval-when inravina:*client* stream form)))
     (is equal
-        "(EVAL-WHEN (:FU :BAR
-            :QUUX)
+        "(EVAL-WHEN
+    (:FU :BAR :QUUX)
   (WIBBLE 1))"
         (with-env (stream :right-margin 20)
           (inravina:pprint-eval-when inravina:*client* stream form)))))
@@ -198,7 +198,8 @@
         (with-env (stream :right-margin 80)
           (inravina:pprint-with inravina:*client* stream form)))
     (is equal
-        "(FU (BAR QUUX
+        "(FU
+    (BAR QUUX
      WIBBLE)
   QUUX
   GRONK)"
@@ -219,9 +220,10 @@
           (inravina:pprint-lambda-list inravina:*client* stream form)))
     (is equal
         "(X Y Z
- &KEY FU (BAR
-          NIL
-          BAR-P)
+ &KEY FU
+      (BAR
+       NIL
+       BAR-P)
  &AUX A (B 4))"
         (with-env (stream :right-margin 20)
           (inravina:pprint-lambda-list inravina:*client* stream form)))
@@ -231,8 +233,8 @@
       (BAR
        NIL
        BAR-P)
- &AUX A (B
-         4))"
+ &AUX A
+      (B 4))"
         (with-env (stream :right-margin 12)
           (inravina:pprint-lambda-list inravina:*client* stream form)))))
 

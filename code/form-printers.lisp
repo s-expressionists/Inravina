@@ -161,8 +161,8 @@
     (incless:write-object client (pprint-pop) stream)
     (pprint-exit-if-list-exhausted)
     (write-char #\Space stream)
-    (pprint-indent client stream :current 0)
-    (pprint-newline client stream :miser)
+    ;(pprint-indent client stream :block 3)
+    ;(pprint-newline client stream :miser)
     (pprint-bindings client stream (pprint-pop))))
 
 (defmethod pprint-progn (client stream object &rest options &key &allow-other-keys)
@@ -562,8 +562,9 @@
     (incless:write-object client (pprint-pop) stream)
     (pprint-exit-if-list-exhausted)
     (write-char #\Space stream)
+    (pprint-indent client stream :current 0)
     (incless:write-object client (pprint-pop) stream)
     (pprint-exit-if-list-exhausted)
     (write-char #\Space stream)
-    (pprint-indent client stream :current 0)))
+    (pprint-newline client stream :linear)))
 

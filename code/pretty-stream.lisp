@@ -234,8 +234,8 @@
         (terpri stream))))
 
 (defun line-length (stream)
-  (or (trivial-stream-column:line-length (target stream))
-      *print-right-margin*
+  (or *print-right-margin*
+      (trivial-stream-column:line-length (target stream))
       100))
 
 (defun layout-instructions (stream)
@@ -253,6 +253,7 @@
                                     (or (eq section instruction)
                                         (eq (section-end section) instruction)))))
             mode (and (eq :overflow mode) mode))
+      ;(format t "~S ~S ~S ~S~%" last-maybe-break instruction status mode)
       (case status
         ((t :maybe-break)
          (cond ((and (null section)
@@ -262,7 +263,9 @@
                     (and (typep section 'section-start)
                          (eq instruction (section-end section))))
                 (setf section nil)))
-         (when (eq status :maybe-break)
+         (when (and (eq status :maybe-break)
+                    (or (null last-maybe-break)
+                        (eq (parent last-maybe-break) (parent instruction))))
            (setf last-maybe-break instruction))
          (incf index))
         (:break
@@ -275,17 +278,18 @@
          (incf index))
         (otherwise
          (cond
+           (last-maybe-break
+            (setf index (instruction-index last-maybe-break)
+                  (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
+                  last-maybe-break nil
+                  section last-maybe-break
+                  mode t))
            (section
             (setf index (if (eq t section)
                             0
                             (1+ (instruction-index section)))
                   section nil
                   (fill-pointer (fragments stream)) (fragment-index (aref instructions index))))
-           (last-maybe-break
-            (setf index (instruction-index last-maybe-break)
-                  (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
-                  last-maybe-break nil
-                  mode t))
            (t
             (setf mode t)))))
       (go repeat)))
