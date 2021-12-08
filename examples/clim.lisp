@@ -3,21 +3,9 @@
 
 (in-package :clim-user)
 
-(defun normalize-font-size (size)
-  (cond ((null size)
-         (let ((size* (clim:text-style-size clim:*default-text-style*)))
-           (etypecase size*
-             (number size*)
-             (symbol (getf climi::+font-sizes+ size* nil)))))
-        ((eq size :smaller)
-         (getf climi::+font-sizes+ (clim:text-style-size clim:*default-text-style*) nil))
-        ((eq size :larger)
-         (getf climi::+font-sizes+ (clim:text-style-size clim:*default-text-style*) nil))
-        ((realp size)
-         (round (max size 2)))
-        ((getf climi::+font-sizes+ size nil))
-        (t
-         (error "~s is not a valid text style size!" size))))
+(defun em-size (stream style)
+  (clim:stream-character-width stream #\M
+                               :text-style (and style (style-text-style style))))
 
 (defstruct style
   ink
@@ -28,18 +16,18 @@
   (/ (clim:stream-string-width stream string
                                :start start :end end
                                :text-style (and style (style-text-style style)))
-     (normalize-font-size (clim:text-style-size (clim:medium-text-style stream)))))
+     (em-size stream style)))
 
 (defmethod trivial-stream-column:stream-measure-char
     ((stream clim:standard-extended-output-stream) char &optional style)
   (/ (clim:stream-character-width stream char
                                   :text-style (and style (style-text-style style)))
-     (normalize-font-size (clim:text-style-size (clim:medium-text-style stream)))))
+     (em-size stream style)))
 
 (defmethod trivial-gray-streams:stream-advance-to-column
     ((stream clim:standard-extended-output-stream) column)
   (setf (clim:stream-cursor-position stream)
-        (values (* (normalize-font-size (clim:text-style-size (clim:medium-text-style stream)))
+        (values (* (em-size stream nil)
                    column)
                 (nth-value 1 (clim:stream-cursor-position stream))))
   column)
@@ -65,11 +53,16 @@
                                                       (style-text-style style)
                                                       (clim:medium-text-style stream)))))
 
-#+(or)(defmethod incless:print-object-using-client :around (client (sym symbol) stream)
-  (if (eq (find-symbol (symbol-name sym) :cl) sym)
+(defmethod trivial-stream-column:stream-scale-column
+    ((stream clim:standard-extended-output-stream) column old-style new-style)
+  (/ (* column (em-size stream old-style))
+     (em-size stream new-style)))
+
+(defmethod incless:print-object-using-client :around (client (sym symbol) stream)
+  (if (eq sym 'and)
       (let ((old-style (trivial-stream-column:stream-style stream)))
         (setf (trivial-stream-column:stream-style stream)
-              (trivial-stream-column:stream-copy-style stream nil :ink clim:+cadet-blue+))
+              (trivial-stream-column:stream-copy-style stream nil :ink clim:+indian-red+ :size :small))
         (call-next-method)
         (setf (trivial-stream-column:stream-style stream) old-style))
       (call-next-method)))

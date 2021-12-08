@@ -70,8 +70,6 @@
 
 (defgeneric normalize-text (client stream text))
 
-(defgeneric write-text (client stream style line column text &optional start end))
-
 (defgeneric miser-p (client stream))
 
 (defgeneric pprint-block (client stream object &rest options &key &allow-other-keys))

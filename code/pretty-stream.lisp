@@ -321,19 +321,6 @@
     (layout-instructions stream)
     (write-fragments stream)))
 
-(defmethod write-text (client (stream pretty-stream) style line column text &optional start end)
-  (when style
-    (setf (trivial-stream-column:stream-style (target stream)) style))
-  (when line
-    (loop for i below line
-          do (terpri (target stream))))
-  (when column
-    (trivial-stream-column:advance-to-column column (target stream)))
-  (when text
-    (write-string text (target stream)
-                  :start start
-                  :end end)))
-
 (defgeneric layout (client stream mode instruction previous-instruction allow-break-p)
   (:method (client stream (mode (eql :overflow)) instruction previous-instruction allow-break-p)
     (declare (ignore client stream mode instruction previous-instruction allow-break-p))
@@ -342,7 +329,10 @@
 (defmethod layout :before
     (client stream mode instruction (previous-instruction (eql nil)) allow-break-p)
   (declare (ignore client allow-break-p mode))
-  (setf (break-column instruction) (trivial-stream-column:line-column (target stream))
+  (setf (break-column instruction)
+          (trivial-stream-column:scale-column (trivial-stream-column:line-column (target stream))
+                                              (target stream)
+                                              :new-style (style instruction))
         (column instruction) (break-column instruction)
         (line instruction) 0
         (fragment-index instruction) (length (fragments stream))))
@@ -350,8 +340,16 @@
 (defmethod layout :before
     (client stream mode instruction (previous-instruction instruction) allow-break-p)
   (declare (ignore client allow-break-p mode))
-  (setf (break-column instruction) (break-column previous-instruction)
-        (column instruction) (column previous-instruction)
+  (setf (break-column instruction)
+          (trivial-stream-column:scale-column (break-column previous-instruction)
+                                              (target stream)
+                                              :old-style (style previous-instruction)
+                                              :new-style (style instruction))
+        (column instruction)
+          (trivial-stream-column:scale-column (column previous-instruction)
+                                              (target stream)
+                                              :old-style (style previous-instruction)
+                                              :new-style (style instruction))
         (line instruction) (line previous-instruction)
         (fragment-index instruction) (length (fragments stream))))
 
