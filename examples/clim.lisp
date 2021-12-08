@@ -3,13 +3,13 @@
 
 (in-package :clim-user)
 
-(defun em-size (stream style)
-  (clim:stream-character-width stream #\M
-                               :text-style (and style (style-text-style style))))
-
 (defstruct style
   ink
   text-style)
+
+(defun em-size (stream style)
+  (clim:stream-character-width stream #\M
+                               :text-style (and style (style-text-style style))))
 
 (defmethod trivial-stream-column:stream-measure-string
     ((stream clim:standard-extended-output-stream) string &optional start end style)
@@ -58,28 +58,36 @@
   (/ (* column (em-size stream old-style))
      (em-size stream new-style)))
 
+(defmacro call-next-method-with-styles (stream overrides)
+  (let ((overrides-var (gensym))
+        (old-style-var (gensym)))
+    `(let ((,overrides-var ,overrides))
+       (if ,overrides-var
+           (let ((,old-style-var (trivial-stream-column:stream-style ,stream)))
+             (setf (trivial-stream-column:stream-style ,stream)
+                   (apply #'trivial-stream-column:stream-copy-style ,stream nil ,overrides-var))
+             (unwind-protect
+                 (call-next-method)
+               (setf (trivial-stream-column:stream-style ,stream) ,old-style-var)))
+           (call-next-method)))))
+
 (defmethod incless:print-object-using-client :around (client (sym symbol) stream)
-  (if (eq sym 'and)
-      (let ((old-style (trivial-stream-column:stream-style stream)))
-        (setf (trivial-stream-column:stream-style stream)
-              (trivial-stream-column:stream-copy-style stream nil :ink clim:+indian-red+ :size :small))
-        (call-next-method)
-        (setf (trivial-stream-column:stream-style stream) old-style))
-      (call-next-method)))
+  (call-next-method-with-styles stream
+    (cond ((keywordp sym)
+           (list :ink clim:+red3+))
+          ((or (special-operator-p sym)
+               (macro-function sym))
+           (list :ink clim:+steel-blue+ :face :bold))
+          ((constantp sym)
+           (list :ink clim:+cyan+))
+          ((boundp sym)
+           (list :ink clim:+darkgoldenrod4+)))))
 
 (defmethod incless:print-object-using-client :around (client (object number) stream)
-  (let ((old-style (trivial-stream-column:stream-style stream)))
-    (setf (trivial-stream-column:stream-style stream)
-          (trivial-stream-column:stream-copy-style stream nil :ink clim:+cadet-blue+))
-    (call-next-method)
-    (setf (trivial-stream-column:stream-style stream) old-style)))
+  (call-next-method-with-styles stream (list :ink clim:+cadet-blue+)))
 
 (defmethod incless:print-object-using-client :around (client (object string) stream)
-  (let ((old-style (trivial-stream-column:stream-style stream)))
-    (setf (trivial-stream-column:stream-style stream)
-          (trivial-stream-column:stream-copy-style stream nil :ink clim:+dark-green+))
-    (call-next-method)
-    (setf (trivial-stream-column:stream-style stream) old-style)))
+  (call-next-method-with-styles stream (list :ink clim:+green4+)))
 
 (clim-listener:run-listener)
 
