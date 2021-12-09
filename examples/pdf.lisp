@@ -1,6 +1,5 @@
-(require :inravina/ext.extrinsic)
-
-(require :cl-pdf)
+(asdf:load-system :inravina/ext.extrinsic)
+(asdf:load-system :cl-pdf)
 
 (defclass pdf-stream (trivial-gray-streams:fundamental-character-output-stream)
   ((line :accessor line

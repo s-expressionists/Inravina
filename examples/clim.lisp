@@ -1,3 +1,5 @@
+; Once this script is loaded you can call incless:pprint from the Listener REPL.
+
 (asdf:load-system "clim-listener")
 (asdf:load-system :inravina/ext.extrinsic)
 
