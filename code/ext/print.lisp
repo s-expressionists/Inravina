@@ -31,31 +31,38 @@
 (defun pprint-fill (stream object &optional (colon-p t) at-sign-p)
   (if *print-pretty*
       (inravina:pprint-fill inravina:*client* stream object colon-p at-sign-p)
-      (print-object object stream)))
+      (print-object object stream))
+  nil)
 
 (defun pprint-linear (stream object &optional (colon-p t) at-sign-p)
   (if *print-pretty*
       (inravina:pprint-linear inravina:*client* stream object colon-p at-sign-p)
-      (print-object object stream)))
+      (print-object object stream))
+  nil)
 
 (defun pprint-tabular (stream object &optional (colon-p t) at-sign-p (tabsize 16))
   (if *print-pretty*
       (inravina:pprint-tabular inravina:*client* stream object colon-p at-sign-p tabsize)
-      (print-object object stream)))
+      (print-object object stream))
+  nil)
 
 (defun pprint-indent (relative-to n &optional stream)
   (check-type relative-to (member :block :current))
-  (inravina:pprint-indent inravina:*client* stream relative-to n)
+  (when *print-pretty*
+    (inravina:pprint-indent inravina:*client* stream relative-to n))
   nil)
 
 (defun pprint-newline (kind &optional stream)
   (check-type kind (member :linear :fill :miser :mandatory))
-  (inravina:pprint-newline inravina:*client* stream kind)
+  (when *print-pretty*
+    (inravina:pprint-newline inravina:*client* stream kind))
   nil)
 
 (defun pprint-tab (kind colnum colinc &optional stream)
   (check-type kind (member :line :section :line-relative :section-relative))
-  (inravina:pprint-tab inravina:*client* stream kind colnum colinc))
+  (when *print-pretty*
+    (inravina:pprint-tab inravina:*client* stream kind colnum colinc))
+  nil)
 
 (defun pprint-dispatch (object &optional table)
   (inravina:pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) object))

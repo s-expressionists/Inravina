@@ -1,8 +1,8 @@
 (in-package #:inravina)
 
 (deftype newline-kind ()
-  `(member :fill :linear :mandatory :miser
-           :literal-fill :literal-linear :literal-mandatory :literal-miser))
+  `(member :fill :linear :mandatory :miser :fresh
+           :literal-fill :literal-linear :literal-mandatory :literal-miser :literal-fresh))
 
 (defun fill-kind-p (kind)
   (and (member kind '(:fill :literal-fill))
@@ -20,8 +20,12 @@
   (and (member kind '(:miser :literal-miser))
        t))
 
+(defun fresh-kind-p (kind)
+  (and (member kind '(:fresh :literal-fresh))
+       t))
+
 (defun literal-kind-p (kind)
-  (and (member kind '(:literal-fill :literal-linear :literal-mandatory :literal-miser))
+  (and (member kind '(:literal-fill :literal-linear :literal-mandatory :literal-miser :literal-fresh))
        t))
 
 (deftype tab-kind ()

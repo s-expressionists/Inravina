@@ -252,7 +252,6 @@
                                     (or (eq section instruction)
                                         (eq (section-end section) instruction)))))
             mode (and (eq :overflow mode) mode))
-      ;(format t "~S ~S ~S ~S~%" last-maybe-break instruction status mode)
       (case status
         ((t :maybe-break)
          (cond ((and (null section)
@@ -320,8 +319,9 @@
               (write-string (text fragment) target
                             :start 0
                             :end (unless (text-before-newline-p stream i)
-                                   (break-position client stream (text fragment)))))))
-  (setf (fill-pointer (fragments stream)) 0))
+                                   (break-position client stream (text fragment))))))
+        finally (finish-output target)
+                (setf (fill-pointer fragments) 0)))
 
 (defun process-instructions (stream)
   (unless (blocks stream)
@@ -450,7 +450,9 @@
                        (miser-p client stream))))
          nil)
         ((and (not mode)
-              (not allow-break-p))
+              (or (not allow-break-p)
+                  (and (fresh-kind-p (kind instruction))
+                       (zerop (break-column instruction)))))
          t)
         ((and (not mode)
               (or (fill-kind-p (kind instruction))
@@ -553,8 +555,7 @@
                  (eq (section-end (car sections)) newline))
         (pop sections))
       (push newline sections)
-      (vector-push-extend newline instructions)
-      (process-instructions stream))))
+      (vector-push-extend newline instructions))))
 
 (defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
   (vector-push-extend (make-instance 'tab
@@ -577,15 +578,6 @@
                                      :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
                       (instructions stream)))
-
-(defmethod trivial-gray-streams:stream-file-position ((stream pretty-stream))
-  (file-position (target stream)))
-
-(defmethod trivial-gray-streams:stream-write-char ((stream pretty-stream) char)
-  (if (char= char #\newline)
-      (pprint-newline (client stream) stream :literal-mandatory)
-      (pprint-text (client stream) stream char))
-  char)
 
 (defmethod pprint-text (client (stream pretty-stream) (text character) &optional start end)
   (declare (ignore start end))
@@ -622,27 +614,6 @@
                                              :value (subseq text start end)
                                              :parent (car (blocks stream)))
                               instructions)))))
-
-(defmethod trivial-gray-streams:stream-write-string ((stream pretty-stream) string &optional start end)
-  (pprint-split (client stream) stream string start end))
-
-(defmethod trivial-gray-streams:stream-finish-output ((stream pretty-stream))
-  (process-instructions stream))
-
-(defmethod trivial-gray-streams:stream-terpri ((stream pretty-stream))
-  (pprint-newline (client stream) stream :literal-mandatory))
-
-(defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
-  (trivial-stream-column:line-column (target stream)))
-
-(defmethod trivial-gray-streams:stream-advance-to-column ((stream pretty-stream) column)
-  (if (blocks stream)
-      (vector-push-extend (make-instance 'advance
-                                         :value column
-                                         :instruction-index (length (instructions stream))
-                                         :parent (car (blocks stream)))
-                          (instructions stream))
-      (trivial-stream-column:advance-to-column column (target stream))))
 
 (defmethod make-pretty-stream ((client client) (stream broadcast-stream))
   (if (broadcast-stream-streams stream)
@@ -702,6 +673,64 @@
          (style (aref (instructions stream) (1- (length (instructions stream))))))
         (t
          (trivial-stream-column:style stream))))
+
+;;; Gray Stream protocol support
+
+(defmethod trivial-gray-streams:stream-file-position ((stream pretty-stream))
+  (file-position (target stream)))
+
+(defmethod trivial-gray-streams:stream-write-char ((stream pretty-stream) char)
+  (cond ((null (blocks stream))
+         (write-char char (target stream)))
+        ((char= char #\Newline)
+         (pprint-newline (client stream) stream :literal-mandatory))
+        (t
+         (pprint-text (client stream) stream char)))
+  char)
+
+(defmethod trivial-gray-streams:stream-write-string ((stream pretty-stream) string &optional start end)
+  (if (blocks stream)
+      (pprint-split (client stream) stream string start end)
+      (write-string string (target stream) :start (or start 0) :end end))
+  string)
+
+(defmethod trivial-gray-streams:stream-finish-output ((stream pretty-stream))
+  (unless (blocks stream)
+    (finish-output (target stream))))
+
+(defmethod trivial-gray-streams:stream-force-output ((stream pretty-stream))
+  (unless (blocks stream)
+    (force-output (target stream))))
+
+(defmethod trivial-gray-streams:stream-clear-output ((stream pretty-stream))
+  (unless (blocks stream)
+    (clear-output (target stream))))
+
+(defmethod trivial-gray-streams:stream-terpri ((stream pretty-stream))
+  (if (blocks stream)
+      (pprint-newline (client stream) stream :literal-mandatory)
+      (terpri (target stream))))
+
+(defmethod trivial-gray-streams:stream-fresh-line ((stream pretty-stream))
+  (if (blocks stream)
+      (pprint-newline (client stream) stream :literal-fresh)
+      (fresh-line (target stream))))
+
+(defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
+  (unless (blocks stream)
+    (trivial-stream-column:line-column (target stream))))
+
+(defmethod trivial-gray-streams:stream-advance-to-column ((stream pretty-stream) column)
+  (cond ((blocks stream)
+         (vector-push-extend (make-instance 'advance
+                                            :value column
+                                            :instruction-index (length (instructions stream))
+                                            :parent (car (blocks stream)))
+                             (instructions stream))
+         t)
+        ((trivial-stream-column:advance-to-column column (target stream)))))
+
+;;; trivial-stream-column protocal support
 
 (defmethod trivial-stream-column:stream-style ((stream pretty-stream))
   (if (plusp (length (instructions stream)))
