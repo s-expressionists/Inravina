@@ -66,7 +66,7 @@ code in the examples directory.
 
 Additionally, font styles can be injected into the instruction sequence
 normally created by `pprint-logical-block`, `pprint-newline`, `pprint-tab`,
-`pprint-indent` and calls to `write-char` to `write-string` on the pretty
+`pprint-indent` and calls to `write-char` or `write-string` on the pretty
 stream. A sample of this being done is available in the McCLIM code in the 
 examples directory.
 
