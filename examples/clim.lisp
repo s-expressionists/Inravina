@@ -79,7 +79,7 @@
                (macro-function sym))
            (list :ink clim:+steel-blue+ :face :bold))
           ((constantp sym)
-           (list :ink clim:+cyan+))
+           (list :ink clim:+darkgoldenrod4+ :face :italic))
           ((boundp sym)
            (list :ink clim:+darkgoldenrod4+)))))
 

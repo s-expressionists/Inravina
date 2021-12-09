@@ -57,6 +57,13 @@
     :accessor value
     :type string)))
 
+(defclass advance (instruction)
+  ((value
+    :initarg :value
+    :initform 0
+    :accessor value
+    :type real)))
+
 (defclass style (instruction)
   ((style
     :initarg :style
@@ -308,7 +315,7 @@
               (when (text-before-newline-p stream i)
                 (trivial-stream-column:advance-to-column (column fragment) target)))
              (style-fragment
-              (setf (trivial-stream-column:stream-style target) (style fragment)))
+              (trivial-stream-column:set-style (style fragment) target))
              (text-fragment
               (write-string (text fragment) target
                             :start 0
@@ -377,9 +384,11 @@
       (zerop (length text))
       (let ((new-break-column (break-column instruction))
             (new-column (column instruction))
-            (width (trivial-stream-column:measure-string text (target stream)))
+            (width (trivial-stream-column:measure-string text (target stream)
+                                                         :style (style instruction)))
             (break-width (trivial-stream-column:measure-string text (target stream)
-                                                               :end (break-position client stream text))))
+                                                               :end (break-position client stream text)
+                                                               :style (style instruction))))
         (unless (zerop break-width)
           (setf new-break-column (+ new-column break-width)))
         (incf new-column width)
@@ -389,6 +398,10 @@
                 (column instruction) new-column)
           (vector-push-extend (make-instance 'text-fragment :text text) (fragments stream))
           t))))
+
+(defmethod layout (client stream mode (instruction advance) previous-instruction allow-break-p)
+  (declare (ignore previous-instruction allow-break-p))
+  (add-tab-fragment client stream mode instruction (value instruction)))
 
 (defmethod layout (client stream mode (instruction text) previous-instruction allow-break-p)
   (declare (ignore previous-instruction allow-break-p))
@@ -518,7 +531,7 @@
            (newline (make-instance 'newline
                                    :kind kind :depth depth
                                    :style (if (zerop (length (instructions stream)))
-                                              (trivial-stream-column:stream-style (target stream))
+                                              (trivial-stream-column:style (target stream))
                                               (style (aref (instructions stream) (1- (length (instructions stream))))))
                                    :section (car (sections stream))
                                    :instruction-index (length instructions)
@@ -547,7 +560,7 @@
   (vector-push-extend (make-instance 'tab
                                      :kind kind :colnum colnum :colinc colinc
                                      :style (if (zerop (length (instructions stream)))
-                                                (trivial-stream-column:stream-style (target stream))
+                                                (trivial-stream-column:style (target stream))
                                                 (style (aref (instructions stream) (1- (length (instructions stream))))))
                                      :section (car (sections stream))
                                      :instruction-index (length (instructions stream))
@@ -558,7 +571,7 @@
   (vector-push-extend (make-instance 'indent
                                      :kind relative-to :width n
                                      :style (if (zerop (length (instructions stream)))
-                                                (trivial-stream-column:stream-style (target stream))
+                                                (trivial-stream-column:style (target stream))
                                                 (style (aref (instructions stream) (1- (length (instructions stream))))))
                                      :section (car (sections stream))
                                      :instruction-index (length (instructions stream))
@@ -586,7 +599,7 @@
                                              :value (string text)
                                              :style (if instruction
                                                         (style instruction)
-                                                        (trivial-stream-column:stream-style (target stream)))
+                                                        (trivial-stream-column:style (target stream)))
                                              :section (car (sections stream))
                                              :instruction-index (length instructions)
                                              :parent (car (blocks stream)))
@@ -604,7 +617,7 @@
                                              :section (car (sections stream))
                                              :style (if instruction
                                                         (style instruction)
-                                                        (trivial-stream-column:stream-style (target stream)))
+                                                        (trivial-stream-column:style (target stream)))
                                              :instruction-index (length instructions)
                                              :value (subseq text start end)
                                              :parent (car (blocks stream)))
@@ -621,6 +634,15 @@
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
   (trivial-stream-column:line-column (target stream)))
+
+(defmethod trivial-gray-streams:stream-advance-to-column ((stream pretty-stream) column)
+  (if (blocks stream)
+      (vector-push-extend (make-instance 'advance
+                                         :value column
+                                         :instruction-index (length (instructions stream))
+                                         :parent (car (blocks stream)))
+                          (instructions stream))
+      (trivial-stream-column:advance-to-column column (target stream))))
 
 (defmethod make-pretty-stream ((client client) (stream broadcast-stream))
   (if (broadcast-stream-streams stream)
@@ -643,7 +665,7 @@
   (let ((block-start (make-instance 'block-start
                                     :section (car (sections stream))
                                     :style (if (zerop (length (instructions stream)))
-                                               (trivial-stream-column:stream-style (target stream))
+                                               (trivial-stream-column:style (target stream))
                                                (style (aref (instructions stream) (1- (length (instructions stream))))))
                                     :instruction-index (length (instructions stream))
                                     :prefix (normalize-text client stream prefix)
@@ -658,7 +680,7 @@
   (let ((block-end (make-instance 'block-end
                                   :section (car (sections stream))
                                   :style (if (zerop (length (instructions stream)))
-                                             (trivial-stream-column:stream-style (target stream))
+                                             (trivial-stream-column:style (target stream))
                                              (style (aref (instructions stream) (1- (length (instructions stream))))))
                                   :instruction-index (length (instructions stream))
                                   :suffix (normalize-text client stream suffix)
@@ -674,10 +696,17 @@
               (trivial-gray-streams:stream-line-column stream))
            *print-miser-width*)))
 
+(defun frob-style (stream style)
+  (cond (style)
+        ((plusp (length (instructions stream)))
+         (style (aref (instructions stream) (1- (length (instructions stream))))))
+        (t
+         (trivial-stream-column:style stream))))
+
 (defmethod trivial-stream-column:stream-style ((stream pretty-stream))
   (if (plusp (length (instructions stream)))
       (style (aref (instructions stream) (1- (length (instructions stream)))))
-      (trivial-stream-column:stream-style (target stream))))
+      (trivial-stream-column:style (target stream))))
 
 (defmethod (setf trivial-stream-column:stream-style) (new-style (stream pretty-stream))
   (if (blocks stream)
@@ -687,12 +716,22 @@
                                          :instruction-index (length (instructions stream))
                                          :parent (car (blocks stream)))
                           (instructions stream))
-      (setf (trivial-stream-column:stream-style (target stream)) new-style)))
+      (trivial-stream-column:set-style new-style (target stream))))
 
 (defmethod trivial-stream-column:stream-copy-style ((stream pretty-stream) style &rest overrides &key &allow-other-keys)
-  (apply #'trivial-stream-column:stream-copy-style
-         (target stream)
-         (cond (style)
-               ((plusp (length (instructions stream)))
-                (style (aref (instructions stream) (1- (length (instructions stream)))))))
-         overrides))
+  (apply #'trivial-stream-column:copy-style
+         (frob-style stream style) (target stream) overrides))
+
+(defmethod trivial-stream-column:stream-scale-column ((stream pretty-stream) column old-style new-style)
+  (trivial-stream-column:scale-column column (target stream)
+                                      :old-style (frob-style stream old-style)
+                                      :new-style (frob-style stream new-style)))
+
+(defmethod trivial-stream-column:stream-measure-char ((stream pretty-stream) char &optional style)
+  (trivial-stream-column:measure-char char stream :style (frob-style stream style)))
+
+(defmethod trivial-stream-column:stream-measure-string ((stream pretty-stream) char &optional start end style)
+  (trivial-stream-column:measure-string char stream
+                                        :start (or start 0) :end end
+                                        :style (frob-style stream style)))
+
