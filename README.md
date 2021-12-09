@@ -14,7 +14,7 @@ The intention is to include this as the stock pretty printer in [SICL][]
 eventually.
 
 In addition to a clone of this repository in a location that is discoverable
-by ASDF you will also need a clone the `symbol` branch of my [Incless][] fork.
+by ASDF you will also need a clone of the `symbol` branch of my [Incless][] fork.
 Additionally you will need a clone of [trivial-stream-column][].
 
 # Usage
@@ -48,11 +48,11 @@ There is a variety of form specific printers but not all forms that need a
 specific printer in the `common-lisp` package have been covered yet. 
 
 In the case of no available printer in the dispatch table for function or macro 
-calls there is a fallback printer that will use introspection on the appropriate 
-lambda list declaration to determine non-key argument counts, body forms, and
-embedded lambda list desctructuring arguments for macros. Given that information
-it will attempt to do things like keeping key-values together on a single line
-or printing body forms correctly, etc.
+calls there is a fallback printer. This printer will use introspection on the 
+appropriate  lambda list declaration to determine non-key argument counts, body 
+forms, and embedded lambda list desctructuring arguments for macros. Given that 
+information it will attempt to do things like keeping key-values together on a 
+single line or printing body forms correctly, etc.
 
 # Extended Functionality
 
