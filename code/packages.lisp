@@ -30,6 +30,7 @@
     #:pprint-block
     #:pprint-case
     #:pprint-cond
+    #:pprint-defclass
     #:pprint-defmethod-with-qualifier
     #:pprint-defun
     #:pprint-dispatch
@@ -64,6 +65,7 @@
     #:pprint-tagbody
     #:pprint-with
     #:pretty-stream-p
+    #:pretty-stream
     #:*print-pprint-dispatch*
     #:set-pprint-dispatch))
 

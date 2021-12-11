@@ -5,6 +5,13 @@
 
 (in-package :clim-user)
 
+(defclass clim-pretty-stream (inravina:pretty-stream)
+  ())
+
+(defmethod inravina:make-pretty-stream
+    ((client inravina:client) (stream clim:standard-extended-output-stream))
+  (make-instance 'clim-pretty-stream :target stream :client client))
+
 (defstruct style
   ink
   text-style)
@@ -64,7 +71,7 @@
   (let ((overrides-var (gensym))
         (old-style-var (gensym)))
     `(let ((,overrides-var ,overrides))
-       (if ,overrides-var
+       (if (and *print-pretty* ,overrides-var)
            (let ((,old-style-var (trivial-stream-column:stream-style ,stream)))
              (setf (trivial-stream-column:stream-style ,stream)
                    (apply #'trivial-stream-column:stream-copy-style ,stream nil ,overrides-var))
@@ -73,7 +80,8 @@
                (setf (trivial-stream-column:stream-style ,stream) ,old-style-var)))
            (call-next-method)))))
 
-(defmethod incless:print-object-using-client :around (client (sym symbol) stream)
+(defmethod incless:print-object-using-client :around
+    (client (sym symbol) (stream clim-pretty-stream))
   (call-next-method-with-styles stream
     (cond ((keywordp sym)
            (list :ink clim:+red3+))
@@ -85,10 +93,12 @@
           ((boundp sym)
            (list :ink clim:+darkgoldenrod4+)))))
 
-(defmethod incless:print-object-using-client :around (client (object number) stream)
+(defmethod incless:print-object-using-client :around
+    (client (object number) (stream clim-pretty-stream))
   (call-next-method-with-styles stream (list :ink clim:+cadet-blue+)))
 
-(defmethod incless:print-object-using-client :around (client (object string) stream)
+(defmethod incless:print-object-using-client :around
+    (client (object string) (stream clim-pretty-stream))
   (call-next-method-with-styles stream (list :ink clim:+green4+)))
 
 (clim-listener:run-listener)

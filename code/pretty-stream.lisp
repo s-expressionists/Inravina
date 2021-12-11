@@ -624,10 +624,10 @@
   stream)
 
 (defmethod make-pretty-stream ((client client) (stream (eql nil)))
-  (make-instance 'pretty-stream :target *standard-output* :client client))
+  (call-next-method client *standard-output*))
 
 (defmethod make-pretty-stream ((client client) (stream (eql t)))
-  (make-instance 'pretty-stream :target *terminal-io* :client client))
+  (call-next-method client *terminal-io*))
 
 (defmethod make-pretty-stream ((client client) stream)
   (make-instance 'pretty-stream :target stream :client client))

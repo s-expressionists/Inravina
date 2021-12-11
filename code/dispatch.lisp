@@ -69,6 +69,14 @@
 (deftype block-form ()
   `(satisfies block-form-p))
 
+(defun defclass-form-p (form)
+  (and (listp form)
+       (member (first form)
+               '(defclass define-condition))))
+
+(deftype defclass-form ()
+  `(satisfies defclass-form-p))
+
 (defun do-form-p (form)
   (and (listp form)
        (member (first form)
@@ -272,6 +280,7 @@
     (block-form                    -10 pprint-block)
     (case-form                     -10 pprint-case)
     (cond-form                     -10 pprint-cond)
+    (defclass-form                 -10 pprint-defclass)
     (defmethod-with-qualifier-form -10 pprint-defmethod-with-qualifier)
     (defun-form                    -10 pprint-defun)
     (do-form                       -10 pprint-do)

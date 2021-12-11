@@ -124,3 +124,4 @@
 
 (defgeneric pprint-apply (client stream object &rest options &key &allow-other-keys))
 
+(defgeneric pprint-defclass (client stream object &rest options &key &allow-other-keys))
