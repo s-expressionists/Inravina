@@ -6,7 +6,7 @@
       (with-output-to-string (stream)
         (inravina:pprint-logical-block (inravina:*client* stream '(:test :a))
           (inravina:pprint-exit-if-list-exhausted)
-          (loop do (incless:write-object inravina:*client* (inravina:pprint-pop) stream)
+          (loop do (inravina:write-object inravina:*client* stream (inravina:pprint-pop))
                    (inravina:pprint-exit-if-list-exhausted)
                    (inravina:pprint-tab inravina:*client* stream :line 1 1))))))
 

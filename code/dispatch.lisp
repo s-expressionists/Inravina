@@ -1,27 +1,22 @@
 (in-package #:inravina)
 
 (defclass dispatch-entry ()
-  ((type-specifier
-     :accessor dispatch-entry-type-specifier
-     :initarg :type-specifier)
-   (test-function
-     :accessor dispatch-entry-test-function
-     :initarg :test-function)
-   (function
-     :accessor dispatch-entry-function
-     :initarg :function)
-   (priority
-     :accessor dispatch-entry-priority
-     :initarg :priority
-     :initform 0
-     :type real)))
+  ((type-specifier :accessor dispatch-entry-type-specifier
+                   :initarg :type-specifier)
+   (test-function :accessor dispatch-entry-test-function
+                  :initarg :test-function)
+   (function :accessor dispatch-entry-function
+             :initarg :function)
+   (priority :accessor dispatch-entry-priority
+             :initarg :priority
+             :initform 0
+             :type real)))
 
 (defclass dispatch-table ()
-  ((entries
-     :accessor dispatch-table-entries
-     :initarg :entries
-     :initform nil
-     :type list)))
+  ((entries :accessor dispatch-table-entries
+            :initarg :entries
+            :initform nil
+            :type list)))
 
 (defmethod print-object ((entry dispatch-entry) stream)
   (print-unreadable-object (entry stream :type t)
@@ -314,9 +309,11 @@
           (not bit-vector))        -10 pprint-array)
     (call-form                     -20 pprint-call)))
 
-(defun make-dispatch-function (name rest &aux (func (fdefinition name)))
+(defun make-dispatch-function (client name rest &aux (func (fdefinition name)))
   (lambda (stream object)
-    (apply func *client* stream object rest)))
+    (handle-circle client (make-pretty-stream client stream) object
+                   (lambda (stream object)
+                     (apply func client stream object rest)))))
 
 (defun add-dispatch-entry (table type-specifier function priority)
   (let ((entry (find type-specifier (dispatch-table-entries table)
@@ -338,7 +335,7 @@
     (loop for (type priority name . rest) in +default-dispatch-entries+
           do (add-dispatch-entry new-table
                                   type
-                                  (make-dispatch-function name rest)
+                                  (make-dispatch-function client name rest)
                                   priority))
     new-table))
 
@@ -379,8 +376,9 @@
         (make-test-function (dispatch-entry-type-specifier instance))))
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
-  (add-dispatch-entry table type-specifier function priority))
+  (add-dispatch-entry table type-specifier
+                      (lambda (stream object)
+                        (handle-circle client (make-pretty-stream client stream) object function))
+                      function priority))
 
 (defvar *print-pprint-dispatch* (copy-pprint-dispatch *client* nil))
-
-  

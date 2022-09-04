@@ -1,6 +1,6 @@
 (in-package #:inravina)
 
-(defclass client (incless:standard-client)
+(defclass client ()
   ())
 
 (defvar *client* (make-instance 'client))

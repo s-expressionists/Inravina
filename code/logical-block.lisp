@@ -3,7 +3,7 @@
 (defun pprint-pop-p (client stream object count)
   (cond ((not (listp object))
          (write-string ". " stream)
-         (incless:write-object client object stream)
+         (write-object client stream object)
          nil)
         ((and (not *print-readably*)
               (eql count *print-length*))
@@ -22,7 +22,7 @@
                                           (t
                                             stream)))))
     (cond ((not (listp object))
-           (incless:write-object client object stream))
+           (write-object client stream object))
           ((and (not *print-readably*)
                 (eql 0 *print-level*))
            (write-char #\# stream))

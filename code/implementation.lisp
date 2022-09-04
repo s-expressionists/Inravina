@@ -36,11 +36,5 @@
       (go next))
     (pprint-text client stream text start end)))
 
-(defmethod incless:write-object ((client client) object stream)
-  (multiple-value-bind (func presentp)
-      (and *print-pretty*
-           (pprint-dispatch client *print-pprint-dispatch* object))
-    (if presentp
-       (funcall func stream object)
-       (call-next-method)))
-  object)
+(defmethod handle-circle (client stream object function)
+  (funcall function stream object))

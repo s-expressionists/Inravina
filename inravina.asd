@@ -6,8 +6,7 @@
   :homepage "https://yitzchak.github.io/Inravina/"
   :bug-tracker "https://github.com/yitzchak/Inravina/issues"
   :in-order-to ((asdf:test-op (asdf:test-op #:inravina/test)))
-  :depends-on (#:incless
-               (:feature (:not :sicl) #:trivial-gray-streams)
+  :depends-on ((:feature (:not :sicl) #:trivial-gray-streams)
                #:trivial-stream-column
                (:feature :sbcl #:sb-introspect))
   :components
@@ -49,28 +48,31 @@
   :description "Inravina/ext extrinsic"
   :author "Tarn W. Burton"
   :license "MIT"
-  :depends-on
-    (:inravina)
-  :components
-    ((:module code
-      :components
-      ((:module ext
-        :serial t
-        :components
-          ((:file "packages-extrinsic")
-           (:file "print")))))))
+  :components ((:module code
+                :components ((:module ext
+                              :serial t
+                              :components ((:file "packages-extrinsic")
+                                           (:file "print")))))))
 
 (asdf:defsystem #:inravina/ext.intrinsic
   :description "Inravina/ext intrinsic"
   :author "Tarn W. Burton"
   :license "MIT"
-  :depends-on
-    (:inravina)
-  :components
-    ((:module code
-      :components
-      ((:module ext
-        :serial t
-        :components
-          ((:file "packages-intrinsic")
-           (:file "print")))))))
+  :depends-on (:inravina)
+  :components ((:module code
+                :components ((:module ext
+                              :serial t
+                              :components ((:file "packages-intrinsic")
+                                           (:file "print")))))))
+
+(asdf:defsystem #:inravina/ext.shim
+  :description "Inravina/ext shim"
+  :author "Tarn W. Burton"
+  :license "MIT"
+  :depends-on (:inravina)
+  :components ((:module code
+                :components ((:module ext
+                              :serial t
+                              :components ((:file "packages-intrinsic")
+                                           (:file "shim")
+                                           (:file "print")))))))

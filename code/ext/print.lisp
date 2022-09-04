@@ -112,5 +112,3 @@
   "Pops one element from the list being printed in the lexically current logical
    block, obeying *print-length* and *print-circle*."
   (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
-
-(setf incless:*client* inravina:*client*)
