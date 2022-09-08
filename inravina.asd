@@ -69,10 +69,11 @@
   :description "Inravina/ext shim"
   :author "Tarn W. Burton"
   :license "MIT"
-  :depends-on (:inravina)
+  :depends-on (:inravina :trivial-package-locks)
   :components ((:module code
                 :components ((:module ext
                               :serial t
                               :components ((:file "packages-intrinsic")
                                            (:file "shim")
-                                           (:file "print")))))))
+                                           (:file "print")
+                                           (:file "post")))))))

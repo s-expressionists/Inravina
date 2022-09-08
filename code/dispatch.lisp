@@ -379,6 +379,6 @@
   (add-dispatch-entry table type-specifier
                       (lambda (stream object)
                         (handle-circle client (make-pretty-stream client stream) object function))
-                      function priority))
+                      priority))
 
 (defvar *print-pprint-dispatch* (copy-pprint-dispatch *client* nil))

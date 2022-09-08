@@ -337,9 +337,9 @@
     (client stream mode instruction (previous-instruction (eql nil)) allow-break-p)
   (declare (ignore client allow-break-p mode))
   (setf (break-column instruction)
-          (trivial-stream-column:scale-column (trivial-stream-column:line-column (target stream))
-                                              (target stream)
-                                              :new-style (style instruction))
+        (trivial-stream-column:scale-column (or (trivial-stream-column:line-column (target stream)) 0)
+                                            (target stream)
+                                            :new-style (style instruction))
         (column instruction) (break-column instruction)
         (line instruction) 0
         (fragment-index instruction) (length (fragments stream))))
@@ -631,6 +631,10 @@
 
 (defmethod make-pretty-stream ((client client) stream)
   (make-instance 'pretty-stream :target stream :client client))
+
+#+sbcl
+(defmethod make-pretty-stream ((client client) (stream sb-pretty:pretty-stream))
+  (make-pretty-stream client (sb-pretty::pretty-stream-target stream)))
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix)
   (let ((block-start (make-instance 'block-start

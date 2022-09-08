@@ -1,5 +1,7 @@
 (in-package #:inravina/ext)
 
+(trivial-package-locks:with-unlocked-packages (:common-lisp)
+
 ;(fmakunbound 'pprint-dispatch)
 
 #+(or)(defun pprint-dispatch (object &optional table)
@@ -8,6 +10,8 @@
 
 ;(fmakunbound 'copy-pprint-dispatch)
 ;(fmakunbound 'set-pprint-dispatch)
+
+#+sbcl (declaim (type inravina::dispatch-table *print-pprint-dispatch*))
 
 (defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
 
@@ -111,4 +115,4 @@
 (defmacro pprint-pop ()
   "Pops one element from the list being printed in the lexically current logical
    block, obeying *print-length* and *print-circle*."
-  (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
+  (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK.")))

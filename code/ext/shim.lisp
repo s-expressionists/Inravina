@@ -6,7 +6,9 @@
 ;(setf inravina:*client* (make-instance 'shim-client))
 
 (defmethod inravina:write-object ((client inravina:client) stream object)
-  #+clasp (sys:write-object object stream))
+  (declare (ignorable client))
+  #+clasp (sys:write-object object stream)
+  #+sbcl (sb-impl::output-object object stream))
 
 #+clasp
 (defmethod inravina:handle-circle ((client inravina:client) stream object function)
