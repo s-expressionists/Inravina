@@ -604,14 +604,14 @@
                             (aref instructions (1- (length instructions))))))
       (if (typep instruction 'text)
           (setf (value instruction)
-                (concatenate 'string (value instruction) (subseq text start end)))
+                (concatenate 'string (value instruction) (subseq text (or start 0) end)))
           (vector-push-extend (make-instance 'text
                                              :section (car (sections stream))
                                              :style (if instruction
                                                         (style instruction)
                                                         (trivial-stream-column:style (target stream)))
                                              :instruction-index (length instructions)
-                                             :value (subseq text start end)
+                                             :value (subseq text (or start 0) end)
                                              :parent (car (blocks stream)))
                               instructions)))))
 

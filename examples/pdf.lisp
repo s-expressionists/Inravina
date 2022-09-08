@@ -49,7 +49,7 @@
   char)
 
 (defmethod trivial-gray-streams:stream-write-string ((stream pdf-stream) string &optional start end)
-  (pdf:draw-text (subseq string start end))
+  (pdf:draw-text (subseq string (or start 0) end))
   (incf (column stream) (measure-string (subseq string start end)))
   string)
 
