@@ -1,4 +1,4 @@
-(asdf:load-system :inravina/ext.extrinsic)
+(asdf:load-system :inravina/intrinsic)
 (asdf:load-system :cl-pdf)
 
 (defclass pdf-stream (trivial-gray-streams:fundamental-character-output-stream)
@@ -64,7 +64,7 @@
 	        (pdf:move-text 100 800)
 	        (pdf:set-font helvetica 12.0)
 	        (pdf:set-text-leading (* 1.2 12.0))
-	        (incless:pprint '(if (quux 'a)
+	        (pprint '(if (quux 'a)
 	                             (loop for i in '(1 2 3) do (print i) (wibble i) collect i)
 	                             (write-line "gronk"))
 	                        (make-instance 'pdf-stream))))))

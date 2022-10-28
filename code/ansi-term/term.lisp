@@ -1,8 +1,8 @@
-(asdf:load-system :inravina/ext.extrinsic)
+(in-package #:inravina/ansi-term)
 
 (defclass term-pretty-stream (inravina:pretty-stream)
   ())
-
+  
 (defclass term-stream (trivial-gray-streams:fundamental-character-output-stream)
   ((style :accessor style
           :initform (list :color :default)
@@ -10,7 +10,7 @@
    (target :reader target
            :initarg :target)))
 
-(defmethod inravina:make-pretty-stream ((client inravina:client) (stream term-stream))
+(defmethod inravina:make-pretty-stream (client (stream term-stream))
   (make-instance 'term-pretty-stream :target stream :client client))
 
 ;;; Gray Stream protocol support
@@ -77,8 +77,7 @@
                (setf (trivial-stream-column:stream-style ,stream) ,old-style-var)))
            (call-next-method)))))
 
-(defmethod incless:print-object-using-client :around
-    (client (sym symbol) (stream term-pretty-stream))
+(defmethod print-object :around ((sym symbol) (stream term-pretty-stream))
   (call-next-method-with-styles stream
     (cond ((keywordp sym)
            (list :color :red))
@@ -90,12 +89,9 @@
           ((boundp sym)
            (list :color :yellow)))))
 
-(defmethod incless:print-object-using-client :around
-    (client (object number) (stream term-pretty-stream))
+(defmethod print-object :around ((object number) (stream term-pretty-stream))
   (call-next-method-with-styles stream (list :color :green)))
 
-(defmethod incless:print-object-using-client :around
-    (client (object string) (stream term-pretty-stream))
+(defmethod print-object :around ((object string) (stream term-pretty-stream))
   (call-next-method-with-styles stream (list :color :green)))
 
-(setf *standard-output* (make-instance 'term-stream :target *standard-output*))

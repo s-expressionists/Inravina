@@ -61,3 +61,14 @@
                                            (:file "shim")
                                            (:file "print")
                                            (:file "post")))))))
+
+(asdf:defsystem #:inravina/ansi-term
+  :description "Inravina/ansi-term"
+  :author "Tarn W. Burton"
+  :license "MIT"
+  :depends-on (:inravina/intrinsic)
+  :components ((:module code
+                :components ((:module ansi-term
+                              :serial t
+                              :components ((:file "packages")
+                                           (:file "term")))))))
