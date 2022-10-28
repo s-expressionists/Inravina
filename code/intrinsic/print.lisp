@@ -1,30 +1,10 @@
-(in-package #:inravina/ext)
+(in-package #:inravina/intrinsic)
 
 (trivial-package-locks:with-unlocked-packages (:common-lisp)
-
-;(fmakunbound 'pprint-dispatch)
-
-#+(or)(defun pprint-dispatch (object &optional table)
-  (declare (ignore object table))
-  (values nil nil))
-
-;(fmakunbound 'copy-pprint-dispatch)
-;(fmakunbound 'set-pprint-dispatch)
 
 #+sbcl (declaim (type inravina::dispatch-table *print-pprint-dispatch*))
 
 (defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
-
-#+(or)(declaim (ftype (function (&optional (or null inravina::dispatch-table))
-                          inravina::dispatch-table)
-                copy-pprint-dispatch)
-         (ftype (function (t &optional (or null inravina::dispatch-table))
-                          (values (or function symbol) boolean))
-                pprint-dispatch)
-         (ftype (function (t (or function symbol) &optional real inravina::dispatch-table)
-                          null)
-                set-pprint-dispatch)
-         (type inravina::dispatch-table *print-pprint-dispatch*))
 
 (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
   (inravina:copy-pprint-dispatch inravina:*client* table))
@@ -33,21 +13,15 @@
   (inravina:set-pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) type-specifier function priority))
 
 (defun pprint-fill (stream object &optional (colon-p t) at-sign-p)
-  (if *print-pretty*
-      (inravina:pprint-fill inravina:*client* stream object colon-p at-sign-p)
-      (print-object object stream))
+  (inravina:pprint-fill inravina:*client* stream object colon-p at-sign-p)
   nil)
 
 (defun pprint-linear (stream object &optional (colon-p t) at-sign-p)
-  (if *print-pretty*
-      (inravina:pprint-linear inravina:*client* stream object colon-p at-sign-p)
-      (print-object object stream))
+  (inravina:pprint-linear inravina:*client* stream object colon-p at-sign-p)
   nil)
 
 (defun pprint-tabular (stream object &optional (colon-p t) at-sign-p (tabsize 16))
-  (if *print-pretty*
-      (inravina:pprint-tabular inravina:*client* stream object colon-p at-sign-p tabsize)
-      (print-object object stream))
+  (inravina:pprint-tabular inravina:*client* stream object colon-p at-sign-p tabsize)
   nil)
 
 (defun pprint-indent (relative-to n &optional stream)

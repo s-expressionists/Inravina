@@ -1,6 +1,6 @@
-(in-package #:inravina/ext)
+(in-package #:inravina/intrinsic)
 
-(defclass shim-client (inravina:client)
+(defclass client (inravina:client)
   ())
 
 ;(setf inravina:*client* (make-instance 'shim-client))
@@ -14,5 +14,5 @@
 #+(or clasp ecl)
 (defmethod inravina:handle-circle ((client inravina:client) stream object function)
   (sys::write-object-with-circle object stream
-                                 (lambda (object stream)
-                                   (funcall function stream object))))
+    (lambda (object stream)
+      (funcall function stream object))))

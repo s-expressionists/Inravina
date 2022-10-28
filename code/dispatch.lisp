@@ -330,7 +330,8 @@
           (sort (dispatch-table-entries table) #'> :key #'dispatch-entry-priority)))
   nil)
 
-(defmethod copy-pprint-dispatch ((client client) (table (eql nil)))
+(defmethod copy-pprint-dispatch (client (table (eql nil)))
+  (declare (ignore client table))
   (let ((new-table (make-instance 'dispatch-table)))
     (loop for (type priority name . rest) in +default-dispatch-entries+
           do (add-dispatch-entry new-table

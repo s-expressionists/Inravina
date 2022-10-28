@@ -9,13 +9,12 @@ fires than continue reading!
 
 # Requirements
 
-[SBCL][] is the only current implementation that this system has been tested on.
-The intention is to include this as the stock pretty printer in [SICL][]
-eventually.
+[ABCL][], [Clasp][], [ECL][], and [SBCL][] is the only current implementations
+that this system has been tested on. The intention is to include this as the
+stock pretty printer in [SICL][] eventually.
 
 In addition to a clone of this repository in a location that is discoverable
-by ASDF you will also need a clone of the `symbol` branch of my [Incless][] fork.
-Additionally you will need a clone of [trivial-stream-column][].
+by ASDF you will also need a clone of [trivial-stream-column][].
 
 # Usage
 
