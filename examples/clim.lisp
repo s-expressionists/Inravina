@@ -1,15 +1,14 @@
 ; Once this script is loaded you can call incless:pprint from the Listener REPL.
 
-(asdf:load-system "clim-listener")
-(asdf:load-system :inravina/ext.extrinsic)
+(ql:quickload "clim-listener")
+(ql:quickload :inravina/intrinsic)
 
 (in-package :clim-user)
 
 (defclass clim-pretty-stream (inravina:pretty-stream)
   ())
 
-(defmethod inravina:make-pretty-stream
-    ((client inravina:client) (stream clim:standard-extended-output-stream))
+(defmethod inravina:make-pretty-stream (client (stream clim:standard-extended-output-stream))
   (make-instance 'clim-pretty-stream :target stream :client client))
 
 (defstruct style
@@ -80,8 +79,7 @@
                (setf (trivial-stream-column:stream-style ,stream) ,old-style-var)))
            (call-next-method)))))
 
-(defmethod incless:print-object-using-client :around
-    (client (sym symbol) (stream clim-pretty-stream))
+(defmethod print-object-using :around ((sym symbol) (stream clim-pretty-stream))
   (call-next-method-with-styles stream
     (cond ((keywordp sym)
            (list :ink clim:+red3+))
@@ -93,12 +91,10 @@
           ((boundp sym)
            (list :ink clim:+darkgoldenrod4+)))))
 
-(defmethod incless:print-object-using-client :around
-    (client (object number) (stream clim-pretty-stream))
+(defmethod print-object :around ((object number) (stream clim-pretty-stream))
   (call-next-method-with-styles stream (list :ink clim:+cadet-blue+)))
 
-(defmethod incless:print-object-using-client :around
-    (client (object string) (stream clim-pretty-stream))
+(defmethod print-object :around ((object string) (stream clim-pretty-stream))
   (call-next-method-with-styles stream (list :ink clim:+green4+)))
 
 (clim-listener:run-listener)
