@@ -474,15 +474,17 @@
           (indent instruction) 0)
     (cond (parent-prefix-fragments
            (setf (prefix-fragments instruction)
-                 (make-array (1+ (length parent-prefix-fragments))
+                 (make-array (length parent-prefix-fragments)
                              :fill-pointer (length parent-prefix-fragments)
+                             :adjustable t
                              :initial-contents parent-prefix-fragments
                              :element-type 'fragment))
            (when column
-             (vector-push (make-instance 'tab-fragment :column column)
+             (vector-push-extend (make-instance 'tab-fragment :column column)
                           (prefix-fragments instruction)))
            (when per-line-prefix
-             (vector-push (make-instance 'text-fragment :text per-line-prefix))))
+             (vector-push-extend (make-instance 'text-fragment :text per-line-prefix)
+                                 (prefix-fragments instruction))))
           (per-line-prefix
            (setf (prefix-fragments instruction)
                  (apply #'vector (make-instance 'tab-fragment :column column)
@@ -589,30 +591,24 @@
                               instructions)))))
 
 (defmethod make-pretty-stream (client (stream broadcast-stream))
-  (print "dsfsdf")
   (if (broadcast-stream-streams stream)
       (call-next-method)
       stream))
 
 (defmethod make-pretty-stream (client (stream pretty-stream))
-  (print "dsfsdf2")
   stream)
 
 (defmethod make-pretty-stream (client (stream (eql nil)))
-  (print "dsfsdf4")
   (call-next-method client *standard-output*))
 
 (defmethod make-pretty-stream (client (stream (eql t)))
-  (print "dsfsdf5")
   (call-next-method client *terminal-io*))
 
 (defmethod make-pretty-stream (client stream)
-  (print "sdfsdf2")
   (make-instance 'pretty-stream :target stream :client client))
 
 #+sbcl
 (defmethod make-pretty-stream (client (stream sb-pretty:pretty-stream))
-  (print "sdfsdf")
   (make-pretty-stream client (sb-pretty::pretty-stream-target stream)))
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix)

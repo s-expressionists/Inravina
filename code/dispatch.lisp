@@ -215,7 +215,7 @@
 (defun quasiquote-form-p (form)
   (and (listp form)
        (eql (first form)
-            #+clasp 'eclector.reader:quasiquote
+            #+clasp (find-symbol "QUASIQUOTE" :eclector.reader)
             #+ecl 'si:quasiquote
             #+sbcl 'sb-int:quasiquote)))
 
@@ -227,7 +227,7 @@
 (defun unquote-form-p (form)
   (and (listp form)
        (eql (first form)
-            #+clasp 'eclector.reader:unquote
+            #+clasp (find-symbol "UNQUOTE" :eclector.reader)
             #+ecl 'si:unquote)))
 
 #+(or clasp ecl)
@@ -238,7 +238,7 @@
 (defun unquote-splice-form-p (form)
   (and (listp form)
        (eql (first form)
-            #+clasp 'eclector.reader:unquote-splicing
+            #+clasp (find-symbol "UNQUOTE-SPLICING" :eclector.reader)
             #+ecl 'si:unquote-splice)))
 
 #+(or clasp ecl)
