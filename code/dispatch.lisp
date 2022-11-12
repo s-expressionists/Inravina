@@ -340,6 +340,17 @@
                                   priority))
     new-table))
 
+(defmethod copy-pprint-dispatch (client (table dispatch-table))
+  (declare (ignore client))
+  (make-instance 'dispatch-table
+                 :entries (mapcar (lambda (entry)
+                                    (make-instance 'dispatch-entry
+                                                   :type-specifier (dispatch-entry-type-specifier entry)
+                                                   :test-function (dispatch-entry-test-function entry)
+                                                   :function (dispatch-entry-function entry)
+                                                   :priority (dispatch-entry-priority entry)))
+                                  (dispatch-table-entries table))))
+
 (defun default-dispatch-print (stream object)
   (print-object object stream))
 
