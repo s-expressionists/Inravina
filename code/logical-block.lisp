@@ -13,6 +13,9 @@
          t)))
 
 (defun do-pprint-logical-block (client stream object prefix per-line-prefix suffix function)
+  (check-type prefix (or null string))
+  (check-type per-line-prefix (or null string))
+  (check-type suffix (or null string))
   (let ((*client* client)
         (stream (make-pretty-stream client
                                     (cond ((null stream)
@@ -27,11 +30,14 @@
                 (eql 0 *print-level*))
            (write-char #\# stream))
           (t
-           (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
-             (pprint-start-logical-block client stream prefix per-line-prefix)
-             (unwind-protect
-                 (funcall function stream object)
-               (pprint-end-logical-block client stream suffix)))))))
+           (handle-circle client stream object
+                          (lambda (stream object)
+                            (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
+                              (pprint-start-logical-block client stream prefix per-line-prefix)
+                              (unwind-protect
+                                  (funcall function stream object)
+                                (pprint-end-logical-block client stream suffix)))))))
+    nil))
 
 (defmacro pprint-logical-block ((client stream-symbol object
                                 &key (prefix nil prefix-p)

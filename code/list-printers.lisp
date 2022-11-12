@@ -8,14 +8,14 @@
 (defmacro pprint-list ((client stream object &key paren tabsize newline) &body body)
   `(pprint-format-logical-block (,client ,stream ,object :paren ,paren)
      ,@body
-    (pprint-exit-if-list-exhausted)
-    (loop do (write-object ,client ,stream (pprint-pop))
-             (pprint-exit-if-list-exhausted)
-             (write-char #\Space ,stream)
-             ,@(when tabsize
-                 `((pprint-tab ,client ,stream :section-relative 0 ,tabsize)))
-             ,@(when newline
-                 `((pprint-newline ,client ,stream ,newline))))))
+     (pprint-exit-if-list-exhausted)
+     (loop do (write-object ,client ,stream (pprint-pop))
+              (pprint-exit-if-list-exhausted)
+              (write-char #\Space ,stream)
+              ,@(when tabsize
+                  `((pprint-tab ,client ,stream :section-relative 0 ,tabsize)))
+              ,@(when newline
+                  `((pprint-newline ,client ,stream ,newline))))))
 
 (defmacro pprint-plist ((client stream object &key paren tabsize newline) &body body)
   `(pprint-format-logical-block (,client ,stream ,object :paren ,paren)

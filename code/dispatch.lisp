@@ -311,9 +311,9 @@
 
 (defun make-dispatch-function (client name rest &aux (func (fdefinition name)))
   (lambda (stream object)
-    (handle-circle client (make-pretty-stream client stream) object
-                   (lambda (stream object)
-                     (apply func client stream object rest)))))
+    ;(handle-circle client  object
+                   ;(lambda (stream object)
+                     (apply func client (make-pretty-stream client stream) object rest)))
 
 (defun add-dispatch-entry (table type-specifier function priority)
   (let ((entry (find type-specifier (dispatch-table-entries table)
@@ -364,7 +364,8 @@
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
   (setf (dispatch-table-entries table)
-        (delete type-specifier (dispatch-table-entries table) :test #'equal))
+        (delete type-specifier (dispatch-table-entries table)
+                :key #'dispatch-entry-type-specifier :test #'equal))
   nil)
 
 (defun make-test-function (type-specifier)
@@ -392,5 +393,3 @@
                       (lambda (stream object)
                         (handle-circle client (make-pretty-stream client stream) object function))
                       priority))
-
-(defvar *print-pprint-dispatch* (copy-pprint-dispatch *client* nil))

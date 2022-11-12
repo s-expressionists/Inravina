@@ -12,7 +12,6 @@
            #:pprint-pop
            #:pprint-tab
            #:pprint-tabular
-           #:*print-pprint-dispatch*
            #:set-pprint-dispatch)
   #+sicl
   (:local-nicknames (:trivial-gray-streams :cyclosis))

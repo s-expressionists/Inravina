@@ -7,11 +7,13 @@
 (defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
 
 (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
+  (check-type table inravina::dispatch-table)
   (inravina:copy-pprint-dispatch inravina:*client* table))
 
-(defun set-pprint-dispatch (type-specifier function &optional (priority 0) table)
+(defun set-pprint-dispatch (type-specifier function &optional (priority 0) (table *print-pprint-dispatch*))
   (check-type priority real)
-  (inravina:set-pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) type-specifier function priority))
+  (check-type table inravina::dispatch-table)
+  (inravina:set-pprint-dispatch inravina:*client* table type-specifier function priority))
 
 (defun pprint-fill (stream object &optional (colon-p t) at-sign-p)
   (inravina:pprint-fill inravina:*client* stream object colon-p at-sign-p)
@@ -43,8 +45,9 @@
     (inravina:pprint-tab inravina:*client* stream kind colnum colinc))
   nil)
 
-(defun pprint-dispatch (object &optional table)
-  (inravina:pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) object))
+(defun pprint-dispatch (object &optional (table *print-pprint-dispatch*))
+  (check-type table inravina::dispatch-table)
+  (inravina:pprint-dispatch inravina:*client* table object))
 
 (defmacro pprint-logical-block ((stream-symbol object
                                 &key (prefix nil prefix-p)
