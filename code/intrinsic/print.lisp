@@ -9,8 +9,8 @@
 (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
   (inravina:copy-pprint-dispatch inravina:*client* table))
 
-(defun set-pprint-dispatch (type-specifier function &optional priority table)
-  (check-type priority real)
+(defun set-pprint-dispatch (type-specifier function &optional (priority 0) table)
+  (check-type priority (or null real))
   (inravina:set-pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) type-specifier function priority))
 
 (defun pprint-fill (stream object &optional (colon-p t) at-sign-p)
