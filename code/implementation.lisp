@@ -22,3 +22,6 @@
 
 (defmethod handle-circle (client stream object function)
   (funcall function stream object))
+
+(defvar *initial-pprint-dispatch* (copy-pprint-dispatch inravina:*client* nil))
+

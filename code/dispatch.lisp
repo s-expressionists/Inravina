@@ -12,6 +12,26 @@
              :initform 0
              :type real)))
 
+(defun make-test-function (type-specifier)
+  (cond ((or (not (listp type-specifier))
+             (not (equal 'cons (car type-specifier))))
+         (lambda (object)
+           (typep object type-specifier)))
+        ((third type-specifier)
+         (lambda (object)
+           (and (consp object)
+                (typep (first object) (second type-specifier))
+                (typep (second object) (third type-specifier)))))
+        (t
+         (lambda (object)
+           (and (consp object)
+                (typep (first object) (second type-specifier)))))))
+
+(defmethod initialize-instance :after ((instance dispatch-entry) &rest initargs &key)
+  (declare (ignore initargs))
+  (setf (dispatch-entry-test-function instance)
+        (make-test-function (dispatch-entry-type-specifier instance))))
+
 (defclass dispatch-table ()
   ((entries :accessor dispatch-table-entries
             :initarg :entries
@@ -335,9 +355,9 @@
   (let ((new-table (make-instance 'dispatch-table)))
     (loop for (type priority name . rest) in +default-dispatch-entries+
           do (add-dispatch-entry new-table
-                                  type
-                                  (make-dispatch-function client name rest)
-                                  priority))
+                                 type
+                                 (make-dispatch-function client name rest)
+                                 priority))
     new-table))
 
 (defmethod copy-pprint-dispatch (client (table dispatch-table))
@@ -346,7 +366,6 @@
                  :entries (mapcar (lambda (entry)
                                     (make-instance 'dispatch-entry
                                                    :type-specifier (dispatch-entry-type-specifier entry)
-                                                   :test-function (dispatch-entry-test-function entry)
                                                    :function (dispatch-entry-function entry)
                                                    :priority (dispatch-entry-priority entry)))
                                   (dispatch-table-entries table))))
@@ -362,31 +381,14 @@
         (when (funcall (dispatch-entry-test-function entry) object)
           (return (values (dispatch-entry-function entry) t (dispatch-entry-type-specifier entry)))))))
 
+(defmethod pprint-dispatch (client (table (eql nil)) object)
+  (pprint-dispatch client *initial-pprint-dispatch* object))
+
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
   (setf (dispatch-table-entries table)
         (delete type-specifier (dispatch-table-entries table)
                 :key #'dispatch-entry-type-specifier :test #'equal))
   nil)
-
-(defun make-test-function (type-specifier)
-  (cond ((or (not (listp type-specifier))
-             (not (equal 'cons (car type-specifier))))
-         (lambda (object)
-           (typep object type-specifier)))
-        ((third type-specifier)
-         (lambda (object)
-           (and (consp object)
-                (typep (first object) (second type-specifier))
-                (typep (second object) (third type-specifier)))))
-        (t
-         (lambda (object)
-           (and (consp object)
-                (typep (first object) (second type-specifier)))))))
-
-(defmethod initialize-instance :after ((instance dispatch-entry) &rest initargs &key &allow-other-keys)
-  (declare (ignore initargs))
-  (setf (dispatch-entry-test-function instance)
-        (make-test-function (dispatch-entry-type-specifier instance))))
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
   (add-dispatch-entry table type-specifier

@@ -4,10 +4,10 @@
 
 #+sbcl (declaim (type inravina::dispatch-table *print-pprint-dispatch*))
 
-(defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
+(defparameter *print-pprint-dispatch* (inravina:copy-pprint-dispatch inravina:*client* nil))
 
 (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
-  (check-type table inravina::dispatch-table)
+  (check-type table (or null inravina::dispatch-table))
   (inravina:copy-pprint-dispatch inravina:*client* table))
 
 (defun set-pprint-dispatch (type-specifier function &optional (priority 0) (table *print-pprint-dispatch*))
@@ -46,7 +46,7 @@
   nil)
 
 (defun pprint-dispatch (object &optional (table *print-pprint-dispatch*))
-  (check-type table inravina::dispatch-table)
+  (check-type table (or null inravina::dispatch-table))
   (inravina:pprint-dispatch inravina:*client* table object))
 
 (defmacro pprint-logical-block ((stream-symbol object
