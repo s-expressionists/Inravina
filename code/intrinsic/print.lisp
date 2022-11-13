@@ -50,8 +50,8 @@
   (inravina:pprint-dispatch inravina:*client* table object))
 
 (defmacro pprint-logical-block ((stream-symbol object
-                                &key (prefix nil prefix-p)
-                                     (per-line-prefix nil per-line-prefix-p)
+                                &key (prefix "" prefix-p)
+                                     (per-line-prefix "" per-line-prefix-p)
                                      (suffix ""))
                                 &body body)
   (when (and prefix-p per-line-prefix-p)
@@ -67,21 +67,24 @@
                           (t
                            stream-symbol))))
     `(inravina:do-pprint-logical-block inravina:*client* ,stream-symbol ,object
-                              ,prefix ,per-line-prefix ,suffix
-                              (lambda (,stream-var ,object-var &aux (,count-var 0))
-                                (declare (ignorable ,stream-var ,object-var))
-                                (block ,tag-name
-                                  (macrolet ((pprint-exit-if-list-exhausted ()
-                                               '(unless ,object-var
-                                                  (return-from ,tag-name)))
-                                             (pprint-pop ()
-                                               '(progn
-                                                  (unless (inravina:pprint-pop-p inravina:*client* ,stream-var
-                                                                                 ,object-var ,count-var)
-                                                    (return-from ,tag-name))
-                                                  (incf ,count-var)
-                                                  (pop ,object-var))))
-                                    ,@body))))))
+                                       ,(if per-line-prefix-p
+                                            per-line-prefix
+                                            prefix)
+                                       ,per-line-prefix-p ,suffix
+                                       (lambda (,stream-var ,object-var &aux (,count-var 0))
+                                         (declare (ignorable ,stream-var ,object-var))
+                                         (block ,tag-name
+                                           (macrolet ((pprint-exit-if-list-exhausted ()
+                                                        '(unless ,object-var
+                                                           (return-from ,tag-name)))
+                                                      (pprint-pop ()
+                                                        '(progn
+                                                           (unless (inravina:pprint-pop-p inravina:*client* ,stream-var
+                                                                                          ,object-var ,count-var)
+                                                             (return-from ,tag-name))
+                                                           (incf ,count-var)
+                                                           (pop ,object-var))))
+                                             ,@body))))))
 
 (defmacro pprint-exit-if-list-exhausted ()
   "Tests whether or not the list passed to the lexically current logical block has

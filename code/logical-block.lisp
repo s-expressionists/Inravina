@@ -12,10 +12,9 @@
         ((listp object)
          t)))
 
-(defun do-pprint-logical-block (client stream object prefix per-line-prefix suffix function)
-  (check-type prefix (or null string))
-  (check-type per-line-prefix (or null string))
-  (check-type suffix (or null string))
+(defun do-pprint-logical-block (client stream object prefix per-line-prefix-p suffix function)
+  (check-type prefix string)
+  (check-type suffix string)
   (let ((*client* client)
         (stream (make-pretty-stream client
                                     (cond ((null stream)
@@ -33,15 +32,15 @@
            (handle-circle client stream object
                           (lambda (stream object)
                             (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
-                              (pprint-start-logical-block client stream prefix per-line-prefix)
+                              (pprint-start-logical-block client stream prefix per-line-prefix-p)
                               (unwind-protect
                                   (funcall function stream object)
                                 (pprint-end-logical-block client stream suffix)))))))
     nil))
 
 (defmacro pprint-logical-block ((client stream-symbol object
-                                &key (prefix nil prefix-p)
-                                     (per-line-prefix nil per-line-prefix-p)
+                                &key (prefix "" prefix-p)
+                                     (per-line-prefix "" per-line-prefix-p)
                                      (suffix ""))
                                 &body body)
   (when (and prefix-p per-line-prefix-p)
@@ -57,7 +56,10 @@
                           (t
                            stream-symbol))))
     `(do-pprint-logical-block ,client ,stream-symbol ,object
-                              ,prefix ,per-line-prefix ,suffix
+                              ,(if per-line-prefix-p
+                                   per-line-prefix
+                                   prefix)
+                              ,per-line-prefix-p ,suffix
                               (lambda (,stream-var ,object-var &aux (,count-var 0))
                                 (declare (ignorable ,stream-var ,object-var))
                                 (block ,tag-name

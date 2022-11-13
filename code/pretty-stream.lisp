@@ -106,10 +106,10 @@
 (defclass block-start (section-start)
   ((prefix :reader prefix
            :initarg :prefix    
-           :type (or null string))
-   (per-line-prefix :reader per-line-prefix
-                    :initarg :per-line-prefix    
-                    :type (or null string))
+           :type string)
+   (per-line-prefix-p :reader per-line-prefix-p
+                      :initarg :per-line-prefix-p
+                      :type boolean)
    (prefix-fragments :accessor prefix-fragments
                      :initform nil)
    (start-column :accessor start-column
@@ -128,7 +128,7 @@
 (defclass block-end (instruction)
   ((suffix :accessor suffix
            :initarg :suffix    
-           :type (or null string))))
+           :type string)))
 
 (defclass fragment ()
   ())
@@ -463,13 +463,12 @@
 (defmethod layout (client stream mode (instruction block-start) previous-instruction allow-break-p)
   (let* ((column (column instruction))
          (start-column (+ column
-                          (trivial-stream-column:measure-string (or (prefix instruction)
-                                                                    (per-line-prefix instruction)
-                                                                    "")
+                          (trivial-stream-column:measure-string (prefix instruction)
                                                                 (target stream))))
          (parent-prefix-fragments (when (parent instruction)
                                     (prefix-fragments (parent instruction))))
-         (per-line-prefix (per-line-prefix instruction)))
+         (prefix (prefix instruction))
+         (per-line-prefix-p (per-line-prefix-p instruction)))
     (setf (start-column instruction) start-column
           (indent instruction) 0)
     (cond (parent-prefix-fragments
@@ -482,17 +481,15 @@
            (when column
              (vector-push-extend (make-instance 'tab-fragment :column column)
                           (prefix-fragments instruction)))
-           (when per-line-prefix
-             (vector-push-extend (make-instance 'text-fragment :text per-line-prefix)
+           (when per-line-prefix-p
+             (vector-push-extend (make-instance 'text-fragment :text prefix)
                                  (prefix-fragments instruction))))
-          (per-line-prefix
+          (per-line-prefix-p
            (setf (prefix-fragments instruction)
-                 (apply #'vector (make-instance 'tab-fragment :column column)
-                        (when per-line-prefix
-                          (list (make-instance 'text-fragment :text per-line-prefix)))))))
+                 (vector (make-instance 'tab-fragment :column column)
+                         (make-instance 'text-fragment :text prefix)))))
     (add-text-fragment client stream mode instruction
-                       (or (per-line-prefix instruction)
-                           (prefix instruction)))))
+                       (prefix instruction))))
 
 (defmethod layout (client stream (mode (eql :overflow)) (instruction block-end) previous-instruction allow-break-p)
   (add-text-fragment client stream mode instruction (suffix instruction)))
@@ -611,7 +608,7 @@
 (defmethod make-pretty-stream (client (stream sb-pretty:pretty-stream))
   (make-pretty-stream client (sb-pretty::pretty-stream-target stream)))
 
-(defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix)
+(defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
   (let ((block-start (make-instance 'block-start
                                     :section (car (sections stream))
                                     :style (if (zerop (length (instructions stream)))
@@ -619,7 +616,7 @@
                                                (style (aref (instructions stream) (1- (length (instructions stream))))))
                                     :instruction-index (length (instructions stream))
                                     :prefix (normalize-text client stream prefix)
-                                    :per-line-prefix (normalize-text client stream per-line-prefix)
+                                    :per-line-prefix-p per-line-prefix-p
                                     :depth (1+ (length (blocks stream)))
                                     :parent (car (blocks stream)))))
     (push block-start (blocks stream))

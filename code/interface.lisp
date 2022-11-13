@@ -51,9 +51,9 @@
 
 (defgeneric pprint-tabular-plist (client stream object &optional colon-p at-sign-p tabsize))
 
-(defgeneric pprint-start-logical-block (client stream prefix per-line-prefix)
-  (:method (client stream prefix per-line-prefix)
-    (declare (ignore client stream prefix per-line-prefix))))
+(defgeneric pprint-start-logical-block (client stream prefix per-line-prefix-p)
+  (:method (client stream prefix per-line-prefix-p)
+    (declare (ignore client stream prefix per-line-prefix-p))))
 
 (defgeneric pprint-end-logical-block (client stream suffix)
   (:method (client stream suffix)
