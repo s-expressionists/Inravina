@@ -1,5 +1,7 @@
 (in-package #:inravina)
 
+(defvar *initial-pprint-dispatch*)
+
 (defclass dispatch-entry ()
   ((type-specifier :accessor dispatch-entry-type-specifier
                    :initarg :type-specifier)
@@ -374,12 +376,13 @@
   (print-object object stream))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
-  (if (and (not *print-array*)
-           (arrayp object))
-      (values #'default-dispatch-print nil)
-      (dolist (entry (dispatch-table-entries table) (values #'default-dispatch-print nil))
-        (when (funcall (dispatch-entry-test-function entry) object)
-          (return (values (dispatch-entry-function entry) t (dispatch-entry-type-specifier entry)))))))
+  (when (or *print-array*
+            (not (arrayp object)))
+    (dolist (entry (dispatch-table-entries table))
+      (when (funcall (dispatch-entry-test-function entry) object)
+        (return-from pprint-dispatch
+                     (values (dispatch-entry-function entry) t)))))
+  (values #'default-dispatch-print nil))
 
 (defmethod pprint-dispatch (client (table (eql nil)) object)
   (pprint-dispatch client *initial-pprint-dispatch* object))
