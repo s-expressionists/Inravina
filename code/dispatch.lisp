@@ -233,37 +233,37 @@
 (deftype quote-form ()
   `(satisfies quote-form-p))
 
-#+(or clasp ecl sbcl)
+#+(or (and clasp (not staging)) ecl sbcl)
 (defun quasiquote-form-p (form)
   (and (listp form)
        (eql (first form)
-            #+clasp (find-symbol "QUASIQUOTE" :eclector.reader)
+            #+clasp 'eclector.reader:quasiquote
             #+ecl 'si:quasiquote
             #+sbcl 'sb-int:quasiquote)))
 
-#+(or clasp ecl sbcl)
+#+(or (and clasp (not staging)) ecl sbcl)
 (deftype quasiquote-form ()
   `(satisfies quasiquote-form-p))
 
-#+(or clasp ecl)
+#+(or (and clasp (not staging)) ecl)
 (defun unquote-form-p (form)
   (and (listp form)
        (eql (first form)
-            #+clasp (find-symbol "UNQUOTE" :eclector.reader)
+            #+clasp 'eclector.reader:unquote
             #+ecl 'si:unquote)))
 
-#+(or clasp ecl)
+#+(or (and clasp (not staging)) ecl)
 (deftype unquote-form ()
   `(satisfies unquote-form-p))
 
-#+(or clasp ecl)
+#+(or (and clasp (not staging)) ecl)
 (defun unquote-splice-form-p (form)
   (and (listp form)
        (eql (first form)
-            #+clasp (find-symbol "UNQUOTE-SPLICING" :eclector.reader)
+            #+clasp 'eclector.reader:unquote-splicing
             #+ecl 'si:unquote-splice)))
 
-#+(or clasp ecl)
+#+(or (and clasp (not staging)) ecl)
 (deftype unquote-splice-form ()
   `(satisfies unquote-splice-form-p))
 
@@ -311,11 +311,11 @@
     (let-form                      -10 pprint-let)
     (pprint-logical-block-form     -10 pprint-with :argument-count 2)
     (pprint-logical-block-form/2   -10 pprint-with :argument-count 3)
-    #+(or clasp ecl sbcl)
+    #+(or (and clasp (not staging)) ecl sbcl)
     (quasiquote-form               -10 pprint-macro-char :prefix "`")
-    #+(or clasp ecl)
+    #+(or (and clasp (not staging)) ecl)
     (unquote-form                  -10 pprint-macro-char :prefix ",")
-    #+(or clasp ecl)
+    #+(or (and clasp (not staging)) ecl)
     (unquote-splice-form           -10 pprint-macro-char :prefix ",@")
     #+ecl
     (unquote-nsplice-form          -10 pprint-macro-char :prefix ",.")
@@ -396,5 +396,6 @@
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
   (add-dispatch-entry table type-specifier
                       (lambda (stream object)
-                        (handle-circle client (make-pretty-stream client stream) object function))
+                        ;(handle-circle client (make-pretty-stream client stream) object function))
+                        (funcall function (make-pretty-stream *client* stream) object))
                       priority))

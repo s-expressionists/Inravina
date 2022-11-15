@@ -434,14 +434,14 @@
          :overflow)
         (t
          (add-newline-fragment client stream mode instruction)
-         (unless (or (null (parent instruction))
-                     (literal-kind-p (kind instruction)))
+         (when (parent instruction)
            (map nil (lambda (fragment)
                       (vector-push-extend fragment (fragments stream)))
                 (prefix-fragments (parent instruction)))
-           (add-tab-fragment client stream mode instruction
-                             (+ (start-column (parent instruction))
-                                (indent (parent instruction)))))
+           (unless (literal-kind-p (kind instruction))
+             (add-tab-fragment client stream mode instruction
+                               (+ (start-column (parent instruction))
+                                  (indent (parent instruction))))))
          :break)))
 
 (defmethod layout (client stream mode (instruction indent) previous-instruction allow-break-p)
