@@ -228,6 +228,7 @@
 
 (defun quote-form-p (form)
   (and (listp form)
+       (cdr form)
        (eql (first form) 'quote)))
 
 (deftype quote-form ()
@@ -236,6 +237,7 @@
 #+(or (and clasp (not staging)) ecl sbcl)
 (defun quasiquote-form-p (form)
   (and (listp form)
+       (cdr form)
        (eql (first form)
             #+clasp 'eclector.reader:quasiquote
             #+ecl 'si:quasiquote
@@ -248,6 +250,7 @@
 #+(or (and clasp (not staging)) ecl)
 (defun unquote-form-p (form)
   (and (listp form)
+       (cdr form)
        (eql (first form)
             #+clasp 'eclector.reader:unquote
             #+ecl 'si:unquote)))
@@ -259,6 +262,7 @@
 #+(or (and clasp (not staging)) ecl)
 (defun unquote-splice-form-p (form)
   (and (listp form)
+       (cdr form)
        (eql (first form)
             #+clasp 'eclector.reader:unquote-splicing
             #+ecl 'si:unquote-splice)))

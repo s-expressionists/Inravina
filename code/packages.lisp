@@ -19,6 +19,7 @@
            #:client
            #:copy-pprint-dispatch
            #:do-pprint-logical-block
+           #:frob-output-stream
            #:handle-circle
            #:make-pretty-stream
            #:*options*

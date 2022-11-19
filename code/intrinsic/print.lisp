@@ -30,19 +30,19 @@
 (defun pprint-indent (relative-to n &optional stream)
   (check-type relative-to (member :block :current))
   (when *print-pretty*
-    (inravina:pprint-indent inravina:*client* stream relative-to n))
+    (inravina:pprint-indent inravina:*client* (inravina:frob-output-stream stream) relative-to n))
   nil)
 
 (defun pprint-newline (kind &optional stream)
   (check-type kind (member :linear :fill :miser :mandatory))
   (when *print-pretty*
-    (inravina:pprint-newline inravina:*client* stream kind))
+    (inravina:pprint-newline inravina:*client* (inravina:frob-output-stream stream) kind))
   nil)
 
 (defun pprint-tab (kind colnum colinc &optional stream)
   (check-type kind (member :line :section :line-relative :section-relative))
   (when *print-pretty*
-    (inravina:pprint-tab inravina:*client* stream kind colnum colinc))
+    (inravina:pprint-tab inravina:*client* (inravina:frob-output-stream stream) kind colnum colinc))
   nil)
 
 (defun pprint-dispatch (object &optional (table *print-pprint-dispatch*))

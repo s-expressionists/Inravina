@@ -640,7 +640,7 @@
 (defmethod miser-p (client (stream pretty-stream))
   (and *print-miser-width*
        (<= (- (trivial-stream-column:stream-line-length stream)
-              (trivial-gray-streams:stream-line-column stream))
+              (trivial-stream-column:line-column stream))
            *print-miser-width*)))
 
 (defun frob-style (stream style)

@@ -129,3 +129,19 @@
 (defgeneric write-object (client stream object))
 
 (defgeneric handle-circle (client stream object function))
+
+(defmacro frob-output-stream (stream)
+  (let ((svar (gensym)))
+    `(let ((,svar ,stream))
+       (cond ((null ,svar) 
+              *standard-output*)
+             ((eq ,svar t) 
+              *terminal-io*)
+             ((output-stream-p ,svar)
+              ,svar)
+             (t
+              (error 'simple-type-error
+                     :datum ,svar
+                     :expected-type '(satisfies output-stream-p)
+                     :format-control "~S isn't an output stream."
+                     :format-arguments (list ,svar)))))))
