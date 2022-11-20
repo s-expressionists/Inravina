@@ -404,29 +404,33 @@
 (defmethod pprint-array (client stream object &rest options &key &allow-other-keys)
   (declare (ignore options))
   (let ((stream (make-pretty-stream client stream)))
-    (labels ((pprint-subarray (index dimensions)
-               (pprint-logical-block (client stream nil
-                                      :prefix (if (= (length dimensions)
-                                                     (array-rank object))
-                                                  (with-output-to-string (s)
-                                                    (write-char #\# s)
-                                                    (write-object client s (array-rank object))
-                                                    (write-string "A(" s))
-                                                  "(")
-                                      :suffix ")")
-                 (loop with dimension = (car dimensions)
-                       with remaining-dimensions = (cdr dimensions)
-                       for pos below dimension
-                       for new-index = (+ pos (* index dimension))
-                       unless (zerop pos)
-                         do (write-char #\Space stream)
-                            (pprint-newline client stream :fill)
-                       do (pprint-pop)
-                       if remaining-dimensions
-                         do (pprint-subarray new-index remaining-dimensions)
-                       else
-                         do (write-object client stream (row-major-aref object new-index))))))
-      (pprint-subarray 0 (array-dimensions object)))))
+    (cond ((array-dimensions object)
+                  (labels ((pprint-subarray (index dimensions)
+                             (pprint-logical-block (client stream nil
+                                             :prefix (if (= (length dimensions)
+                                                            (array-rank object))
+                                                         (with-output-to-string (s)
+                                                           (write-char #\# s)
+                                                           (write-object client s (array-rank object))
+                                                           (write-string "A(" s))
+                                                         "(")
+                                             :suffix ")")
+                        (loop with dimension = (car dimensions)
+                              with remaining-dimensions = (cdr dimensions)
+                              for pos below dimension
+                              for new-index = (+ pos (* index dimension))
+                              unless (zerop pos)
+                                do (write-char #\Space stream)
+                                   (pprint-newline client stream :fill)
+                              do (pprint-pop)
+                              if remaining-dimensions
+                                do (pprint-subarray new-index remaining-dimensions)
+                              else
+                                do (write-object client stream (row-major-aref object new-index))))))
+             (pprint-subarray 0 (array-dimensions object))))
+          (t
+           (write-string "#0A" stream)
+           (write-object client stream (aref object))))))
 
 (defmethod pprint-lambda (client stream object &rest options &key &allow-other-keys)
   (declare (ignore options))
