@@ -638,10 +638,13 @@
     (process-instructions stream)))
 
 (defmethod miser-p (client (stream pretty-stream))
-  (and *print-miser-width*
-       (<= (- (trivial-stream-column:stream-line-length stream)
-              (trivial-stream-column:line-column stream))
-           *print-miser-width*)))
+  (when *print-miser-width*
+    (let ((line-length (line-length stream))
+          (line-column (trivial-gray-streams:stream-line-column stream)))
+      (and line-length
+           line-column
+           (<= (- line-length line-column)
+               *print-miser-width*)))))
 
 (defun frob-style (stream style)
   (cond (style)
@@ -693,8 +696,9 @@
       (fresh-line (target stream))))
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
-  (unless (blocks stream)
-    (trivial-stream-column:line-column (target stream))))
+  (if (blocks stream)
+      (start-column (car (blocks stream)))
+      (trivial-stream-column:line-column (target stream))))
 
 (defmethod trivial-gray-streams:stream-advance-to-column ((stream pretty-stream) column)
   (cond ((blocks stream)

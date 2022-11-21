@@ -380,8 +380,10 @@
   (print-object object stream))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
-  (when (or *print-array*
-            (not (arrayp object)))
+  (when (or (not (arrayp object))
+            (and (arrayp object)
+                 *print-array*
+                 (not *print-readably*)))
     (dolist (entry (dispatch-table-entries table))
       (when (funcall (dispatch-entry-test-function entry) object)
         (return-from pprint-dispatch
