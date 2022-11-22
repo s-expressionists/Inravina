@@ -421,6 +421,8 @@
          nil)
         ((and (not mode)
               (or (not allow-break-p)
+                  (and (miser-kind-p (kind instruction))
+                       (not (miser-p client stream)))
                   (and (fresh-kind-p (kind instruction))
                        (zerop (break-column instruction)))))
          t)
