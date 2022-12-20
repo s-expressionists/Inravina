@@ -339,7 +339,7 @@
   (lambda (stream object)
     ;(handle-circle client  object
                    ;(lambda (stream object)
-                     (apply func client (make-pretty-stream client stream) object rest)))
+                     (apply func *client* (make-pretty-stream *client* stream) object rest)))
 
 (defun add-dispatch-entry (table type-specifier function priority)
   (let ((entry (find type-specifier (dispatch-table-entries table)
@@ -402,6 +402,5 @@
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
   (add-dispatch-entry table type-specifier
                       (lambda (stream object)
-                        ;(handle-circle client (make-pretty-stream client stream) object function))
                         (funcall function (make-pretty-stream *client* stream) object))
                       priority))

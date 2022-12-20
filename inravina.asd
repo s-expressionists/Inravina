@@ -7,6 +7,7 @@
   :bug-tracker "https://github.com/yitzchak/Inravina/issues"
   :in-order-to ((asdf:test-op (asdf:test-op #:inravina/test)))
   :depends-on ((:feature (:not :sicl) #:trivial-gray-streams)
+               #:incless/core
                #:trivial-stream-column
                (:feature :sbcl #:sb-introspect))
   :components ((:module code
@@ -58,7 +59,6 @@
                 :components ((:module intrinsic
                               :serial t
                               :components ((:file "packages")
-                                           (:file "shim")
                                            (:file "print")
                                            (:file "post")))))))
 

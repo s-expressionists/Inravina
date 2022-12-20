@@ -3,7 +3,7 @@
 (defun pprint-pop-p (client stream object count)
   (cond ((not (listp object))
          (write-string ". " stream)
-         (write-object client stream object)
+         (incless/core:write-object client object stream)
          nil)
         ((and (not *print-readably*)
               (eql count *print-length*))
@@ -33,13 +33,13 @@
                                           (t
                                             stream)))))
     (cond ((not (listp object))
-           (write-object client stream object))
+           (incless/core:write-object client object stream))
           ((and (not *print-readably*)
                 (eql 0 *print-level*))
            (write-char #\# stream))
           (t
-           (handle-circle client stream object
-                          (lambda (stream object)
+           (incless/core:handle-circle client object stream
+                          (lambda (object stream)
                             (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
                               (pprint-start-logical-block client stream prefix per-line-prefix-p)
                               (unwind-protect

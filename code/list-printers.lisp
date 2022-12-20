@@ -9,7 +9,7 @@
   `(pprint-format-logical-block (,client ,stream ,object :paren ,paren)
      ,@body
      (pprint-exit-if-list-exhausted)
-     (loop do (write-object ,client ,stream (pprint-pop))
+     (loop do (incless/core:write-object ,client (pprint-pop) ,stream)
               (pprint-exit-if-list-exhausted)
               (write-char #\Space ,stream)
               ,@(when tabsize
@@ -23,13 +23,13 @@
     (pprint-exit-if-list-exhausted)
     (loop do (pprint-logical-sub-block (,client ,stream)
                (pprint-indent ,client ,stream :block 2)
-               (write-object ,client ,stream (pprint-pop))
+               (incless/core:write-object ,client (pprint-pop) ,stream)
                (pprint-exit-if-list-exhausted)
                (write-char #\Space ,stream)
                ,@(when tabsize
                    `((pprint-tab ,client ,stream :section-relative 0 ,tabsize)))
                (pprint-newline ,client ,stream ,newline)
-               (write-object ,client ,stream (pprint-pop)))
+               (incless/core:write-object ,client (pprint-pop) ,stream))
              (pprint-exit-if-list-exhausted)
              (write-char #\Space ,stream)
              ,@(when tabsize

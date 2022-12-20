@@ -20,8 +20,5 @@
       (go next))
     (pprint-text client stream text start end)))
 
-(defmethod handle-circle (client stream object function)
-  (funcall function stream object))
-
 (defparameter *initial-pprint-dispatch* (copy-pprint-dispatch inravina:*client* nil))
 

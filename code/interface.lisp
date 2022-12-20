@@ -126,10 +126,6 @@
 
 (defgeneric pprint-defclass (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric write-object (client stream object))
-
-(defgeneric handle-circle (client stream object function))
-
 (defmacro frob-output-stream (stream)
   (let ((svar (gensym)))
     `(let ((,svar ,stream))

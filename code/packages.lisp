@@ -20,7 +20,6 @@
            #:copy-pprint-dispatch
            #:do-pprint-logical-block
            #:frob-output-stream
-           #:handle-circle
            #:make-pretty-stream
            #:*options*
            #:pprint-apply
@@ -67,5 +66,4 @@
            #:pretty-stream-p
            #:pretty-stream
            #:*print-pprint-dispatch*
-           #:set-pprint-dispatch
-           #:write-object))
+           #:set-pprint-dispatch))
