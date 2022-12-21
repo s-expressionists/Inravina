@@ -13,10 +13,10 @@
          t)
         (t
          (let ((marker (with-output-to-string (s)
-                         (handle-circle client s object
-                                        (lambda (stream object)
-                                          (declare (ignore stream object))
-                                          (return-from pprint-pop-p t))))))
+                         (incless/core:handle-circle client object s
+                                                     (lambda (object stream)
+                                                       (declare (ignore object stream))
+                                                       (return-from pprint-pop-p t))))))
            (write-string ". " stream)
            (write-string marker stream)
            nil))))
@@ -27,11 +27,11 @@
   (let ((*client* client)
         (stream (make-pretty-stream client
                                     (cond ((null stream)
-                                            *standard-output*)
+                                           *standard-output*)
                                           ((eq t stream)
-                                            *terminal-io*)
+                                           *terminal-io*)
                                           (t
-                                            stream)))))
+                                           stream)))))
     (cond ((not (listp object))
            (incless/core:write-object client object stream))
           ((and (not *print-readably*)
@@ -39,12 +39,12 @@
            (write-char #\# stream))
           (t
            (incless/core:handle-circle client object stream
-                          (lambda (object stream)
-                            (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
-                              (pprint-start-logical-block client stream prefix per-line-prefix-p)
-                              (unwind-protect
-                                  (funcall function stream object)
-                                (pprint-end-logical-block client stream suffix)))))))
+                                       (lambda (object stream)
+                                         (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
+                                           (pprint-start-logical-block client stream prefix per-line-prefix-p)
+                                           (unwind-protect
+                                                (funcall function stream object)
+                                             (pprint-end-logical-block client stream suffix)))))))
     nil))
 
 (defmacro pprint-logical-block ((client stream-symbol object
