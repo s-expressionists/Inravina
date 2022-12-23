@@ -219,59 +219,73 @@
       100))
 
 (defun layout-instructions (stream)
+  #+pprint-debug (describe stream *debug-io*)
   (prog ((index 0) (section t) last-maybe-break status instruction mode
          (client (client stream))
          (instructions (instructions stream)))
    repeat
-    (when (< index (length instructions))
-      (setf instruction (aref instructions index)
-            status (layout client stream mode instruction
-                           (unless (zerop index)
-                             (aref instructions (1- index)))
-                           (or (not section)
-                               (and (typep section 'section-start)
-                                    (or (eq section instruction)
-                                        (eq (section-end section) instruction)))))
-            mode (and (eq :overflow mode) mode))
-      (case status
-        ((t :maybe-break)
-         (cond ((and (null section)
-                     (typep instruction 'section-start))
-                (setf section instruction))
-               ((or (eq section instruction)
-                    (and (typep section 'section-start)
-                         (eq instruction (section-end section))))
-                (setf section nil)))
-         (when (and (eq status :maybe-break)
-                    (or (null last-maybe-break)
-                        (eq (parent last-maybe-break) (parent instruction))))
-           (setf last-maybe-break instruction))
-         (incf index))
-        (:break
-         (setf section (and (not (eq section instruction))
-                            instruction)
-               last-maybe-break nil)
-         (incf index))
-        (:overflow
-         (setf mode :overflow)
-         (incf index))
-        (otherwise
-         (cond
-           (last-maybe-break
-            (setf index (instruction-index last-maybe-break)
-                  (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
-                  last-maybe-break nil
-                  section last-maybe-break
-                  mode t))
-           (section
-            (setf index (if (eq t section)
-                            0
-                            (1+ (instruction-index section)))
-                  section nil
-                  (fill-pointer (fragments stream)) (fragment-index (aref instructions index))))
-           (t
-            (setf mode t)))))
-      (go repeat)))
+     (when (< index (length instructions))
+       (setf instruction (aref instructions index))
+       #+pprint-debug
+       (format *debug-io* "section ~a, instruction ~a, mode = ~a, allow-break-p = ~a~%"
+               section
+               instruction mode (or (not section)
+                                    (and (typep section 'section-start)
+                                         (or (eq section instruction)
+                                             (eq (section-end section) instruction)))))
+       (setf
+        status (layout client stream mode instruction
+                       (unless (zerop index)
+                         (aref instructions (1- index)))
+                       (or (not section)
+                           (and (typep section 'section-start)
+                                (or (eq section instruction)
+                                    (eq (section-end section) instruction)))))
+        mode (and (eq :overflow mode) mode))
+       #+pprint-debug
+       (format *debug-io* "status = ~a, mode = ~a~%"
+               status mode)
+       (case status
+         ((t :maybe-break)
+          (cond ((and (or (null section)
+                          (and (typep section 'section-start)
+                               (eq instruction (section-end section))))
+                      (typep instruction 'section-start))
+                 (setf section instruction))
+                ((or (eq section instruction)
+                     (and (typep section 'section-start)
+                          (eq instruction (section-end section))))
+                 (setf section nil)))
+          (when (and (eq status :maybe-break)
+                     (or (null last-maybe-break)
+                         (eq (parent last-maybe-break) (parent instruction))))
+            (setf last-maybe-break instruction))
+          (incf index))
+         (:break
+          (setf section (and (not (eq section instruction))
+                             instruction)
+                last-maybe-break nil)
+          (incf index))
+         (:overflow
+          (setf mode :overflow)
+          (incf index))
+         (otherwise
+          (cond
+            (last-maybe-break
+             (setf index (instruction-index last-maybe-break)
+                   (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
+                   last-maybe-break nil
+                   section last-maybe-break
+                   mode t))
+            (section
+             (setf index (if (eq t section)
+                             0
+                             (1+ (instruction-index section)))
+                   section nil
+                   (fill-pointer (fragments stream)) (fragment-index (aref instructions index))))
+            (t
+             (setf mode t)))))
+       (go repeat)))
   (setf (fill-pointer (instructions stream)) 0))
 
 (defun text-before-newline-p (stream index)
