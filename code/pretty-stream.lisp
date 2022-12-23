@@ -181,7 +181,18 @@
         do (typecase instruction
              (block-start (write-char #\< stream))
              (block-end (write-char #\> stream))
-             (newline (write-char #\| stream))
+             (newline (write-char (case (kind instruction)
+                                    (:fill #\f)
+                                    (:linear #\l)
+                                    (:mandatory #\x)
+                                    (:miser #\m)
+                                    (:fresh #\r)
+                                    (:literal-fill #\F)
+                                    (:literal-linear #\L)
+                                    (:literal-mandatory #\X)
+                                    (:literal-miser #\M)
+                                    (:literal-fresh #\R))
+                                  stream))
              (text (dotimes (i (length (value instruction)))
                      (write-char #\- stream)))))
   (terpri stream)
@@ -363,7 +374,7 @@
           (setf new-break-column (+ new-column break-width)))
         (incf new-column width)
         (when (or mode
-                  (>= (line-length stream) new-break-column))
+                  (>= (line-length stream) new-column)) ; using break column yields better results
           (setf (break-column instruction) new-break-column
                 (column instruction) new-column)
           (vector-push-extend (make-instance 'text-fragment :text text) (fragments stream))
@@ -413,23 +424,36 @@
                                            (colinc instruction)
                                            (relative-kind-p (kind instruction)))))))
 
-(defmethod layout (client stream mode (instruction newline) previous-instruction allow-break-p)
-  (cond ((and (not allow-break-p)
-              (or (mandatory-kind-p (kind instruction))
-                  (and (miser-kind-p (kind instruction))
-                       (miser-p client stream))))
+(defun miser-p (stream instruction
+                &aux (line-length (line-length stream))
+                     (line-column (column (parent instruction))))
+  (and *print-miser-width*
+       (and line-length
+            line-column
+            (<= (- line-length line-column)
+                *print-miser-width*))))
+
+(defmethod layout (client stream mode (instruction newline) previous-instruction allow-break-p
+                   &aux (miser-p (miser-p stream instruction)))
+  (cond ((or (and (not allow-break-p)
+                  (mandatory-kind-p (kind instruction)))
+             (and (not mode)
+                  allow-break-p
+                  (miser-kind-p (kind instruction))
+                  miser-p))
          nil)
         ((and (not mode)
               (or (not allow-break-p)
-                  (and (miser-kind-p (kind instruction))
-                       (not (miser-p client stream)))
                   (and (fresh-kind-p (kind instruction))
-                       (zerop (break-column instruction)))))
+                       (zerop (break-column instruction)))
+                  (and (miser-kind-p (kind instruction))
+                       (not miser-p))))
          t)
         ((and (not mode)
-              (or (fill-kind-p (kind instruction))
-                  (and (miser-kind-p (kind instruction))
-                       (not (miser-p client stream)))))
+              (or (and (fill-kind-p (kind instruction))
+                       (not miser-p))
+                  #+(or)(and (miser-kind-p (kind instruction))
+                       miser-p)))
          :maybe-break)
         ((equal (1+ (line instruction)) *print-lines*)
          (add-text-fragment client stream mode instruction "..")
@@ -639,15 +663,6 @@
     (vector-push-extend block-end (instructions stream))
     (process-instructions stream)))
 
-(defmethod miser-p (client (stream pretty-stream))
-  (when *print-miser-width*
-    (let ((line-length (line-length stream))
-          (line-column (trivial-gray-streams:stream-line-column stream)))
-      (and line-length
-           line-column
-           (<= (- line-length line-column)
-               *print-miser-width*)))))
-
 (defun frob-style (stream style)
   (cond (style)
         ((plusp (length (instructions stream)))
@@ -698,8 +713,10 @@
       (fresh-line (target stream))))
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
-  (if (blocks stream)
-      (start-column (car (blocks stream)))
+  (or (and (not (zerop (length (instructions stream))))
+           (column (aref (instructions stream) (1- (length (instructions stream))))))
+      (and (blocks stream)
+           (start-column (car (blocks stream))))
       (trivial-stream-column:line-column (target stream))))
 
 (defmethod trivial-gray-streams:stream-advance-to-column ((stream pretty-stream) column)
