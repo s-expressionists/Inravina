@@ -449,6 +449,7 @@
 
 (defmethod layout (client stream mode (instruction newline) previous-instruction allow-break-p
                    &aux (miser-p (miser-p stream instruction)))
+  (declare (ignore previous-instruction))
   (cond ((or (and (not allow-break-p)
                   (mandatory-kind-p (kind instruction)))
              (and (not mode)
@@ -469,7 +470,8 @@
                   #+(or)(and (miser-kind-p (kind instruction))
                        miser-p)))
          :maybe-break)
-        ((equal (1+ (line instruction)) *print-lines*)
+        ((and (not *print-readably*)
+              (equal (1+ (line instruction)) *print-lines*))
          (add-text-fragment client stream mode instruction "..")
          :overflow)
         (t
@@ -497,10 +499,12 @@
   t)
 
 (defmethod layout (client stream (mode (eql :overflow)) (instruction block-start) previous-instruction allow-break-p)
+  (declare (ignore client stream previous-instruction allow-break-p))
   (setf (suffix (block-end instruction)) "")
   t)
 
 (defmethod layout (client stream mode (instruction block-start) previous-instruction allow-break-p)
+  (declare (ignore previous-instruction allow-break-p))
   (let* ((column (column instruction))
          (start-column (+ column
                           (trivial-stream-column:measure-string (prefix instruction)
@@ -532,12 +536,15 @@
                        (prefix instruction))))
 
 (defmethod layout (client stream (mode (eql :overflow)) (instruction block-end) previous-instruction allow-break-p)
+  (declare (ignore previous-instruction allow-break-p))
   (add-text-fragment client stream mode instruction (suffix instruction)))
 
 (defmethod layout (client stream mode (instruction block-end) previous-instruction allow-break-p)
+  (declare (ignore previous-instruction allow-break-p))
   (add-text-fragment client stream mode instruction (suffix instruction)))
 
 (defmethod pprint-newline (client (stream pretty-stream) kind)
+  (declare (ignore client))
   (with-accessors ((instructions instructions)
                    (sections sections))
                   stream
@@ -570,6 +577,7 @@
       (vector-push-extend newline instructions))))
 
 (defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
+  (declare (ignore client))
   (vector-push-extend (make-instance 'tab
                                      :kind kind :colnum colnum :colinc colinc
                                      :style (if (zerop (length (instructions stream)))
@@ -581,6 +589,7 @@
                       (instructions stream)))
 
 (defmethod pprint-indent (client (stream pretty-stream) relative-to n)
+  (declare (ignore client))
   (vector-push-extend (make-instance 'indent
                                      :kind relative-to :width n
                                      :style (if (zerop (length (instructions stream)))
@@ -592,7 +601,7 @@
                       (instructions stream)))
 
 (defmethod pprint-text (client (stream pretty-stream) (text character) &optional start end)
-  (declare (ignore start end))
+  (declare (ignore client start end))
   (with-accessors ((instructions instructions))
                   stream
     (let ((instruction (and (plusp (length instructions))
@@ -610,6 +619,7 @@
                               instructions)))))
 
 (defmethod pprint-text (client (stream pretty-stream) (text string) &optional start end)
+  (declare (ignore client))
   (with-accessors ((instructions instructions))
                   stream
     (let ((instruction (and (plusp (length instructions))
@@ -628,11 +638,13 @@
                               instructions)))))
 
 (defmethod make-pretty-stream (client (stream broadcast-stream))
+  (declare (ignore client))
   (if (broadcast-stream-streams stream)
       (call-next-method)
       stream))
 
 (defmethod make-pretty-stream (client (stream pretty-stream))
+  (declare (ignore client))
   stream)
 
 (defmethod make-pretty-stream (client (stream (eql nil)))
