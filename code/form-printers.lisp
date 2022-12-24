@@ -503,6 +503,7 @@
   (incless/core:write-object client object (sb-impl::comma-expr) stream))
 
 (defmethod pprint-call (client stream (object list) &rest options &key &allow-other-keys)
+  (declare (ignore options))
   (if (fboundp (first object))
       (let ((macrop (and (macro-function (first object)) t)))
         (flet ((write-object-pattern (client stream object pattern)
@@ -572,6 +573,7 @@
     (pprint-newline client stream :linear)))
 
 (defmethod pprint-defclass (client stream object &rest options &key &allow-other-keys)
+  (declare (ignore options))
   (pprint-format-logical-block (client stream object :paren t)
     (pprint-exit-if-list-exhausted)
     (pprint-logical-sub-block (client stream)

@@ -336,10 +336,9 @@
     (call-form                     -20 pprint-call)))
 
 (defun make-dispatch-function (client name rest &aux (func (fdefinition name)))
+  (declare (ignore client))
   (lambda (stream object)
-    ;(handle-circle client  object
-                   ;(lambda (stream object)
-                     (apply func *client* (make-pretty-stream *client* stream) object rest)))
+    (apply func *client* (make-pretty-stream *client* stream) object rest)))
 
 (defun add-dispatch-entry (table type-specifier function priority)
   (let ((entry (find type-specifier (dispatch-table-entries table)
@@ -357,7 +356,7 @@
   nil)
 
 (defmethod copy-pprint-dispatch (client (table (eql nil)))
-  (declare (ignore client table))
+  (declare (ignore table))
   (let ((new-table (make-instance 'dispatch-table)))
     (loop for (type priority name . rest) in +default-dispatch-entries+
           do (add-dispatch-entry new-table
@@ -380,6 +379,7 @@
   (print-object object stream))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
+  (declare (ignore client))
   (when (or (not (arrayp object))
             (and (arrayp object)
                  *print-array*
@@ -394,12 +394,14 @@
   (pprint-dispatch client *initial-pprint-dispatch* object))
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
+  (declare (ignore client))
   (setf (dispatch-table-entries table)
         (delete type-specifier (dispatch-table-entries table)
                 :key #'dispatch-entry-type-specifier :test #'equal))
   nil)
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
+  (declare (ignore client))
   (add-dispatch-entry table type-specifier
                       (lambda (stream object)
                         (funcall function (make-pretty-stream *client* stream) object))
