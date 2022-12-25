@@ -480,11 +480,12 @@
            (map nil (lambda (fragment)
                       (vector-push-extend fragment (fragments stream)))
                 (prefix-fragments (parent instruction)))
-           (unless (or *print-miser-width*
-                       (literal-kind-p (kind instruction)))
+           (unless (literal-kind-p (kind instruction))
              (add-tab-fragment client stream mode instruction
-                               (+ (start-column (parent instruction))
-                                  (indent (parent instruction))))))
+                               (if *print-miser-width*
+                                   (start-column (parent instruction))
+                                   (+ (start-column (parent instruction))
+                                      (indent (parent instruction)))))))
          :break)))
 
 (defmethod layout (client stream mode (instruction indent) previous-instruction allow-break-p)
