@@ -480,7 +480,8 @@
            (map nil (lambda (fragment)
                       (vector-push-extend fragment (fragments stream)))
                 (prefix-fragments (parent instruction)))
-           (unless (literal-kind-p (kind instruction))
+           (unless (or (literal-kind-p (kind instruction))
+                       (miser-kind-p (kind instruction)))
              (add-tab-fragment client stream mode instruction
                                (+ (start-column (parent instruction))
                                   (indent (parent instruction))))))
