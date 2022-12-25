@@ -1,5 +1,7 @@
 (in-package #:inravina)
 
+(defvar *quasiquote* nil)
+
 (defvar *options*
   `(:loop-current-indent-clauses (:as :for :with :initially :finally :do :doing)
     :loop-block-indent-clauses (:if :when :else :unless)
@@ -108,6 +110,8 @@
 
 (defgeneric pprint-macro-char (client stream object &rest options &key &allow-other-keys))
 
+(defgeneric pprint-quasiquote (client stream object &rest options &key &allow-other-keys))
+
 (defgeneric pprint-cond (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-case (client stream object &rest options &key &allow-other-keys))
@@ -139,3 +143,9 @@
                      :expected-type '(satisfies output-stream-p)
                      :format-control "~S isn't an output stream."
                      :format-arguments (list ,svar)))))))
+
+(defmacro with-unquote ((client stream object) &body body)
+  `(if (and (getf *quasiquote* stream)
+            (typep ,object 'unquote-form))
+       (incless/core:write-object ,client ,object ,stream)
+       (progn ,@body)))

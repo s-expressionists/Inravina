@@ -316,13 +316,13 @@
     (pprint-logical-block-form     -10 pprint-with :argument-count 2)
     (pprint-logical-block-form/2   -10 pprint-with :argument-count 3)
     #+(or (and clasp (not staging)) ecl sbcl)
-    (quasiquote-form               -10 pprint-macro-char :prefix "`")
+    (quasiquote-form               -10 pprint-quasiquote :prefix "`" :quote t)
     #+(or (and clasp (not staging)) ecl)
-    (unquote-form                  -10 pprint-macro-char :prefix ",")
+    (unquote-form                  -10 pprint-quasiquote :prefix "," :quote nil)
     #+(or (and clasp (not staging)) ecl)
-    (unquote-splice-form           -10 pprint-macro-char :prefix ",@")
+    (unquote-splice-form           -10 pprint-quasiquote :prefix ",@" :quote nil)
     #+ecl
-    (unquote-nsplice-form          -10 pprint-macro-char :prefix ",.")
+    (unquote-nsplice-form          -10 pprint-quasiquote :prefix ",." :quote nil)
     #+sbcl
     (sb-impl::comma                -10 pprint-sbcl-comma)
     (quote-form                    -10 pprint-macro-char :prefix "'")

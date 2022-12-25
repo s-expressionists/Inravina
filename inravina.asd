@@ -13,8 +13,8 @@
   :components ((:module code
                 :serial t
                 :components ((:file "packages")
-                             (:file "interface")
                              (:file "types")
+                             (:file "interface")
                              (:file "client")
                              (:file "logical-block")
                              (:file "list-printers")

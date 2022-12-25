@@ -43,3 +43,20 @@
   (and (member kind '(:line-relative :section-relative))
        t))
 
+#+(or clasp ecl)
+(defun unquote-form-p (form)
+  #-(and clasp staging)
+  (and (listp form)
+       (cdr form)
+       (member (first form)
+               #+clasp '(eclector.reader:unquote eclector.reader:unquote-splicing)
+               #+ecl '(si:unquote si:unquote-splice si:unquote-nsplice))
+       t)
+  #+(and clasp staging)
+  nil)
+
+(deftype unquote-form ()
+  #+(or clasp  ecl) `(satisfies unquote-form-p)
+  #+sbcl 'sb-impl::comma
+  #-(or clasp ecl sbcl) nil)
+
