@@ -229,6 +229,7 @@
 (defun quote-form-p (form)
   (and (listp form)
        (cdr form)
+       (listp (cdr form))
        (null (cddr form))
        (eql (first form) 'quote)))
 
@@ -239,6 +240,8 @@
 (defun quasiquote-form-p (form)
   (and (listp form)
        (cdr form)
+       (listp (cdr form))
+       (null (cddr form))
        (eql (first form)
             #+clasp 'eclector.reader:quasiquote
             #+ecl 'si:quasiquote
@@ -252,6 +255,7 @@
 (defun unquote-form-p (form)
   (and (listp form)
        (cdr form)
+       (listp (cdr form))
        (null (cddr form))
        (eql (first form)
             #+clasp 'eclector.reader:unquote
@@ -265,6 +269,7 @@
 (defun unquote-splice-form-p (form)
   (and (listp form)
        (cdr form)
+       (listp (cdr form))
        (null (cddr form))
        (eql (first form)
             #+clasp 'eclector.reader:unquote-splicing
@@ -289,6 +294,7 @@
 (defun function-quote-form-p (form)
   (and (listp form)
        (cdr form)
+       (listp (cdr form))
        (null (cddr form))
        (eql (first form) 'function)))
 

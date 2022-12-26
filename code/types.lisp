@@ -48,6 +48,7 @@
   #-(and clasp staging)
   (and (listp form)
        (cdr form)
+       (listp (cdr form))
        (null (cddr form))
        (member (first form)
                #+clasp '(eclector.reader:unquote eclector.reader:unquote-splicing)
