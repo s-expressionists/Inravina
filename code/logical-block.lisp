@@ -9,17 +9,14 @@
               (eql count *print-length*))
          (write-string "..." stream)
          nil)
-        ((zerop count)
-         t)
-        (t
-         (let ((marker (with-output-to-string (s)
-                         (incless/core:handle-circle client object s
-                                                     (lambda (object stream)
-                                                       (declare (ignore object stream))
-                                                       (return-from pprint-pop-p t))))))
-           (write-string ". " stream)
-           (write-string marker stream)
-           nil))))
+        ((and *print-circle*
+              object
+              (plusp count)
+              (incless/core:circle-check client object))
+         (write-string ". " stream)
+         (incless/core:write-object client object stream)
+         nil)
+        (t)))
 
 (defun do-pprint-logical-block (client stream object prefix per-line-prefix-p suffix function)
   (check-type prefix string)
