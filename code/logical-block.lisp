@@ -29,7 +29,9 @@
                                            *terminal-io*)
                                           (t
                                            stream)))))
-    (cond ((not (listp object))
+    (cond ((or (not (listp object))
+               (and (getf *quasiquote* stream)
+                    (typep object 'unquote-form)))
            (incless/core:write-object client object stream))
           ((and (not *print-readably*)
                 (eql 0 *print-level*))

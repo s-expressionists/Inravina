@@ -37,7 +37,7 @@
              ,@(when newline
                  `((pprint-newline ,client ,stream ,newline))))))
 
-(defmethod pprint-fill :around (client stream object &optional colon-p at-sign-p)
+#+(or)(defmethod pprint-fill :around (client stream object &optional colon-p at-sign-p)
   (declare (ignore colon-p at-sign-p))
   (with-unquote (client stream object)
     (call-next-method)))
@@ -46,7 +46,7 @@
   (declare (ignore at-sign-p))
   (pprint-list (client stream object :paren colon-p :newline :fill)))
 
-(defmethod pprint-linear :around (client stream object &optional colon-p at-sign-p)
+#+(or)(defmethod pprint-linear :around (client stream object &optional colon-p at-sign-p)
   (declare (ignore colon-p at-sign-p))
   (with-unquote (client stream object)
     (call-next-method)))
