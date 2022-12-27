@@ -471,7 +471,8 @@
                        miser-p)))
          :maybe-break)
         ((and (not *print-readably*)
-              (equal (1+ (line instruction)) *print-lines*))
+              *print-lines*
+              (>= (1+ (line instruction)) *print-lines*))
          (add-text-fragment client stream mode instruction "..")
          :overflow)
         (t
