@@ -221,7 +221,8 @@
 (defun call-form-p (form)
   (and form
        (listp form)
-       (symbolp (first form))))
+       (symbolp (first form))
+       (fboundp (first form))))
 
 (deftype call-form ()
   `(satisfies call-form-p))
@@ -346,7 +347,8 @@
     ((and array
           (not string)
           (not bit-vector))        -10 pprint-array)
-    (call-form                     -20 pprint-call)))
+    (call-form                     -20 pprint-call)
+    (cons                          -30 pprint-fill t)))
 
 (defun make-dispatch-function (client name rest &aux (func (fdefinition name)))
   (declare (ignore client))
