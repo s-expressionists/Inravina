@@ -144,8 +144,17 @@
                      :format-control "~S isn't an output stream."
                      :format-arguments (list ,svar)))))))
 
-(defmacro with-unquote ((client stream object) &body body)
-  `(if (and (getf *quasiquote* stream)
-            (typep ,object 'unquote-form))
-       (incless/core:write-object ,client ,object ,stream)
-       (progn ,@body)))
+(defgeneric get-named-style (client stream name)
+  (:method (client stream name)
+    (declare (ignore client stream name))
+    nil))
+
+(defmacro with-named-style ((client stream name) &body body)
+  (let ((previous-var (gensym))
+        (new-var (gensym)))
+    `(let ((,previous-var (trivial-stream-column:stream-style ,stream))
+           (,new-var (get-named-style ,client ,stream ,name)))
+       (when ,new-var
+         (setf (trivial-stream-column:stream-style ,stream) ,new-var)
+         (unwind-protect (progn ,@body)
+           (setf (trivial-stream-column:stream-style ,stream) ,previous-var))))))

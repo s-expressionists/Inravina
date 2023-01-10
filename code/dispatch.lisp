@@ -409,7 +409,7 @@
   (pprint-dispatch client *initial-pprint-dispatch* object))
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
-  (declare (ignore client))
+  (declare (ignore client priority))
   (setf (dispatch-table-entries table)
         (delete type-specifier (dispatch-table-entries table)
                 :key #'dispatch-entry-type-specifier :test #'equal))

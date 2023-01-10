@@ -22,6 +22,7 @@
            #:frob-output-stream
            #:make-pretty-stream
            #:*options*
+           #:get-named-style
            #:pprint-apply
            #:pprint-argument-list
            #:pprint-array

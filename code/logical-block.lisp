@@ -74,7 +74,7 @@
                                    prefix)
                               ,per-line-prefix-p ,suffix
                               (lambda (,stream-var ,object-var &aux (,count-var 0))
-                                (declare (ignorable ,stream-var ,object-var))
+                                (declare (ignorable ,stream-var ,object-var ,count-var))
                                 (block ,tag-name
                                   (macrolet ((pprint-exit-if-list-exhausted ()
                                                '(unless ,object-var
