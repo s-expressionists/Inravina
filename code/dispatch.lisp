@@ -348,6 +348,7 @@
           (not string)
           (not bit-vector))        -10 pprint-array)
     (call-form                     -20 pprint-call)
+    (symbol                        -30 pprint-symbol)
     (cons                          -30 pprint-fill t)))
 
 (defun make-dispatch-function (client name rest &aux (func (fdefinition name)))
@@ -391,7 +392,7 @@
                                   (dispatch-table-entries table))))
 
 (defun default-dispatch-print (stream object)
-  (print-object object stream))
+  (incless/core:print-object *client* object stream))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
   (declare (ignore client))

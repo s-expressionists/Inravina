@@ -616,4 +616,29 @@
              (write-char #\Space stream)
              (pprint-newline client stream :mandatory))))
 
+(defun muffp (symbol char &aux (name (symbol-name symbol)))
+  (and (> (length name) 1)
+       (char= (char name 0) char)
+       (char= (char name (1- (length name))) char)))
 
+(defun constant-variable-p (symbol)
+  (or (and (boundp symbol)
+           (constantp symbol))
+      (muffp symbol #\+)))
+
+(defun dynamic-variable-p (symbol)
+  (or (and (boundp symbol)
+           (not (constantp symbol)))
+      (muffp symbol #\*)))
+
+(defun pprint-symbol (client stream object &rest options &key &allow-other-keys)
+  (declare (ignore options))
+  (with-named-style (client stream
+                     (cond ((constant-variable-p object)
+                            :constant-variable)
+                           ((dynamic-variable-p object)
+                            :dynamic-variable)
+                           (t
+                            nil)))
+    (incless/core:print-object client object stream)))
+                            

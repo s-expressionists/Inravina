@@ -151,10 +151,14 @@
 
 (defmacro with-named-style ((client stream name) &body body)
   (let ((previous-var (gensym))
-        (new-var (gensym)))
+        (new-var (gensym))
+        (body-fun (gensym)))
     `(let ((,previous-var (trivial-stream-column:stream-style ,stream))
-           (,new-var (get-named-style ,client ,stream ,name)))
-       (when ,new-var
-         (setf (trivial-stream-column:stream-style ,stream) ,new-var)
-         (unwind-protect (progn ,@body)
-           (setf (trivial-stream-column:stream-style ,stream) ,previous-var))))))
+           (,new-var (get-named-style ,client ,stream ,name))
+           (,body-fun (lambda () ,@body)))
+       (cond (,new-var
+              (setf (trivial-stream-column:stream-style ,stream) ,new-var)
+              (unwind-protect (funcall ,body-fun)
+                (setf (trivial-stream-column:stream-style ,stream) ,previous-var)))
+             (t
+              (funcall ,body-fun))))))
