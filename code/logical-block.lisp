@@ -10,7 +10,7 @@
   (cond ((and (plusp count)
               (not (pprint-valid-list-p client stream object)))
          (write-string ". " stream)
-         (incless/core:write-object client object stream)
+         (incless:write-object client object stream)
          nil)
         ((and (not *print-readably*)
               (eql count *print-length*))
@@ -19,9 +19,9 @@
         ((and *print-circle*
               object
               (plusp count)
-              (incless/core:circle-check client object))
+              (incless:circle-check client object))
          (write-string ". " stream)
-         (incless/core:write-object client object stream)
+         (incless:write-object client object stream)
          nil)
         (t)))
 
@@ -37,18 +37,18 @@
                                           (t
                                            stream)))))
     (cond ((not (pprint-valid-list-p client stream object))
-           (incless/core:write-object client object stream))
+           (incless:write-object client object stream))
           ((and (not *print-readably*)
                 (eql 0 *print-level*))
            (write-char #\# stream))
           (t
-           (incless/core:handle-circle client object stream
-                                       (lambda (object stream)
-                                         (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
-                                           (pprint-start-logical-block client stream prefix per-line-prefix-p)
-                                           (unwind-protect
-                                                (funcall function stream object)
-                                             (pprint-end-logical-block client stream suffix)))))))
+           (incless:handle-circle client object stream
+                                  (lambda (object stream)
+                                    (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
+                                      (pprint-start-logical-block client stream prefix per-line-prefix-p)
+                                      (unwind-protect
+                                          (funcall function stream object)
+                                        (pprint-end-logical-block client stream suffix)))))))
     nil))
 
 (defmacro pprint-logical-block ((client stream-symbol object

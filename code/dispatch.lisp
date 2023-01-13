@@ -392,7 +392,7 @@
                                   (dispatch-table-entries table))))
 
 (defun default-dispatch-print (stream object)
-  (incless/core:print-object *client* object stream))
+  (incless:print-object *client* object stream))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
   (declare (ignore client))

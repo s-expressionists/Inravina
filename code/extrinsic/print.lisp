@@ -1,4 +1,4 @@
-(in-package #:inravina/extrinsic)
+(in-package #:inravina-extrinsic)
 
 (defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
 

@@ -1,4 +1,4 @@
-(in-package #:inravina/intrinsic)
+(in-package #:inravina-intrinsic)
 
 (defclass client ()
   ())
