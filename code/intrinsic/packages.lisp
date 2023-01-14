@@ -1,4 +1,5 @@
 (defpackage #:inravina-intrinsic
   (:use #:common-lisp)
-  (:export #:client))
+  (:export #:*standard-pprint-dispatch*
+           #:client))
 

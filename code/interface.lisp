@@ -14,7 +14,7 @@
                               :minimize :minimizing :nconc :nconcing :sum :summing
                               :unless :when)))
 
-(defgeneric copy-pprint-dispatch (client table))
+(defgeneric copy-pprint-dispatch (client table &optional read-only))
 
 (defgeneric pprint-dispatch (client table object)
   (:method (client table object)

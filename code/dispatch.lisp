@@ -1,7 +1,5 @@
 (in-package #:inravina)
 
-(defvar *initial-pprint-dispatch*)
-
 (defclass dispatch-entry ()
   ((type-specifier :accessor dispatch-entry-type-specifier
                    :initarg :type-specifier)
@@ -38,7 +36,11 @@
   ((entries :accessor dispatch-table-entries
             :initarg :entries
             :initform nil
-            :type list)))
+            :type list)
+   (read-only :accessor dispatch-table-read-only-p
+              :initarg :read-only
+              :initform nil
+              :type boolean)))
 
 (defmethod print-object ((entry dispatch-entry) stream)
   (print-unreadable-object (entry stream :type t)
@@ -310,46 +312,48 @@
 (deftype setf-form ()
   `(satisfies setf-form-p))
 
-(defvar +default-dispatch-entries+
-  '((apply-form                    -10 pprint-apply)
-    (block-form                    -10 pprint-block)
-    (case-form                     -10 pprint-case)
-    (cond-form                     -10 pprint-cond)
-    (defclass-form                 -10 pprint-defclass)
-    (defmethod-with-qualifier-form -10 pprint-defmethod-with-qualifier)
-    (defun-form                    -10 pprint-defun)
-    (do-form                       -10 pprint-do)
-    (dolist-form                   -10 pprint-dolist)
-    (eval-when-form                -10 pprint-eval-when)
-    (extended-loop-form            -10 pprint-extended-loop)
-    (flet-form                     -10 pprint-flet)
-    (function-quote-form           -10 pprint-macro-char :prefix "#'")
-    (spread-form                   -10 pprint-function-call :newline :linear)
-    (lambda-form                   -10 pprint-lambda)
-    (let-form                      -10 pprint-let)
-    (pprint-logical-block-form     -10 pprint-with :argument-count 2)
-    (pprint-logical-block-form/2   -10 pprint-with :argument-count 3)
+(defvar +initial-dispatch-entries+
+  '((apply-form                      0 pprint-apply)
+    (block-form                      0 pprint-block)
+    (case-form                       0 pprint-case)
+    (cond-form                       0 pprint-cond)
+    (defclass-form                   0 pprint-defclass)
+    (defmethod-with-qualifier-form   0 pprint-defmethod-with-qualifier)
+    (defun-form                      0 pprint-defun)
+    (do-form                         0 pprint-do)
+    (dolist-form                     0 pprint-dolist)
+    (eval-when-form                  0 pprint-eval-when)
+    (extended-loop-form              0 pprint-extended-loop)
+    (flet-form                       0 pprint-flet)
+    (function-quote-form             0 pprint-macro-char :prefix "#'")
+    (spread-form                     0 pprint-function-call :newline :linear)
+    (lambda-form                     0 pprint-lambda)
+    (let-form                        0 pprint-let)
+    (pprint-logical-block-form       0 pprint-with :argument-count 2)
+    (pprint-logical-block-form/2     0 pprint-with :argument-count 3)
     #+(or (and clasp (not staging)) ecl sbcl)
-    (quasiquote-form               -10 pprint-quasiquote :prefix "`" :quote t)
+    (quasiquote-form                 0 pprint-quasiquote :prefix "`" :quote t)
     #+(or (and clasp (not staging)) ecl)
-    (unquote-form                  -10 pprint-quasiquote :prefix "," :quote nil)
+    (unquote-form                    0 pprint-quasiquote :prefix "," :quote nil)
     #+(or (and clasp (not staging)) ecl)
-    (unquote-splice-form           -10 pprint-quasiquote :prefix ",@" :quote nil)
+    (unquote-splice-form             0 pprint-quasiquote :prefix ",@" :quote nil)
     #+ecl
-    (unquote-nsplice-form          -10 pprint-quasiquote :prefix ",." :quote nil)
+    (unquote-nsplice-form            0 pprint-quasiquote :prefix ",." :quote nil)
     #+sbcl
-    (sb-impl::comma                -10 pprint-sbcl-comma)
-    (quote-form                    -10 pprint-macro-char :prefix "'")
-    (setf-form                     -10 pprint-function-call :argument-count 0)
-    (simple-loop-form              -10 pprint-simple-loop)
-    (with-compilation-unit-form    -10 pprint-with :argument-count 0)
-    (with-hash-table-iterator-form -10 pprint-with)
+    (sb-impl::comma                  0 pprint-sbcl-comma)
+    (quote-form                      0 pprint-macro-char :prefix "'")
+    (setf-form                       0 pprint-function-call :argument-count 0)
+    (simple-loop-form                0 pprint-simple-loop)
+    (with-compilation-unit-form      0 pprint-with :argument-count 0)
+    (with-hash-table-iterator-form   0 pprint-with)
     ((and array
           (not string)
-          (not bit-vector))        -10 pprint-array)
-    (call-form                     -20 pprint-call)
-    (symbol                        -30 pprint-symbol)
-    (cons                          -30 pprint-fill t)))
+          (not bit-vector))          0 pprint-array)
+    (call-form                      -5 pprint-call)
+    (cons                          -10 pprint-fill t)))
+
+(defvar +extra-dispatch-entries+
+  '((symbol                        -10 pprint-symbol)))
 
 (defun make-dispatch-function (client name rest &aux (func (fdefinition name)))
   (declare (ignore client))
@@ -371,19 +375,39 @@
           (sort (dispatch-table-entries table) #'> :key #'dispatch-entry-priority)))
   nil)
 
-(defmethod copy-pprint-dispatch (client (table (eql nil)))
+(defmethod copy-pprint-dispatch (client (table (eql nil)) &optional read-only)
   (declare (ignore table))
   (let ((new-table (make-instance 'dispatch-table)))
-    (loop for (type priority name . rest) in +default-dispatch-entries+
+    (loop for (type priority name . rest) in +initial-dispatch-entries+
           do (add-dispatch-entry new-table
                                  type
                                  (make-dispatch-function client name rest)
                                  priority))
+    (when read-only
+      (setf (dispatch-table-read-only-p new-table) t))
     new-table))
 
-(defmethod copy-pprint-dispatch (client (table dispatch-table))
+(defmethod copy-pprint-dispatch (client (table (eql t)) &optional read-only)
+  (declare (ignore table))
+  (let ((new-table (make-instance 'dispatch-table)))
+    (loop for (type priority name . rest) in +initial-dispatch-entries+
+          do (add-dispatch-entry new-table
+                                 type
+                                 (make-dispatch-function client name rest)
+                                 priority))
+    (loop for (type priority name . rest) in +extra-dispatch-entries+
+          do (add-dispatch-entry new-table
+                                 type
+                                 (make-dispatch-function client name rest)
+                                 priority))
+    (when read-only
+      (setf (dispatch-table-read-only-p new-table) t))
+    new-table))
+
+(defmethod copy-pprint-dispatch (client (table dispatch-table) &optional read-only)
   (declare (ignore client))
   (make-instance 'dispatch-table
+                 :read-only (and read-only t)
                  :entries (mapcar (lambda (entry)
                                     (make-instance 'dispatch-entry
                                                    :type-specifier (dispatch-entry-type-specifier entry)
@@ -409,8 +433,15 @@
 (defmethod pprint-dispatch (client (table (eql nil)) object)
   (pprint-dispatch client *initial-pprint-dispatch* object))
 
+(defun check-table-read-only (table)
+  (when (dispatch-table-read-only-p table)
+    (cerror "Ignore and continue"
+            "Tried to modify a read-only pprint dispatch table: ~A"
+            table)))
+  
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
   (declare (ignore client priority))
+  (check-table-read-only table)
   (setf (dispatch-table-entries table)
         (delete type-specifier (dispatch-table-entries table)
                 :key #'dispatch-entry-type-specifier :test #'equal))
@@ -418,6 +449,7 @@
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
   (declare (ignore client))
+  (check-table-read-only table)
   (add-dispatch-entry table type-specifier
                       (lambda (stream object)
                         (funcall function (make-pretty-stream *client* stream) object))
