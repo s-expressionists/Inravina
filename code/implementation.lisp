@@ -22,5 +22,3 @@
       (go next))
     (pprint-text client stream text start end)))
 
-(defparameter *initial-pprint-dispatch* (copy-pprint-dispatch inravina:*client* nil))
-

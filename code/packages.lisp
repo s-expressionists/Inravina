@@ -15,14 +15,14 @@
            #:set-pprint-dispatch)
   #+sicl
   (:local-nicknames (:trivial-gray-streams :cyclosis))
-  (:export #:*client*
-           #:client
+  (:export #:*options*
+           #:*print-pprint-dispatch*
            #:copy-pprint-dispatch
            #:do-pprint-logical-block
            #:frob-output-stream
-           #:make-pretty-stream
-           #:*options*
            #:get-named-style
+           #:make-dispatch-function
+           #:make-pretty-stream
            #:pprint-apply
            #:pprint-argument-list
            #:pprint-array
@@ -64,7 +64,6 @@
            #:pprint-tabular-plist
            #:pprint-tagbody
            #:pprint-with
-           #:pretty-stream-p
            #:pretty-stream
-           #:*print-pprint-dispatch*
+           #:pretty-stream-p
            #:set-pprint-dispatch))

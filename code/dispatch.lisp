@@ -355,11 +355,6 @@
 (defvar +extra-dispatch-entries+
   '((symbol                        -10 pprint-symbol)))
 
-(defun make-dispatch-function (client name rest &aux (func (fdefinition name)))
-  (declare (ignore client))
-  (lambda (stream object)
-    (apply func *client* (make-pretty-stream *client* stream) object rest)))
-
 (defun add-dispatch-entry (table type-specifier function priority)
   (let ((entry (find type-specifier (dispatch-table-entries table)
                      :test #'equal :key #'dispatch-entry-type-specifier)))
@@ -381,7 +376,8 @@
     (loop for (type priority name . rest) in +initial-dispatch-entries+
           do (add-dispatch-entry new-table
                                  type
-                                 (make-dispatch-function client name rest)
+                                 (make-dispatch-function client :client-stream-object
+                                                         (fdefinition name) rest)
                                  priority))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
@@ -393,12 +389,14 @@
     (loop for (type priority name . rest) in +initial-dispatch-entries+
           do (add-dispatch-entry new-table
                                  type
-                                 (make-dispatch-function client name rest)
+                                 (make-dispatch-function client :client-stream-object
+                                                         (fdefinition name) rest)
                                  priority))
     (loop for (type priority name . rest) in +extra-dispatch-entries+
           do (add-dispatch-entry new-table
                                  type
-                                 (make-dispatch-function client name rest)
+                                 (make-dispatch-function client :client-stream-object
+                                                         (fdefinition name) rest)
                                  priority))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
@@ -415,9 +413,6 @@
                                                    :priority (dispatch-entry-priority entry)))
                                   (dispatch-table-entries table))))
 
-(defun default-dispatch-print (stream object)
-  (incless:print-object *client* object stream))
-
 (defmethod pprint-dispatch (client (table dispatch-table) object)
   (declare (ignore client))
   (when (or (not (arrayp object))
@@ -428,7 +423,8 @@
       (when (funcall (dispatch-entry-test-function entry) object)
         (return-from pprint-dispatch
                      (values (dispatch-entry-function entry) t)))))
-  (values #'default-dispatch-print nil))
+  (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
+          nil))
 
 (defmethod pprint-dispatch (client (table (eql nil)) object)
   (pprint-dispatch client *initial-pprint-dispatch* object))
@@ -451,6 +447,5 @@
   (declare (ignore client))
   (check-table-read-only table)
   (add-dispatch-entry table type-specifier
-                      (lambda (stream object)
-                        (funcall function (make-pretty-stream *client* stream) object))
+                      (make-dispatch-function client :stream-object function nil)
                       priority))

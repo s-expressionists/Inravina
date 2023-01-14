@@ -1,45 +1,67 @@
 (in-package #:inravina-extrinsic)
 
-(defparameter *print-pprint-dispatch* inravina:*print-pprint-dispatch*)
+(defclass extrinsic-client () ())
+
+(defparameter *client* (make-instance 'extrinsic-client))
+
+(defmethod inravina:make-dispatch-function ((client extrinsic-client) (pattern (eql :client-stream-object)) function rest)
+  (lambda (stream object)
+    (apply function *client* (inravina:make-pretty-stream *client* stream) object rest)))
+
+(defmethod inravina:make-dispatch-function ((client extrinsic-client) (pattern (eql :client-object-stream)) function rest)
+  (lambda (stream object)
+    (apply function *client* object (inravina:make-pretty-stream *client* stream) rest)))
+
+(defmethod inravina:make-dispatch-function ((client extrinsic-client) (pattern (eql :stream-object)) function rest)
+  (lambda (stream object)
+    (apply function (inravina:make-pretty-stream *client* stream) object rest)))
+
+(defmethod inravina:make-dispatch-function ((client extrinsic-client) (pattern (eql :object-stream)) function rest)
+  (lambda (stream object)
+    (apply function object (inravina:make-pretty-stream *client* stream) rest)))
+
+(defparameter *print-pprint-dispatch* (inravina:copy-pprint-dispatch *client* nil))
+
+(defparameter *standard-pprint-dispatch* (inravina:copy-pprint-dispatch *client* nil t))
 
 (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
-  (inravina:copy-pprint-dispatch inravina:*client* table))
+  (inravina:copy-pprint-dispatch *client* table))
 
 (defun set-pprint-dispatch (type-specifier function &optional priority table)
-  (inravina:set-pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) type-specifier function priority))
+  (inravina:set-pprint-dispatch *client* (or table *print-pprint-dispatch*) type-specifier function priority))
 
 (defun pprint-fill (stream object &optional (colon-p t) at-sign-p)
-  (inravina:pprint-fill inravina:*client* stream object colon-p at-sign-p)
+  (inravina:pprint-fill *client* stream object colon-p at-sign-p)
   nil)
 
 (defun pprint-linear (stream object &optional (colon-p t) at-sign-p)
-  (inravina:pprint-linear inravina:*client* stream object colon-p at-sign-p)
+  (inravina:pprint-linear *client* stream object colon-p at-sign-p)
   nil)
 
 (defun pprint-tabular (stream object &optional (colon-p t) at-sign-p (tabsize 16))
-  (inravina:pprint-tabular inravina:*client* stream object colon-p at-sign-p tabsize)
+  (inravina:pprint-tabular *client* stream object colon-p at-sign-p tabsize)
   nil)
 
 (defun pprint-indent (relative-to n &optional stream)
   (check-type relative-to (member :block :current))
   (when *print-pretty*
-    (inravina:pprint-indent inravina:*client* stream relative-to n))
+    (inravina:pprint-indent *client* stream relative-to n))
   nil)
 
 (defun pprint-newline (kind &optional stream)
   (check-type kind (member :linear :fill :miser :mandatory))
   (when *print-pretty*
-    (inravina:pprint-newline inravina:*client* stream kind))
+    (inravina:pprint-newline *client* stream kind))
   nil)
 
 (defun pprint-tab (kind colnum colinc &optional stream)
   (check-type kind (member :line :section :line-relative :section-relative))
   (when *print-pretty*
-    (inravina:pprint-tab inravina:*client* stream kind colnum colinc))
+    (inravina:pprint-tab *client* stream kind colnum colinc))
   nil)
 
 (defun pprint-dispatch (object &optional table)
-  (inravina:pprint-dispatch inravina:*client* (or table *print-pprint-dispatch*) object))
+  (inravina:pprint-dispatch *client* (or table *print-pprint-dispatch*) object))
 
 (defmacro pprint-logical-block ((stream-symbol object
                                 &key (prefix nil prefix-p)
@@ -58,7 +80,7 @@
                            '*terminal-io*)
                           (t
                            stream-symbol))))
-    `(inravina:do-pprint-logical-block inravina:*client* ,stream-symbol ,object
+    `(inravina:do-pprint-logical-block *client* ,stream-symbol ,object
                               ,prefix ,per-line-prefix ,suffix
                               (lambda (,stream-var ,object-var &aux (,count-var 0))
                                 (declare (ignorable ,stream-var ,object-var))
@@ -68,7 +90,7 @@
                                                   (return-from ,tag-name)))
                                              (pprint-pop ()
                                                '(progn
-                                                  (unless (inravina:pprint-pop-p inravina:*client* ,stream-var
+                                                  (unless (inravina:pprint-pop-p *client* ,stream-var
                                                                                  ,object-var ,count-var)
                                                     (return-from ,tag-name))
                                                   (incf ,count-var)

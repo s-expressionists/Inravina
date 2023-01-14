@@ -28,8 +28,7 @@
 (defun do-pprint-logical-block (client stream object prefix per-line-prefix-p suffix function)
   (check-type prefix string)
   (check-type suffix string)
-  (let ((*client* client)
-        (stream (make-pretty-stream client
+  (let ((stream (make-pretty-stream client
                                     (cond ((null stream)
                                            *standard-output*)
                                           ((eq t stream)

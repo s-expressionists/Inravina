@@ -162,3 +162,5 @@
                 (setf (trivial-stream-column:stream-style ,stream) ,previous-var)))
              (t
               (funcall ,body-fun))))))
+
+(defgeneric make-dispatch-function (client pattern function rest))

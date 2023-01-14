@@ -15,7 +15,6 @@
                 :components ((:file "packages")
                              (:file "types")
                              (:file "interface")
-                             (:file "client")
                              (:file "logical-block")
                              (:file "list-printers")
                              (:file "form-printers")

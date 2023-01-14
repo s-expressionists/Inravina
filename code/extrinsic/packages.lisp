@@ -1,6 +1,7 @@
 (defpackage #:inravina-extrinsic
   (:use #:common-lisp)
-  (:shadow #:copy-pprint-dispatch
+  (:shadow #:*print-pprint-dispatch*
+           #:copy-pprint-dispatch
            #:pprint-dispatch
            #:pprint-exit-if-list-exhausted
            #:pprint-fill
@@ -11,9 +12,12 @@
            #:pprint-pop
            #:pprint-tab
            #:pprint-tabular
-           #:*print-pprint-dispatch*
            #:set-pprint-dispatch)
-  (:export #:copy-pprint-dispatch
+  (:export #:*client*
+           #:*print-pprint-dispatch*
+           #:*standard-pprint-dispatch*
+           #:copy-pprint-dispatch
+           #:intrinsic-client
            #:pprint-dispatch
            #:pprint-exit-if-list-exhausted
            #:pprint-fill
@@ -24,6 +28,4 @@
            #:pprint-pop
            #:pprint-tab
            #:pprint-tabular
-           #:*print-pprint-dispatch*
            #:set-pprint-dispatch))
-
