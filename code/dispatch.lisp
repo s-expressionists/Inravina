@@ -426,9 +426,6 @@
   (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
           nil))
 
-(defmethod pprint-dispatch (client (table (eql nil)) object)
-  (pprint-dispatch client *initial-pprint-dispatch* object))
-
 (defun check-table-read-only (table)
   (when (dispatch-table-read-only-p table)
     (cerror "Ignore and continue"

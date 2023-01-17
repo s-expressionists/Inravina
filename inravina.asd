@@ -38,14 +38,3 @@
                                            (:file "pprint-tab")
                                            (:file "list-printers")
                                            (:file "form-printers")))))))
-
-#+(or)(asdf:defsystem #:inravina-ansi-term
-  :description "Inravina/ansi-term"
-  :author "Tarn W. Burton"
-  :license "MIT"
-  :depends-on (:inravina-intrinsic)
-  :components ((:module code
-                :components ((:module ansi-term
-                              :serial t
-                              :components ((:file "packages")
-                                           (:file "term")))))))

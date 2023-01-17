@@ -20,6 +20,8 @@
   (lambda (stream object)
     (apply function object (inravina:make-pretty-stream *client* stream) rest)))
 
+(defparameter *initial-pprint-dispatch* (inravina:copy-pprint-dispatch *client* t t))
+
 (defparameter *standard-pprint-dispatch* (inravina:copy-pprint-dispatch *client* nil t))
 
 (trivial-package-locks:with-unlocked-packages (:common-lisp)
@@ -69,7 +71,7 @@
 
   (defun pprint-dispatch (object &optional (table *print-pprint-dispatch*))
     (check-type table (or null inravina::dispatch-table))
-    (inravina:pprint-dispatch *client* table object))
+    (inravina:pprint-dispatch *client* (or table *initial-pprint-dispatch*) object))
 
   (defmacro pprint-logical-block ((stream-symbol object
                                    &key (prefix "" prefix-p)
