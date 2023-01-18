@@ -1,6 +1,7 @@
 (in-package #:inravina-extrinsic)
 
-(defclass extrinsic-client () ())
+(defclass extrinsic-client (incless-extrinsic:extrinsic-client)
+  ())
 
 (defparameter *client* (make-instance 'extrinsic-client))
 
@@ -108,3 +109,10 @@
   "Pops one element from the list being printed in the lexically current logical
    block, obeying *print-length* and *print-circle*."
   (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
+
+(defmethod incless:write-object ((client extrinsic-client) object stream)
+  (if *print-pretty*
+      (funcall (inravina:pprint-dispatch client *print-pprint-dispatch* object) stream object)
+      (call-next-method)))
+
+(setf incless-extrinsic:*client* *client*)
