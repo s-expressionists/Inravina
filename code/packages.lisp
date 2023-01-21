@@ -59,6 +59,7 @@
            #:pprint-progv
            #:pprint-simple-loop
            #:pprint-start-logical-block
+           #:pprint-structure-object
            #:pprint-tab
            #:pprint-tabular
            #:pprint-tabular-plist

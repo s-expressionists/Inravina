@@ -414,7 +414,6 @@
                                   (dispatch-table-entries table))))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
-  (declare (ignore client))
   (when (or (not (arrayp object))
             (and (arrayp object)
                  *print-array*
@@ -441,7 +440,6 @@
   nil)
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
-  (declare (ignore client))
   (check-table-read-only table)
   (add-dispatch-entry table type-specifier
                       (make-dispatch-function client :stream-object function nil)
