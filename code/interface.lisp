@@ -63,9 +63,9 @@
 
 (defgeneric make-pretty-stream (client stream))
 
-(defgeneric pretty-stream-p (client stream)
-  (:method (client stream)
-    (declare (ignore client stream))
+(defgeneric pretty-stream-p (stream)
+  (:method (stream)
+    (declare (ignore stream))
     nil))
 
 (defgeneric break-position (client stream text))

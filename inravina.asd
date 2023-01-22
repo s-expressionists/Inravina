@@ -18,6 +18,7 @@
                              (:file "logical-block")
                              (:file "list-printers")
                              (:file "form-printers")
+                             (:file "object-printers")
                              (:file "dispatch")
                              (:file "pretty-stream")
                              (:file "implementation")))))
