@@ -72,7 +72,7 @@
 
 (defgeneric normalize-text (client stream text))
 
-(defgeneric pprint-block (client stream object &rest options &key &allow-other-keys))
+(defgeneric pprint-prog1 (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-defun (client stream object &rest options &key &allow-other-keys))
 

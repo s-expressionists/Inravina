@@ -69,82 +69,6 @@
 (deftype extended-loop-form ()
   `(satisfies extended-loop-form-p))
 
-(defun apply-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(apply))))
-
-(deftype apply-form ()
-  `(satisfies apply-form-p))
-
-(defun block-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(block catch defconstant defparameter defvar
-                 multiple-value-call multiple-value-prog1
-                 print-unreadable-object prog1 return-from throw
-                 unless unwind-protect when))))
-
-(deftype block-form ()
-  `(satisfies block-form-p))
-
-(defun defclass-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(defclass define-condition))))
-
-(deftype defclass-form ()
-  `(satisfies defclass-form-p))
-
-(defun do-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(do do*))))
-
-(deftype do-form ()
-  `(satisfies do-form-p))
-
-(defun dolist-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(dolist do-symbols do-external-symbols
-                 do-all-symbols dotimes))))
-
-(deftype dolist-form ()
-  `(satisfies dolist-form-p))
-
-(defun eval-when-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(defstruct eval-when multiple-value-setq))))
-
-(deftype eval-when-form ()
-  `(satisfies eval-when-form-p))
-
-(defun let-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(let let*))))
-
-(deftype let-form ()
-  `(satisfies let-form-p))
-
-(defun with-hash-table-iterator-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(with-hash-table-iterator with-open-stream
-                 with-package-iterator with-simple-restart))))
-
-(deftype with-hash-table-iterator-form ()
-  `(satisfies with-hash-table-iterator-form-p))
-
-(defun with-compilation-unit-form-p (form)
-  (and (listp form)
-       (eql (first form) 'with-compilation-unit)))
-
-(deftype with-compilation-unit-form ()
-  `(satisfies with-compilation-unit-form-p))
-
 (defun pprint-logical-block-form-p (form)
   (and (listp form)
        (member (first form)
@@ -163,17 +87,6 @@
 (deftype pprint-logical-block-form/2 ()
   `(satisfies pprint-logical-block-form-p/2))
 
-(defun defun-form-p (form)
-  (and (listp form)
-       (or (member (first form)
-                   '(define-modify-macro define-setf-expander
-                     defmacro defsetf deftype defun))
-           (and (eql (first form) 'defmethod)
-                (listp (third form))))))
-
-(deftype defun-form ()
-  `(satisfies defun-form-p))
-
 (defun defmethod-with-qualifier-form-p (form)
   (and (listp form)
        (eql (first form) 'defmethod)
@@ -181,44 +94,6 @@
 
 (deftype defmethod-with-qualifier-form ()
   `(satisfies defmethod-with-qualifier-form-p))
-
-(defun flet-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(flet labels macrolet))))
-
-(deftype flet-form ()
-  `(satisfies flet-form-p))
-
-(defun spread-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(if and or))))
-
-(deftype spread-form ()
-  `(satisfies spread-form-p))
-
-(defun cond-form-p (form)
-  (and (listp form)
-       (eql (first form) 'cond)))
-
-(deftype cond-form ()
-  `(satisfies cond-form-p))
-
-(defun case-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(case ccase ecase typecase ctypecase etypecase))))
-
-(deftype case-form ()
-  `(satisfies case-form-p))
-
-(defun lambda-form-p (form)
-  (and (listp form)
-       (eql (first form) 'lambda)))
-
-(deftype lambda-form ()
-  `(satisfies lambda-form-p))
 
 (defun call-form-p (form)
   (and form
@@ -304,53 +179,165 @@
 (deftype function-quote-form ()
   `(satisfies function-quote-form-p))
 
-(defun setf-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(psetq set setf setq))))
-
-(deftype setf-form ()
-  `(satisfies setf-form-p))
-
 (defvar +initial-dispatch-entries+
-  '((apply-form                      0 pprint-apply)
-    (block-form                      0 pprint-block)
-    (case-form                       0 pprint-case)
-    (cond-form                       0 pprint-cond)
-    (defclass-form                   0 pprint-defclass)
-    (defmethod-with-qualifier-form   0 pprint-defmethod-with-qualifier)
-    (defun-form                      0 pprint-defun)
-    (do-form                         0 pprint-do)
-    (dolist-form                     0 pprint-dolist)
-    (eval-when-form                  0 pprint-eval-when)
-    (extended-loop-form              0 pprint-extended-loop)
-    (flet-form                       0 pprint-flet)
-    (function-quote-form             0 pprint-macro-char :prefix "#'")
-    (spread-form                     0 pprint-function-call :newline :linear)
-    (lambda-form                     0 pprint-lambda)
-    (let-form                        0 pprint-let)
-    (pprint-logical-block-form       0 pprint-with :argument-count 2)
-    (pprint-logical-block-form/2     0 pprint-with :argument-count 3)
+  '(((cons (member apply
+                   funcall
+                   multiple-value-call))
+     0
+     pprint-apply)
+    ((cons (member case
+                   ccase
+                   ctypecase
+                   ecase
+                   etypecase
+                   typecase))
+     0
+     pprint-case)
+    ((cons (member cond))
+     0
+     pprint-cond)
+    ((cons (member defclass
+                   define-condition))
+     0
+     pprint-defclass)
+    (defmethod-with-qualifier-form
+     0
+     pprint-defmethod-with-qualifier)
+    ((cons (member define-compiler-macro
+                   define-modify-macro
+                   define-setf-expander
+                   defmacro
+                   deftype
+                   defun))
+     0
+     pprint-defun)
+    ((cons (member do
+                   do*))
+     0
+     pprint-do)
+    ((cons (member do-all-symbols
+                   do-external-symbols
+                   do-symbols
+                   dolist
+                   dotimes))
+     0
+     pprint-dolist)
+    ((cons (member eval-when
+                   multiple-value-setq))
+     0
+     pprint-eval-when)
+    (extended-loop-form
+     0
+     pprint-extended-loop)
+    ((cons (member flet
+                   labels
+                   macrolet))
+     0
+     pprint-flet)
+    (function-quote-form
+     0
+     pprint-macro-char :prefix "#'")
+    ((cons (member and
+                   if
+                   or))
+     0
+     pprint-function-call :newline :linear)
+    ((cons (member destructuring-bind))
+     0
+     pprint-destructuring-bind)
+    ((cons (member lambda))
+     0
+     pprint-lambda)
+    ((cons (member let
+                   let*))
+     0
+     pprint-let)
+    (simple-loop-form
+     0
+     pprint-simple-loop)
+    (quote-form
+     0
+     pprint-macro-char :prefix "'")
+    ((cons (member block
+                   catch
+                   defconstant
+                   defparameter
+                   defvar
+                   multiple-value-prog1
+                   prog1
+                   return-from
+                   return
+                   throw
+                   unless
+                   unwind-protect
+                   when))
+     0
+     pprint-prog1)
+    ((cons (member prog2))
+     0
+     pprint-prog2)
+    ((cons (member locally
+                   progn))
+     0
+     pprint-progn)
+    ((cons (member progv))
+     0
+     pprint-progv)
     #+(or (and clasp (not staging)) ecl sbcl)
-    (quasiquote-form                 0 pprint-quasiquote :prefix "`" :quote t)
+    (quasiquote-form
+     0
+     pprint-quasiquote :prefix "`" :quote t)
     #+(or (and clasp (not staging)) ecl)
-    (unquote-form                    0 pprint-quasiquote :prefix "," :quote nil)
+    (unquote-form
+     0
+     pprint-quasiquote :prefix "," :quote nil)
     #+(or (and clasp (not staging)) ecl)
-    (unquote-splice-form             0 pprint-quasiquote :prefix ",@" :quote nil)
+    (unquote-splice-form
+     0
+     pprint-quasiquote :prefix ",@" :quote nil)
     #+ecl
-    (unquote-nsplice-form            0 pprint-quasiquote :prefix ",." :quote nil)
+    (unquote-nsplice-form
+     0
+     pprint-quasiquote :prefix ",." :quote nil)
     #+sbcl
-    (sb-impl::comma                  0 pprint-sbcl-comma)
-    (quote-form                      0 pprint-macro-char :prefix "'")
-    (setf-form                       0 pprint-function-call :argument-count 0)
-    (simple-loop-form                0 pprint-simple-loop)
-    (with-compilation-unit-form      0 pprint-with :argument-count 0)
-    (with-hash-table-iterator-form   0 pprint-with)
+    (sb-impl::comma
+     0
+     pprint-sbcl-comma)
+    ((cons (member symbol-macrolet))
+     0
+     pprint-symbol-macrolet)
+    ((cons (member psetf
+                   psetq
+                   set
+                   setf
+                   setq))
+     0
+     pprint-function-call :argument-count 0)
+    (pprint-logical-block-form
+     0
+     pprint-with :argument-count 2)
+    (pprint-logical-block-form/2
+     0
+     pprint-with :argument-count 3)
+    ((cons (member with-compilation-unit))
+     0
+     pprint-with :argument-count 0)
+    ((cons (member with-open-stream
+                   with-package-iterator
+                   with-simple-restart))
+     0
+     pprint-with)
     ((and array
           (not string)
-          (not bit-vector))          0 pprint-array)
-    (call-form                      -5 pprint-call)
-    (cons                          -10 pprint-fill t)))
+          (not bit-vector))
+     0
+     pprint-array)
+    (call-form
+     -5
+     pprint-call)
+    (cons
+     -10
+     pprint-fill t)))
 
 (defvar +extra-dispatch-entries+
   '((symbol                        -10 pprint-symbol)))
