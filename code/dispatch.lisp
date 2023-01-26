@@ -15,8 +15,8 @@
    (arguments :accessor dispatch-entry-arguments
               :initarg :arguments
               :type list)
-   (wrapped-function :accessor dispatch-entry-wrapped-function
-                     :initarg :wrapped-function
+   (dispatch-function :accessor dispatch-entry-dispatch-function
+                     :initarg :dispatch-function
                      :type function)
    (priority :accessor dispatch-entry-priority
              :initarg :priority
@@ -40,9 +40,14 @@
 
 (defclass dispatch-table ()
   ((entries :accessor dispatch-table-entries
-            :initarg :entries
             :initform nil
             :type list)
+   (cons-entries :reader dispatch-table-cons-entries
+                 :initform (make-hash-table :test 'eql)
+                 :type hash-table)
+   (non-cons-entries :accessor dispatch-table-non-cons-entries
+                     :initform nil
+                     :type list)
    (read-only :accessor dispatch-table-read-only-p
               :initarg :read-only
               :initform nil
@@ -382,10 +387,21 @@
             (and (arrayp object)
                  *print-array*
                  (not *print-readably*)))
-    (dolist (entry (dispatch-table-entries table))
-      (when (funcall (dispatch-entry-test-function entry) object)
+    (let (entry)
+      (when (and (consp object) (symbolp (car object)))
+        (loop for candidate in (gethash (car object) (dispatch-table-cons-entries table))
+              when (funcall (dispatch-entry-test-function candidate) object)
+                do (setf entry candidate)
+                   (loop-finish)))
+      (loop for candidate in (dispatch-table-non-cons-entries table)
+            while (or (not entry)
+                      (<= (dispatch-entry-priority entry) (dispatch-entry-priority candidate)))
+            when (funcall (dispatch-entry-test-function candidate) object)
+              do (setf entry candidate)
+                 (loop-finish))
+      (when entry
         (return-from pprint-dispatch
-                     (values (dispatch-entry-wrapped-function entry) t)))))
+                     (values (dispatch-entry-dispatch-function entry) t)))))
   (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
           nil))
 
@@ -394,29 +410,53 @@
     (cerror "Ignore and continue"
             "Tried to modify a read-only pprint dispatch table: ~A"
             table)))
-  
+
+(defun cons-names (type-specifier)
+  (and (consp type-specifier)
+       (eql 'cons (first type-specifier))
+       (consp (cdr type-specifier))
+       (consp (cadr type-specifier))
+       (member (caadr type-specifier) '(eql member))
+       (cdadr type-specifier)))
+
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) &optional priority pattern arguments)
   (declare (ignore client priority pattern arguments))
   (check-table-read-only table)
-  (setf (dispatch-table-entries table)
-        (delete type-specifier (dispatch-table-entries table)
-                :key #'dispatch-entry-type-specifier :test #'equal))
+  (setf (dispatch-table-entries table) (delete type-specifier (dispatch-table-entries table)
+                                               :key #'dispatch-entry-type-specifier :test #'equal)
+        (dispatch-table-non-cons-entries table) (delete type-specifier (dispatch-table-non-cons-entries table)
+                                                        :key #'dispatch-entry-type-specifier :test #'equal))
+  (loop with cons-entries = (dispatch-table-cons-entries table)
+        for name in (cons-names type-specifier)
+        for entries = (delete type-specifier (gethash name cons-entries)
+                              :key #'dispatch-entry-type-specifier :test #'equal)
+        if entries
+          do (setf (gethash name cons-entries) entries)
+        else
+          do (remhash name cons-entries))
   nil)
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function &optional priority pattern arguments)
   (check-table-read-only table)
   (set-pprint-dispatch client table type-specifier nil)
-  (setf (dispatch-table-entries table)
-        (sort (cons (make-instance 'dispatch-entry
-                                   :type-specifier type-specifier
-                                   :function function
-                                   :test-function (make-test-function type-specifier)
-                                   :wrapped-function (make-dispatch-function client (or pattern :stream-object) function arguments)
-                                   :priority (or priority 0)
-                                   :pattern (or pattern :stream-object)
-                                   :arguments arguments)
-                    (dispatch-table-entries table))
-              #'> :key #'dispatch-entry-priority))
+  (let ((entry (make-instance 'dispatch-entry
+                              :type-specifier type-specifier
+                              :function function
+                              :test-function (make-test-function type-specifier)
+                              :dispatch-function (make-dispatch-function client (or pattern :stream-object) function arguments)
+                              :priority (or priority 0)
+                              :pattern (or pattern :stream-object)
+                              :arguments arguments))
+        (names (cons-names type-specifier)))
+    (setf (dispatch-table-entries table) (sort (cons entry (dispatch-table-entries table))
+                                               #'> :key #'dispatch-entry-priority))
+    (if names
+        (loop with cons-entries = (dispatch-table-cons-entries table)
+              for name in names
+              do (setf (gethash name cons-entries) (sort (cons entry (gethash name cons-entries))
+                                                         #'> :key #'dispatch-entry-priority)))
+        (setf (dispatch-table-non-cons-entries table) (sort (cons entry (dispatch-table-non-cons-entries table))
+                                                            #'> :key #'dispatch-entry-priority))))
   nil)
 
 (defmethod make-pprint-dispatch-iterator (client (table dispatch-table))
