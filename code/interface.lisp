@@ -23,7 +23,9 @@
               (print-object object stream))
             nil)))
 
-(defgeneric set-pprint-dispatch (client table type-specifier function priority))
+(defgeneric set-pprint-dispatch (client table type-specifier function &optional priority pattern arguments))
+
+(defgeneric make-pprint-dispatch-iterator (client table))
 
 (defgeneric pprint-fill (client stream object &optional colon-p at-sign-p))
 

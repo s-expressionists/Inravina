@@ -4,9 +4,20 @@
   ((type-specifier :accessor dispatch-entry-type-specifier
                    :initarg :type-specifier)
    (test-function :accessor dispatch-entry-test-function
-                  :initarg :test-function)
+                  :initarg :test-function
+                  :type function)
    (function :accessor dispatch-entry-function
-             :initarg :function)
+             :initarg :function
+             :type function)
+   (pattern :accessor dispatch-entry-pattern
+            :initarg :pattern
+            :type (member :client-stream-object :client-object-stream :stream-object :object-stream))
+   (arguments :accessor dispatch-entry-arguments
+              :initarg :arguments
+              :type list)
+   (wrapped-function :accessor dispatch-entry-wrapped-function
+                     :initarg :wrapped-function
+                     :type function)
    (priority :accessor dispatch-entry-priority
              :initarg :priority
              :initform 0
@@ -26,11 +37,6 @@
          (lambda (object)
            (and (consp object)
                 (typep (first object) (second type-specifier)))))))
-
-(defmethod initialize-instance :after ((instance dispatch-entry) &rest initargs &key)
-  (declare (ignore initargs))
-  (setf (dispatch-entry-test-function instance)
-        (make-test-function (dispatch-entry-type-specifier instance))))
 
 (defclass dispatch-table ()
   ((entries :accessor dispatch-table-entries
@@ -342,30 +348,11 @@
 (defvar +extra-dispatch-entries+
   '((symbol                        -10 pprint-symbol)))
 
-(defun add-dispatch-entry (table type-specifier function priority)
-  (let ((entry (find type-specifier (dispatch-table-entries table)
-                     :test #'equal :key #'dispatch-entry-type-specifier)))
-    (if entry
-        (setf (dispatch-entry-function entry) function
-              (dispatch-entry-priority entry) (or priority 0))
-        (push (make-instance 'dispatch-entry
-                             :type-specifier type-specifier
-                             :function function
-                             :priority (or priority 0))
-              (dispatch-table-entries table)))
-    (setf (dispatch-table-entries table)
-          (sort (dispatch-table-entries table) #'> :key #'dispatch-entry-priority)))
-  nil)
-
 (defmethod copy-pprint-dispatch (client (table (eql nil)) &optional read-only)
   (declare (ignore table))
   (let ((new-table (make-instance 'dispatch-table)))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
-          do (add-dispatch-entry new-table
-                                 type
-                                 (make-dispatch-function client :client-stream-object
-                                                         (fdefinition name) rest)
-                                 priority))
+          do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
     new-table))
@@ -374,31 +361,21 @@
   (declare (ignore table))
   (let ((new-table (make-instance 'dispatch-table)))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
-          do (add-dispatch-entry new-table
-                                 type
-                                 (make-dispatch-function client :client-stream-object
-                                                         (fdefinition name) rest)
-                                 priority))
+          do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
     (loop for (type priority name . rest) in +extra-dispatch-entries+
-          do (add-dispatch-entry new-table
-                                 type
-                                 (make-dispatch-function client :client-stream-object
-                                                         (fdefinition name) rest)
-                                 priority))
+          do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
     new-table))
 
-(defmethod copy-pprint-dispatch (client (table dispatch-table) &optional read-only)
-  (declare (ignore client))
-  (make-instance 'dispatch-table
-                 :read-only (and read-only t)
-                 :entries (mapcar (lambda (entry)
-                                    (make-instance 'dispatch-entry
-                                                   :type-specifier (dispatch-entry-type-specifier entry)
-                                                   :function (dispatch-entry-function entry)
-                                                   :priority (dispatch-entry-priority entry)))
-                                  (dispatch-table-entries table))))
+(defmethod copy-pprint-dispatch (client table &optional read-only)
+  (loop with iterator = (make-pprint-dispatch-iterator client table)
+        with new-table = (make-instance 'dispatch-table)
+        for (presentp type-specifier function priority pattern arguments) = (multiple-value-list (funcall iterator))
+        finally (setf (dispatch-table-read-only-p new-table) read-only)
+                (return new-table)
+        while presentp
+        do (set-pprint-dispatch client new-table type-specifier function priority pattern arguments)))
 
 (defmethod pprint-dispatch (client (table dispatch-table) object)
   (when (or (not (arrayp object))
@@ -408,7 +385,7 @@
     (dolist (entry (dispatch-table-entries table))
       (when (funcall (dispatch-entry-test-function entry) object)
         (return-from pprint-dispatch
-                     (values (dispatch-entry-function entry) t)))))
+                     (values (dispatch-entry-wrapped-function entry) t)))))
   (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
           nil))
 
@@ -418,16 +395,42 @@
             "Tried to modify a read-only pprint dispatch table: ~A"
             table)))
   
-(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) priority)
-  (declare (ignore client priority))
+(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) &optional priority pattern arguments)
+  (declare (ignore client priority pattern arguments))
   (check-table-read-only table)
   (setf (dispatch-table-entries table)
         (delete type-specifier (dispatch-table-entries table)
                 :key #'dispatch-entry-type-specifier :test #'equal))
   nil)
 
-(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function priority)
+(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function &optional priority pattern arguments)
   (check-table-read-only table)
-  (add-dispatch-entry table type-specifier
-                      (make-dispatch-function client :stream-object function nil)
-                      priority))
+  (set-pprint-dispatch client table type-specifier nil)
+  (setf (dispatch-table-entries table)
+        (sort (cons (make-instance 'dispatch-entry
+                                   :type-specifier type-specifier
+                                   :function function
+                                   :test-function (make-test-function type-specifier)
+                                   :wrapped-function (make-dispatch-function client (or pattern :stream-object) function arguments)
+                                   :priority (or priority 0)
+                                   :pattern (or pattern :stream-object)
+                                   :arguments arguments)
+                    (dispatch-table-entries table))
+              #'> :key #'dispatch-entry-priority))
+  nil)
+
+(defmethod make-pprint-dispatch-iterator (client (table dispatch-table))
+  (declare (ignore client))
+  (let ((entries (dispatch-table-entries table)))
+    (lambda ()
+      (if entries
+          (let ((entry (pop entries)))
+            (values t
+                    (dispatch-entry-type-specifier entry)
+                    (dispatch-entry-function entry)
+                    (dispatch-entry-priority entry)
+                    (dispatch-entry-pattern entry)
+                    (dispatch-entry-arguments entry)))
+          (values nil nil nil nil nil nil)))))
+
+
