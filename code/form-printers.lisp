@@ -209,7 +209,7 @@
     (pprint-indent client stream :block 3)
     (write-char #\Space stream)
     (pprint-newline client stream :miser)
-    (pprint-linear client stream object t nil)
+    (pprint-linear client stream (pprint-pop) t nil)
     (pprint-exit-if-list-exhausted)
     (write-char #\Space stream)
     (pprint-newline client stream :linear)
