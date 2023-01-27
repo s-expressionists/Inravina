@@ -23,20 +23,39 @@
              :initform 0
              :type real)))
 
+(defun cons-names (type-specifier)
+  (and (consp type-specifier)
+       (eql 'cons (first type-specifier))
+       (consp (cdr type-specifier))
+       (consp (cadr type-specifier))
+       (member (caadr type-specifier) '(eql member))
+       (cdadr type-specifier)))
+
 (defun make-test-function (type-specifier)
-  (cond ((or (not (listp type-specifier))
-             (not (equal 'cons (car type-specifier))))
-         (lambda (object)
-           (typep object type-specifier)))
-        ((third type-specifier)
-         (lambda (object)
-           (and (consp object)
-                (typep (first object) (second type-specifier))
-                (typep (second object) (third type-specifier)))))
-        (t
-         (lambda (object)
-           (and (consp object)
-                (typep (first object) (second type-specifier)))))))
+  (if (or (not (listp type-specifier))
+          (not (equal 'cons (car type-specifier))))
+      (lambda (object)
+        (typep object type-specifier))
+      (let* ((car-type (second type-specifier))
+             (cdr-type (third type-specifier))
+             (cons-type-p (and (consp car-type)
+                               (member (car car-type) '(eql member)))))
+        (cond ((and cons-type-p cdr-type)
+               (lambda (object)
+                 (typep object cdr-type)))
+              (cons-type-p
+               (lambda (object)
+                 (declare (ignore object))
+                 t))
+              (cdr-type
+               (lambda (object)
+                 (and (consp object)
+                      (typep (car object) car-type)
+                      (typep (cdr object) cdr-type))))
+              (t
+               (lambda (object)
+                 (and (consp object)
+                      (typep (car object) cdr-type))))))))
 
 (defclass dispatch-table ()
   ((entries :accessor dispatch-table-entries
@@ -55,56 +74,12 @@
 
 (defmethod print-object ((entry dispatch-entry) stream)
   (print-unreadable-object (entry stream :type t)
-    (format stream "type-specifier=~S, priority=~S"
+    (format stream ":type-specifier ~S :priority ~S"
             (dispatch-entry-type-specifier entry)
             (dispatch-entry-priority entry))))
 
 (defmethod print-object ((table dispatch-table) stream)
   (print-unreadable-object (table stream :type t :identity t)))
-
-(defun simple-loop-form-p (form)
-  (and (listp form)
-       (eql (first form) 'loop)
-       (cdr form)
-       (not (symbolp (second form)))))
-
-(deftype simple-loop-form ()
-  `(satisfies simple-loop-form-p))
-
-(defun extended-loop-form-p (form)
-  (and (listp form)
-       (eql (first form) 'loop)
-       (cdr form)
-       (symbolp (second form))))
-
-(deftype extended-loop-form ()
-  `(satisfies extended-loop-form-p))
-
-(defun pprint-logical-block-form-p (form)
-  (and (listp form)
-       (member (first form)
-               '(cl:pprint-logical-block print-unreadable-object
-                 with-input-from-string with-open-file
-                 with-output-to-string))))
-
-(deftype pprint-logical-block-form ()
-  `(satisfies pprint-logical-block-form-p))
-
-(defun pprint-logical-block-form-p/2 (form)
-  (and (listp form)
-       (member (first form)
-               '(pprint-logical-block))))
-
-(deftype pprint-logical-block-form/2 ()
-  `(satisfies pprint-logical-block-form-p/2))
-
-(defun defmethod-with-qualifier-form-p (form)
-  (and (listp form)
-       (eql (first form) 'defmethod)
-       (not (listp (third form)))))
-
-(deftype defmethod-with-qualifier-form ()
-  `(satisfies defmethod-with-qualifier-form-p))
 
 (defun call-form-p (form)
   (and form
@@ -115,86 +90,11 @@
 (deftype call-form ()
   `(satisfies call-form-p))
 
-(defun quote-form-p (form)
-  (and (listp form)
-       (cdr form)
-       (listp (cdr form))
-       (null (cddr form))
-       (eql (first form) 'quote)))
-
-(deftype quote-form ()
-  `(satisfies quote-form-p))
-
-#+(or (and clasp (not staging)) ecl sbcl)
-(defun quasiquote-form-p (form)
-  (and (listp form)
-       (cdr form)
-       (listp (cdr form))
-       (null (cddr form))
-       (eql (first form)
-            #+clasp 'eclector.reader:quasiquote
-            #+ecl 'si:quasiquote
-            #+sbcl 'sb-int:quasiquote)))
-
-#+(or (and clasp (not staging)) ecl sbcl)
-(deftype quasiquote-form ()
-  `(satisfies quasiquote-form-p))
-
-#+(or (and clasp (not staging)) ecl)
-(defun unquote-form-p (form)
-  (and (listp form)
-       (cdr form)
-       (listp (cdr form))
-       (null (cddr form))
-       (eql (first form)
-            #+clasp 'eclector.reader:unquote
-            #+ecl 'si:unquote)))
-
-#+(or (and clasp (not staging)) ecl)
-(deftype unquote-form ()
-  `(satisfies unquote-form-p))
-
-#+(or (and clasp (not staging)) ecl)
-(defun unquote-splice-form-p (form)
-  (and (listp form)
-       (cdr form)
-       (listp (cdr form))
-       (null (cddr form))
-       (eql (first form)
-            #+clasp 'eclector.reader:unquote-splicing
-            #+ecl 'si:unquote-splice)))
-
-#+(or (and clasp (not staging)) ecl)
-(deftype unquote-splice-form ()
-  `(satisfies unquote-splice-form-p))
-
-#+ecl
-(defun unquote-nsplice-form-p (form)
-  (and (listp form)
-       (cdr form)
-       (null (cddr form))
-       (eql (first form)
-            'si:unquote-nsplice)))
-
-#+ecl
-(deftype unquote-nsplice-form ()
-  `(satisfies unquote-nsplice-form-p))
-
-(defun function-quote-form-p (form)
-  (and (listp form)
-       (cdr form)
-       (listp (cdr form))
-       (null (cddr form))
-       (eql (first form) 'function)))
-
-(deftype function-quote-form ()
-  `(satisfies function-quote-form-p))
-
 (defvar +initial-dispatch-entries+
   '(((cons (member apply
                    funcall
                    multiple-value-call))
-     0
+     -20
      pprint-apply)
     ((cons (member case
                    ccase
@@ -202,72 +102,77 @@
                    ecase
                    etypecase
                    typecase))
-     0
+     -20
      pprint-case)
     ((cons (member cond))
-     0
+     -20
      pprint-cond)
     ((cons (member defclass
                    define-condition))
-     0
+     -20
      pprint-defclass)
-    (defmethod-with-qualifier-form
-     0
+    ((cons (member defmethod)
+           (cons t (cons symbol)))
+     -10
      pprint-defmethod-with-qualifier)
     ((cons (member define-compiler-macro
                    define-modify-macro
                    define-setf-expander
                    defmacro
+                   defmethod
                    deftype
                    defun))
-     0
+     -20
      pprint-defun)
     ((cons (member do
                    do*))
-     0
+     -20
      pprint-do)
     ((cons (member do-all-symbols
                    do-external-symbols
                    do-symbols
                    dolist
                    dotimes))
-     0
+     -20
      pprint-dolist)
     ((cons (member eval-when
                    multiple-value-setq))
-     0
+     -20
      pprint-eval-when)
-    (extended-loop-form
-     0
+    ((cons (member loop)
+           (cons cons))
+     -10
+     pprint-simple-loop)
+    ((cons (member loop))
+     -20
      pprint-extended-loop)
     ((cons (member flet
                    labels
                    macrolet))
-     0
+     -20
      pprint-flet)
-    (function-quote-form
-     0
+    ((cons (member function)
+           (cons t null))
+     -20
      pprint-macro-char :prefix "#'")
     ((cons (member and
                    if
                    or))
-     0
+     -20
      pprint-function-call :newline :linear)
     ((cons (member destructuring-bind))
-     0
+     -20
      pprint-destructuring-bind)
     ((cons (member lambda))
-     0
+     -20
      pprint-lambda)
     ((cons (member let
                    let*))
-     0
+     -20
      pprint-let)
-    (simple-loop-form
-     0
-     pprint-simple-loop)
-    (quote-form
-     0
+    ((cons (member quote)
+           (cons t null))
+     -20
      pprint-macro-char :prefix "'")
     ((cons (member block
                    catch
@@ -282,76 +187,90 @@
                    unless
                    unwind-protect
                    when))
-     0
+     -20
      pprint-prog1)
     ((cons (member prog2))
-     0
+     -20
      pprint-prog2)
     ((cons (member locally
                    progn))
-     0
+     -20
      pprint-progn)
     ((cons (member progv))
-     0
+     -20
      pprint-progv)
     #+(or (and clasp (not staging)) ecl sbcl)
-    (quasiquote-form
-     0
+    ((cons (member #+clasp eclector.reader:quasiquote
+                   #+ecl si:quasiquote
+                   #+sbcl sb-int:quasiquote)
+           (cons t null))
+     -20
      pprint-quasiquote :prefix "`" :quote t)
     #+(or (and clasp (not staging)) ecl)
-    (unquote-form
-     0
+    ((cons (member #+clasp eclector.reader:unquote
+                   #+ecl si:unquote)
+           (cons t null))
+     -20
      pprint-quasiquote :prefix "," :quote nil)
     #+(or (and clasp (not staging)) ecl)
-    (unquote-splice-form
-     0
+    ((cons (member #+clasp eclector.reader:unquote-splicing
+                   #+ecl si:unquote-splice)
+           (cons t null))
+     -20
      pprint-quasiquote :prefix ",@" :quote nil)
     #+ecl
-    (unquote-nsplice-form
-     0
+    ((cons (member si:unquote-nsplice)
+           (cons t null))
+     -20
      pprint-quasiquote :prefix ",." :quote nil)
     #+sbcl
     (sb-impl::comma
-     0
+     -20
      pprint-sbcl-comma)
     ((cons (member symbol-macrolet))
-     0
+     -20
      pprint-symbol-macrolet)
     ((cons (member psetf
                    psetq
                    set
                    setf
                    setq))
-     0
+     -20
      pprint-function-call :argument-count 0)
-    (pprint-logical-block-form
-     0
+    ((cons (member cl:pprint-logical-block
+                   print-unreadable-object
+                   with-input-from-string
+                   with-open-file
+                   with-output-to-string))
+     -20
      pprint-with :argument-count 2)
-    (pprint-logical-block-form/2
-     0
+    ((cons (member pprint-logical-block))
+     -20
      pprint-with :argument-count 3)
     ((cons (member with-compilation-unit))
-     0
+     -20
      pprint-with :argument-count 0)
     ((cons (member with-open-stream
                    with-package-iterator
                    with-simple-restart))
-     0
+     -20
      pprint-with)
     ((and array
           (not string)
           (not bit-vector))
-     0
+     -20
      pprint-array)
     (call-form
-     -5
+     -30
      pprint-call)
     (cons
-     -10
+     -40
      pprint-fill t)))
 
 (defvar +extra-dispatch-entries+
-  '((symbol                        -10 pprint-symbol)))
+  '((symbol
+     -10
+     pprint-symbol)))
 
 (defmethod copy-pprint-dispatch (client (table (eql nil)) &optional read-only)
   (declare (ignore table))
@@ -389,8 +308,9 @@
                  (not *print-readably*)))
     (let (entry)
       (when (and (consp object) (symbolp (car object)))
-        (loop for candidate in (gethash (car object) (dispatch-table-cons-entries table))
-              when (funcall (dispatch-entry-test-function candidate) object)
+        (loop with cdr = (cdr object)
+              for candidate in (gethash (car object) (dispatch-table-cons-entries table))
+              when (funcall (dispatch-entry-test-function candidate) cdr)
                 do (setf entry candidate)
                    (loop-finish)))
       (loop for candidate in (dispatch-table-non-cons-entries table)
@@ -410,14 +330,6 @@
     (cerror "Ignore and continue"
             "Tried to modify a read-only pprint dispatch table: ~A"
             table)))
-
-(defun cons-names (type-specifier)
-  (and (consp type-specifier)
-       (eql 'cons (first type-specifier))
-       (consp (cdr type-specifier))
-       (consp (cadr type-specifier))
-       (member (caadr type-specifier) '(eql member))
-       (cdadr type-specifier)))
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) &optional priority pattern arguments)
   (declare (ignore client priority pattern arguments))
