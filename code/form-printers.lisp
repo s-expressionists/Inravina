@@ -478,11 +478,22 @@
   (write-string prefix stream)
   (incless:write-object client (second object) stream))
 
-(defmethod pprint-quasiquote (client stream object &rest options &key prefix quote &allow-other-keys)
+(defmethod pprint-quasiquote (client stream (object list) &rest options &key prefix quote &allow-other-keys)
   (declare (ignore options))
   (write-string prefix stream)
   (let ((*quasiquote* (list* stream quote *quasiquote*)))
     (incless:write-object client (second object) stream)))
+
+#+sbcl
+(defmethod pprint-quasiquote (client stream (object sb-impl::comma) &rest options &key &allow-other-keys)
+  (declare (ignore options))
+  (write-string (ecase (sb-impl::comma-kind object)
+                  (0 ",")
+                  (1 ",.")
+                  (2 ",@"))
+                stream)
+  (let ((*quasiquote* (list* stream nil *quasiquote*)))
+    (incless:write-object client (sb-impl::comma-expr object) stream)))
 
 (defmethod pprint-case (client stream object &rest options &key &allow-other-keys)
   (declare (ignore options))
@@ -528,18 +539,7 @@
       (write-char #\Space stream)
       (pprint-newline client stream :linear))))
 
-#+sbcl
-(defmethod pprint-sbcl-comma (client stream object &rest options &key &allow-other-keys)
-  (declare (ignore options))
-  (write-string (ecase (sb-impl::comma-kind object)
-                  (0 ",")
-                  (1 ",.")
-                  (2 ",@"))
-                stream)
-  (let ((*quasiquote* (list* stream t *quasiquote*)))
-    (incless:write-object client (sb-impl::comma-expr object) stream)))
-
-(defmethod pprint-call (client stream (object list) &rest options &key &allow-other-keys)
+(defmethod pprint-call (client stream object &rest options &key &allow-other-keys)
   (declare (ignore options))
   (if (fboundp (first object))
       (let ((macrop (and (macro-function (first object)) t)))

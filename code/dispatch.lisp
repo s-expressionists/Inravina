@@ -199,34 +199,42 @@
     ((cons (member progv))
      -20
      pprint-progv)
-    #+(or (and clasp (not staging)) ecl sbcl)
+    #+(or (and clasp (not staging)) clisp ecl mezzano sbcl)
     ((cons (member #+clasp eclector.reader:quasiquote
+                   #+clisp system::backquote
                    #+ecl si:quasiquote
+                   #+mezzano mezzano.internals::backquote
                    #+sbcl sb-int:quasiquote)
            (cons t null))
      -20
      pprint-quasiquote :prefix "`" :quote t)
-    #+(or (and clasp (not staging)) ecl)
+    #+(or (and clasp (not staging)) clisp ecl mezzano)
     ((cons (member #+clasp eclector.reader:unquote
-                   #+ecl si:unquote)
+                   #+clisp system::unquote
+                   #+ecl si:unquote
+                   #+mezzano mezzano.internals::bq-comma)
            (cons t null))
      -20
      pprint-quasiquote :prefix "," :quote nil)
-    #+(or (and clasp (not staging)) ecl)
+    #+(or (and clasp (not staging)) clisp ecl mezzano)
     ((cons (member #+clasp eclector.reader:unquote-splicing
-                   #+ecl si:unquote-splice)
+                   #+clisp system::splice
+                   #+ecl si:unquote-splice
+                   #+mezzano mezzano.internals::bq-comma-atsign)
            (cons t null))
      -20
      pprint-quasiquote :prefix ",@" :quote nil)
-    #+ecl
-    ((cons (member si:unquote-nsplice)
+    #+(or clisp ecl mezzano)
+    ((cons (member #+clisp system::nsplice
+                   #+ecl si:unquote-nsplice
+                   #+mezzano mezzano.internals::bq-comma-dot)
            (cons t null))
      -20
      pprint-quasiquote :prefix ",." :quote nil)
     #+sbcl
     (sb-impl::comma
      -20
-     pprint-sbcl-comma)
+     pprint-quasiquote)
     ((cons (member symbol-macrolet))
      -20
      pprint-symbol-macrolet)
@@ -286,7 +294,7 @@
   (let ((new-table (make-instance 'dispatch-table)))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
           do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
-    (loop for (type priority name . rest) in +extra-dispatch-entries+
+    #+(or)(loop for (type priority name . rest) in +extra-dispatch-entries+
           do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
