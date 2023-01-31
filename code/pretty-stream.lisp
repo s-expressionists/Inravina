@@ -574,9 +574,7 @@
     (let* ((depth (length (blocks stream)))
            (newline (make-instance 'newline
                                    :kind kind :depth depth
-                                   :style (if (zerop (length (instructions stream)))
-                                              (trivial-stream-column:style (target stream))
-                                              (style (aref (instructions stream) (1- (length (instructions stream))))))
+                                   :style (trivial-stream-column:stream-style stream)
                                    :section (car (sections stream))
                                    :instruction-index (length instructions)
                                    :parent (car (blocks stream))))
@@ -603,9 +601,7 @@
   (declare (ignore client))
   (vector-push-extend (make-instance 'tab
                                      :kind kind :colnum colnum :colinc colinc
-                                     :style (if (zerop (length (instructions stream)))
-                                                (trivial-stream-column:style (target stream))
-                                                (style (aref (instructions stream) (1- (length (instructions stream))))))
+                                     :style (trivial-stream-column:stream-style stream)
                                      :section (car (sections stream))
                                      :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
@@ -615,9 +611,7 @@
   (declare (ignore client))
   (vector-push-extend (make-instance 'indent
                                      :kind relative-to :width n
-                                     :style (if (zerop (length (instructions stream)))
-                                                (trivial-stream-column:style (target stream))
-                                                (style (aref (instructions stream) (1- (length (instructions stream))))))
+                                     :style (trivial-stream-column:stream-style stream)
                                      :section (car (sections stream))
                                      :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
@@ -633,9 +627,7 @@
           (setf (value instruction) (concatenate 'string (value instruction) (string text)))
           (vector-push-extend (make-instance 'text
                                              :value (string text)
-                                             :style (if instruction
-                                                        (style instruction)
-                                                        (trivial-stream-column:style (target stream)))
+                                             :style (trivial-stream-column:stream-style stream)
                                              :section (car (sections stream))
                                              :instruction-index (length instructions)
                                              :parent (car (blocks stream)))
@@ -652,9 +644,7 @@
                 (concatenate 'string (value instruction) (subseq text (or start 0) end)))
           (vector-push-extend (make-instance 'text
                                              :section (car (sections stream))
-                                             :style (if instruction
-                                                        (style instruction)
-                                                        (trivial-stream-column:style (target stream)))
+                                             :style (trivial-stream-column:stream-style stream)
                                              :instruction-index (length instructions)
                                              :value (subseq text (or start 0) end)
                                              :parent (car (blocks stream)))
@@ -686,9 +676,7 @@
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
   (let ((block-start (make-instance 'block-start
                                     :section (car (sections stream))
-                                    :style (if (zerop (length (instructions stream)))
-                                               (trivial-stream-column:style (target stream))
-                                               (style (aref (instructions stream) (1- (length (instructions stream))))))
+                                    :style (trivial-stream-column:stream-style stream)
                                     :instruction-index (length (instructions stream))
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix-p per-line-prefix-p
@@ -701,9 +689,7 @@
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :section (car (sections stream))
-                                  :style (if (zerop (length (instructions stream)))
-                                             (trivial-stream-column:style (target stream))
-                                             (style (aref (instructions stream) (1- (length (instructions stream))))))
+                                  :style (trivial-stream-column:stream-style stream)
                                   :instruction-index (length (instructions stream))
                                   :suffix (normalize-text client stream suffix)
                                   :parent (car (blocks stream)))))
