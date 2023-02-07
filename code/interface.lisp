@@ -76,7 +76,7 @@
 
 (defgeneric pprint-prog1 (client stream object &rest options &key &allow-other-keys))
 
-(defgeneric pprint-defun (client stream object &rest options &key &allow-other-keys))
+;(defgeneric pprint-defun (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-defmethod-with-qualifier (client stream object &rest options &key &allow-other-keys))
 

@@ -98,7 +98,7 @@
     (pprint-newline client stream :linear)
     (incless:write-object client (pprint-pop) stream)))
 
-(defmethod pprint-defun (client stream object &rest options &key &allow-other-keys)
+(defun pprint-defun (client stream object &rest options &key &allow-other-keys)
   (declare (ignore options))
   (pprint-body-form (client stream object)
     (pprint-exit-if-list-exhausted)

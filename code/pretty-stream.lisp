@@ -130,29 +130,6 @@
            :initarg :suffix    
            :type string)))
 
-(defclass fragment ()
-  ())
-
-(defclass text-fragment (fragment)
-  ((text :reader text
-         :initarg :text
-         :initform ""    
-         :type string)))
-
-(defclass newline-fragment (fragment)
-  ())
-
-(defclass tab-fragment (fragment)
-  ((column :reader column
-           :initarg :column
-           :initform 0    
-           :type real)))
-
-(defclass style-fragment (fragment)
-  ((style :initform nil
-          :initarg :style    
-          :reader style)))
-
 (defclass pretty-stream
     (trivial-gray-streams:fundamental-character-output-stream)
   ((target :reader target
@@ -160,12 +137,11 @@
    (client :reader client
            :initarg :client)
    (fragments :reader fragments
-              :initform (make-array 32 :adjustable t
+              :initform (make-array 256 :adjustable t
                                     :fill-pointer 0
-                                    :initial-element nil
-                                    :element-type '(or null fragment)))
+                                    :initial-element nil))
    (instructions :reader instructions
-                 :initform (make-array 32 :adjustable t
+                 :initform (make-array 256 :adjustable t
                                        :fill-pointer 0
                                        :initial-element nil
                                        :element-type '(or null instruction)))
@@ -173,7 +149,7 @@
            :initform nil    
            :type list)
    (sections :accessor sections
-             :initform nil    
+             :initform nil
              :type list)))
 
 (defparameter *debug-instruction* nil)
@@ -311,9 +287,11 @@
 (defun text-before-newline-p (stream index)
   (loop with fragments = (fragments stream)
         for i from (1+ index) below (length fragments)
-        do (typecase (aref fragments i)
-             (text-fragment (return t))
-             (newline-fragment (return nil)))
+        for fragment = (aref fragments i)
+        if (typep fragment 'string)
+          return t
+        else if (eq :newline fragment)
+          return nil
         finally (return t)))
 
 (defun write-fragments (stream)
@@ -322,19 +300,18 @@
         with fragments = (fragments stream)
         for i below (length (fragments stream))
         for fragment = (aref (fragments stream) i)
-        do (etypecase fragment
-             (newline-fragment
-              (terpri target))
-             (tab-fragment
-              (when (text-before-newline-p stream i)
-                (trivial-stream-column:advance-to-column (column fragment) target)))
-             (style-fragment
-              (trivial-stream-column:set-style (style fragment) target))
-             (text-fragment
-              (write-string (text fragment) target
-                            :start 0
-                            :end (unless (text-before-newline-p stream i)
-                                   (break-position client stream (text fragment))))))
+        do (cond ((eq :newline fragment)
+                  (terpri target))
+                 ((typep fragment 'real)
+                  (when (text-before-newline-p stream i)
+                    (trivial-stream-column:advance-to-column fragment target)))
+                 ((typep fragment 'string)
+                  (write-string fragment target
+                                :start 0
+                                :end (unless (text-before-newline-p stream i)
+                                       (break-position client stream fragment))))
+                 (t
+                  (trivial-stream-column:set-style fragment target)))
         finally (finish-output target)
                 (setf (fill-pointer fragments) 0)))
 
@@ -377,7 +354,7 @@
 
 (defun add-newline-fragment (client stream mode instruction)
   (declare (ignore client mode))
-  (vector-push-extend (make-instance 'newline-fragment) (fragments stream))
+  (vector-push-extend :newline (fragments stream))
   (setf (break-column instruction) 0
         (column instruction) 0)
   (incf (line instruction))
@@ -385,13 +362,13 @@
 
 (defun add-tab-fragment (client stream mode instruction column)
   (declare (ignore client mode))
-  (vector-push-extend (make-instance 'tab-fragment :column column) (fragments stream))
+  (vector-push-extend column (fragments stream))
   (setf (column instruction) column)
   t)
 
 (defun add-style-fragment (client stream mode instruction style)
   (declare (ignore client mode instruction))
-  (vector-push-extend (make-instance 'style-fragment :style style) (fragments stream))
+  (vector-push-extend style (fragments stream))
   t)
 
 (defun add-text-fragment (client stream mode instruction text)
@@ -411,7 +388,7 @@
                   (>= (line-length stream) new-column)) ; using break column yields better results
           (setf (break-column instruction) new-break-column
                 (column instruction) new-column)
-          (vector-push-extend (make-instance 'text-fragment :text text) (fragments stream))
+          (vector-push-extend text (fragments stream))
           t))))
 
 (defmethod layout (client stream mode (instruction advance) previous-instruction allow-break-p)
@@ -543,18 +520,15 @@
                  (make-array (length parent-prefix-fragments)
                              :fill-pointer (length parent-prefix-fragments)
                              :adjustable t
-                             :initial-contents parent-prefix-fragments
-                             :element-type 'fragment))
+                             :initial-contents parent-prefix-fragments))
            (when column
-             (vector-push-extend (make-instance 'tab-fragment :column column)
-                          (prefix-fragments instruction)))
+             (vector-push-extend column (prefix-fragments instruction)))
            (when per-line-prefix-p
-             (vector-push-extend (make-instance 'text-fragment :text prefix)
+             (vector-push-extend prefix
                                  (prefix-fragments instruction))))
           (per-line-prefix-p
            (setf (prefix-fragments instruction)
-                 (vector (make-instance 'tab-fragment :column column)
-                         (make-instance 'text-fragment :text prefix)))))
+                 (vector column prefix))))
     (add-text-fragment client stream mode instruction
                        (prefix instruction))))
 

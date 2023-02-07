@@ -9,7 +9,7 @@
   :depends-on ((:feature (:not :sicl) #:trivial-gray-streams)
                #:incless
                #:trivial-stream-column
-               (:feature :sbcl #:sb-introspect))
+               (:feature :sbcl (:require #:sb-introspect)))
   :components ((:module code
                 :serial t
                 :components ((:file "packages")
