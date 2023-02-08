@@ -4,7 +4,7 @@
   ((parent :reader parent
            :initarg :parent
            :type (or null block-start))
-   (section :reader section
+   (section :accessor section
             :initarg :section
             :type (or null section-start))
    (fragment-index :accessor fragment-index
@@ -19,9 +19,6 @@
          :initarg :line
          :initform nil
          :type (or null integer))
-   (break-column :accessor break-column
-                 :initform nil
-                 :type (or null real))
    (column :accessor column
            :initarg :column
            :initform nil
@@ -200,7 +197,9 @@
                      do (write-char ch stream)
                    else if (typep sub 'text)
                      do (dotimes (i (length (value sub)))
-                          (write-char ch stream)))))
+                          (write-char ch stream))
+                   else
+                     do (write-char ch stream))))
 
 (defun line-length (stream)
   (or *print-right-margin*
@@ -298,8 +297,8 @@
   (loop with client = (client stream)
         with target = (target stream)
         with fragments = (fragments stream)
-        for i below (length (fragments stream))
-        for fragment = (aref (fragments stream) i)
+        for fragment across fragments
+        for i from 0
         do (cond ((eq :newline fragment)
                   (terpri target))
                  ((typep fragment 'real)
@@ -328,23 +327,17 @@
 (defmethod layout :before
     (client stream mode instruction (previous-instruction (eql nil)) allow-break-p)
   (declare (ignore client allow-break-p mode))
-  (setf (break-column instruction)
+  (setf (column instruction)
         (trivial-stream-column:scale-column (or (trivial-stream-column:line-column (target stream)) 0)
                                             (target stream)
                                             :new-style (style instruction))
-        (column instruction) (break-column instruction)
         (line instruction) 0
         (fragment-index instruction) (length (fragments stream))))
 
 (defmethod layout :before
     (client stream mode instruction (previous-instruction instruction) allow-break-p)
   (declare (ignore client allow-break-p mode))
-  (setf (break-column instruction)
-          (trivial-stream-column:scale-column (break-column previous-instruction)
-                                              (target stream)
-                                              :old-style (style previous-instruction)
-                                              :new-style (style instruction))
-        (column instruction)
+  (setf (column instruction)
           (trivial-stream-column:scale-column (column previous-instruction)
                                               (target stream)
                                               :old-style (style previous-instruction)
@@ -355,8 +348,7 @@
 (defun add-newline-fragment (client stream mode instruction)
   (declare (ignore client mode))
   (vector-push-extend :newline (fragments stream))
-  (setf (break-column instruction) 0
-        (column instruction) 0)
+  (setf (column instruction) 0)
   (incf (line instruction))
   t)
 
@@ -374,20 +366,12 @@
 (defun add-text-fragment (client stream mode instruction text)
   (or (null text)
       (zerop (length text))
-      (let ((new-break-column (break-column instruction))
-            (new-column (column instruction))
-            (width (trivial-stream-column:measure-string text (target stream)
-                                                         :style (style instruction)))
-            (break-width (trivial-stream-column:measure-string text (target stream)
-                                                               :end (break-position client stream text)
-                                                               :style (style instruction))))
-        (unless (zerop break-width)
-          (setf new-break-column (+ new-column break-width)))
-        (incf new-column width)
+      (let ((new-column (+ (column instruction)
+                           (trivial-stream-column:measure-string text (target stream)
+                                                                 :style (style instruction)))))
         (when (or mode
-                  (>= (line-length stream) new-column)) ; using break column yields better results
-          (setf (break-column instruction) new-break-column
-                (column instruction) new-column)
+                  (>= (line-length stream) new-column))
+          (setf (column instruction) new-column)
           (vector-push-extend text (fragments stream))
           t))))
 
@@ -457,7 +441,7 @@
         ((and (not mode)
               (or (not allow-break-p)
                   (and (fresh-kind-p (kind instruction))
-                       (zerop (break-column instruction)))
+                       (zerop (column instruction)))
                   (and (miser-kind-p (kind instruction))
                        (not miser-p))))
          t)
@@ -545,29 +529,23 @@
   (with-accessors ((instructions instructions)
                    (sections sections))
                   stream
-    (let* ((depth (length (blocks stream)))
+    (let* ((parent (car (blocks stream)))
+           (depth (length (blocks stream)))
            (newline (make-instance 'newline
                                    :kind kind :depth depth
                                    :style (trivial-stream-column:stream-style stream)
-                                   :section (car (sections stream))
                                    :instruction-index (length instructions)
-                                   :parent (car (blocks stream))))
-           (section-start (find-if (lambda (ins)
-                                     (and (typep ins 'section-start)
-                                          (null (section-end ins))
-                                          (= (depth ins) depth)))
-                                   instructions
-                                   :from-end t)))
-      (when section-start
-        (setf (section-end section-start) newline))
-      (loop for ins across instructions
-            when (and (typep ins 'newline)
-                      (null (section-end ins))
-                      (> (depth ins) depth))
-            do (setf (section-end ins) newline))
-      (when (and sections
-                 (eq (section-end (car sections)) newline))
-        (pop sections))
+                                   :parent parent)))
+      (setf sections
+            (delete-if (lambda (s)
+                         (when (or (eq (parent s) parent)
+                                   (eq s parent)
+                                   (and (typep s 'newline)
+                                        (> (depth s) depth)))
+                           (setf (section-end s) newline)
+                           t))
+                       sections)
+            (section newline) (car (sections stream)))
       (push newline sections)
       (vector-push-extend newline instructions))))
 
@@ -654,7 +632,7 @@
                                     :instruction-index (length (instructions stream))
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix-p per-line-prefix-p
-                                    :depth (1+ (length (blocks stream)))
+                                    :depth (length (blocks stream))
                                     :parent (car (blocks stream)))))
     (push block-start (blocks stream))
     (push block-start (sections stream))

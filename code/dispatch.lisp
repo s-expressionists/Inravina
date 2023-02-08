@@ -115,6 +115,9 @@
            (cons t (cons symbol)))
      -10
      pprint-defmethod-with-qualifier)
+    ((cons (member defpackage))
+     -20
+     pprint-defpackage)
     ((cons (member define-compiler-macro
                    define-modify-macro
                    define-setf-expander
@@ -174,6 +177,9 @@
            (cons t null))
      -20
      pprint-macro-char :prefix "'")
+    ((cons (member prog))
+     -20
+     pprint-prog)
     ((cons (member block
                    catch
                    defconstant
@@ -245,6 +251,9 @@
                    setq))
      -20
      pprint-function-call :argument-count 0)
+    ((cons (member tagbody))
+     -20
+     pprint-tagbody)
     ((cons (member cl:pprint-logical-block
                    print-unreadable-object
                    with-input-from-string
