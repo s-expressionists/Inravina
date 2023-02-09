@@ -40,7 +40,7 @@
 (defclass text (instruction)
   ((value :accessor value
           :initarg :value
-          :initform ""    
+          :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'character) 
           :type string)))
 
 (defclass advance (instruction)
@@ -50,9 +50,7 @@
           :type real)))
 
 (defclass style (instruction)
-  ((style :accessor style
-          :initarg :style
-          :initform nil)))
+  ())
 
 (defmethod print-object ((obj text) stream)
   (print-unreadable-object (obj stream :type t :identity t)
@@ -215,7 +213,12 @@
 
 (defun layout-instructions (stream)
   #+pprint-debug (describe stream *debug-io*)
-  (prog ((index 0) (section t) last-maybe-break status instruction mode
+  (prog ((index 0)
+         (section t)
+         last-maybe-break
+         last-maybe-break-index
+         status
+         instruction mode
          (client (client stream))
          (instructions (instructions stream)))
    repeat
@@ -255,22 +258,25 @@
           (when (and (eq status :maybe-break)
                      (or (null last-maybe-break)
                          (ancestor-p last-maybe-break (parent instruction))))
-            (setf last-maybe-break instruction))
+            (setf last-maybe-break instruction
+                  last-maybe-break-index index))
           (incf index))
          (:break
           (setf section (and (not (eq section instruction))
                              instruction)
-                last-maybe-break nil)
+                last-maybe-break nil
+                last-maybe-break-index nil)
           (incf index))
          (:overflow
           (setf mode :overflow)
           (incf index))
          (otherwise
           (cond (last-maybe-break
-                 (setf index (instruction-index last-maybe-break)
+                 (setf index last-maybe-break-index
                        (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
-                       last-maybe-break nil
                        section last-maybe-break
+                       last-maybe-break nil
+                       last-maybe-break-index nil
                        mode t))
                 (section
                  (setf index (if (eq t section)
@@ -569,6 +575,20 @@
                                      :parent (car (blocks stream)))
                       (instructions stream)))
 
+(defun get-text-buffer (stream)
+  (with-accessors ((instructions instructions))
+                  stream
+    (let ((instruction (and (plusp (length instructions))
+                            (aref instructions (1- (length instructions))))))
+      (unless (typep instruction 'text)
+        (setf instruction (make-instance 'text
+                                             :section (car (sections stream))
+                                             :style (trivial-stream-column:stream-style stream)
+                                             :instruction-index (length instructions)
+                                             :parent (car (blocks stream))))
+        (vector-push-extend instruction instructions))
+      (value instruction))))
+
 (defmethod pprint-text (client (stream pretty-stream) (text character) &optional start end)
   (declare (ignore client start end))
   (with-accessors ((instructions instructions))
@@ -668,17 +688,38 @@
         ((char= char #\Newline)
          (pprint-newline (client stream) stream :literal-mandatory))
         (t
-         (pprint-text (client stream) stream char)))
+         (vector-push-extend char (get-text-buffer stream))))
   char)
 
 (defmethod trivial-gray-streams:stream-write-string ((stream pretty-stream) string &optional start end)
   (if (blocks stream)
-      (pprint-split (client stream) stream string start end)
+      (flet ((append-text (start2 end2)
+               (when (/= start2 end2)
+                 (let* ((buffer (get-text-buffer stream))
+                        (start1 (fill-pointer buffer))
+                        (end1 (+ start1 (- end2 start2))))
+                   (when (< (array-total-size buffer) end1)
+                     (adjust-array buffer (+ 32 end1)))
+                   (setf (fill-pointer buffer) end1)
+                   (replace buffer string :start1 start1 :end1 end1 :start2 start2 :end2 end2)))))
+        (prog (pos)
+          (unless start
+            (setf start 0))
+          (unless end
+            (setf end (length string)))
+         next
+          (setf pos (position #\newline string :start start :end end))
+          (when pos
+            (append-text start pos)
+            (pprint-newline (client stream) stream :literal-mandatory)
+            (setf start (1+ pos))
+            (go next))
+          (append-text start end)))
       (write-string string (target stream) :start (or start 0) :end end))
   string)
 
 (defmethod trivial-gray-streams:stream-finish-output ((stream pretty-stream))
-  (unless (blocks stream)
+ (unless (blocks stream)
     (finish-output (target stream))))
 
 (defmethod trivial-gray-streams:stream-force-output ((stream pretty-stream))
