@@ -134,7 +134,7 @@
    (fragments :reader fragments
               :initform (make-array 256 :adjustable t
                                     :fill-pointer 0
-                                    :initial-element nil))
+                                    :element-type '(or function string real)))
    (instructions :reader instructions
                  :initform (make-array 256 :adjustable t
                                        :fill-pointer 0
@@ -295,7 +295,7 @@
         for fragment = (aref fragments i)
         if (typep fragment 'string)
           return t
-        else if (eq :newline fragment)
+        else if (eq #'terpri fragment)
           return nil
         finally (return t)))
 
@@ -305,18 +305,17 @@
         with fragments = (fragments stream)
         for fragment across fragments
         for i from 0
-        do (cond ((eq :newline fragment)
-                  (terpri target))
-                 ((typep fragment 'real)
-                  (when (text-before-newline-p stream i)
-                    (trivial-stream-column:advance-to-column fragment target)))
-                 ((typep fragment 'string)
-                  (write-string fragment target
-                                :start 0
-                                :end (unless (text-before-newline-p stream i)
-                                       (break-position client stream fragment))))
-                 (t
-                  (trivial-stream-column:set-style fragment target)))
+        do (etypecase fragment
+             (function
+              (funcall fragment target))
+             (real
+              (when (text-before-newline-p stream i)
+                (trivial-stream-column:advance-to-column fragment target)))
+             (string
+              (write-string fragment target
+                            :start 0
+                            :end (unless (text-before-newline-p stream i)
+                                   (break-position client stream fragment)))))
         finally (finish-output target)
                 (setf (fill-pointer fragments) 0)))
 
@@ -353,7 +352,7 @@
 
 (defun add-newline-fragment (client stream mode instruction)
   (declare (ignore client mode))
-  (vector-push-extend :newline (fragments stream))
+  (vector-push-extend #'terpri (fragments stream))
   (setf (column instruction) 0)
   (incf (line instruction))
   t)
@@ -366,10 +365,13 @@
 
 (defun add-style-fragment (client stream mode instruction style)
   (declare (ignore client mode instruction))
-  (vector-push-extend style (fragments stream))
+  (vector-push-extend (lambda (stream)
+                        (trivial-stream-column:set-style style stream))
+                      (fragments stream))
   t)
 
 (defun add-text-fragment (client stream mode instruction text)
+  (declare (ignore client))
   (or (null text)
       (zerop (length text))
       (let ((new-column (+ (column instruction)
@@ -589,39 +591,6 @@
         (vector-push-extend instruction instructions))
       (value instruction))))
 
-(defmethod pprint-text (client (stream pretty-stream) (text character) &optional start end)
-  (declare (ignore client start end))
-  (with-accessors ((instructions instructions))
-                  stream
-    (let ((instruction (and (plusp (length instructions))
-                            (aref instructions (1- (length instructions))))))
-      (if (typep instruction 'text)
-          (setf (value instruction) (concatenate 'string (value instruction) (string text)))
-          (vector-push-extend (make-instance 'text
-                                             :value (string text)
-                                             :style (trivial-stream-column:stream-style stream)
-                                             :section (car (sections stream))
-                                             :instruction-index (length instructions)
-                                             :parent (car (blocks stream)))
-                              instructions)))))
-
-(defmethod pprint-text (client (stream pretty-stream) (text string) &optional start end)
-  (declare (ignore client))
-  (with-accessors ((instructions instructions))
-                  stream
-    (let ((instruction (and (plusp (length instructions))
-                            (aref instructions (1- (length instructions))))))
-      (if (typep instruction 'text)
-          (setf (value instruction)
-                (concatenate 'string (value instruction) (subseq text (or start 0) end)))
-          (vector-push-extend (make-instance 'text
-                                             :section (car (sections stream))
-                                             :style (trivial-stream-column:stream-style stream)
-                                             :instruction-index (length instructions)
-                                             :value (subseq text (or start 0) end)
-                                             :parent (car (blocks stream)))
-                              instructions)))))
-
 (defmethod make-pretty-stream (client (stream broadcast-stream))
   (declare (ignore client))
   (if (broadcast-stream-streams stream)
@@ -708,7 +677,7 @@
           (unless end
             (setf end (length string)))
          next
-          (setf pos (position #\newline string :start start :end end))
+          (setf pos (position #\newline string :start start :end end))z
           (when pos
             (append-text start pos)
             (pprint-newline (client stream) stream :literal-mandatory)
@@ -719,7 +688,7 @@
   string)
 
 (defmethod trivial-gray-streams:stream-finish-output ((stream pretty-stream))
- (unless (blocks stream)
+  (unless (blocks stream)
     (finish-output (target stream))))
 
 (defmethod trivial-gray-streams:stream-force-output ((stream pretty-stream))

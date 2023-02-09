@@ -45,10 +45,6 @@
   (:method (client stream kind colnum colinc)
     (declare (ignore client stream kind colnum colinc))))
 
-(defgeneric pprint-split (client stream text &optional start end))
-
-(defgeneric pprint-text (client stream text &optional start end))
-
 (defgeneric pprint-fill-plist (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-linear-plist (client stream object &optional colon-p at-sign-p))
