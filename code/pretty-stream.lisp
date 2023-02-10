@@ -4,17 +4,21 @@
   ((parent :reader parent
            :initarg :parent
            :type (or null block-start))
+   (next :accessor next
+         :initarg :next
+         :initform nil
+         :type (or null instruction))
+   (previous :accessor previous
+             :initarg :previous
+             :initform nil
+             :type (or null instruction))
    (section :accessor section
             :initarg :section
             :type (or null section-start))
    (fragment-index :accessor fragment-index
                    :initarg :fragment-index
-                   :initform nil
-                   :type (or null integer))
-   (instruction-index :accessor instruction-index
-                      :initarg :instruction-index
-                      :initform nil
-                      :type (or null integer))
+                   :initform 0
+                   :type integer)
    (line :accessor line
          :initarg :line
          :initform nil
@@ -135,11 +139,12 @@
               :initform (make-array 256 :adjustable t
                                     :fill-pointer 0
                                     :element-type '(or function string real)))
-   (instructions :reader instructions
-                 :initform (make-array 256 :adjustable t
-                                       :fill-pointer 0
-                                       :initial-element nil
-                                       :element-type '(or null instruction)))
+   (head :accessor head
+         :initform nil
+         :type (or null instruction))
+   (tail :accessor tail
+         :initform nil
+         :type (or null instruction))
    (blocks :accessor blocks
            :initform nil    
            :type list)
@@ -151,16 +156,18 @@
 
 (defmethod describe-object ((object pretty-stream) stream)
   (when *debug-instruction*
-    (loop for instruction across (instructions object)
+    (loop for instruction = (head stream) then (next instruction)
           for char = (if (eq instruction *debug-instruction*)
                              #\*
                              #\Space)
           finally (terpri stream)
+          while instruction
           if (typep instruction 'text)
             do (dotimes (i (length (value instruction))) (write-char char stream))
           else
             do (write-char char stream)))
-  (loop for instruction across (instructions object)
+  (loop for instruction = (head stream) then (next instruction)
+        while instruction
         do (typecase instruction
              (block-start (write-char #\< stream))
              (block-end (write-char #\> stream))
@@ -180,10 +187,12 @@
                      (write-char #\- stream)))
              (otherwise (write-char #\? stream))))
   (terpri stream)
-  (loop for instruction across (instructions object)
+  (loop for instruction = (head stream) then (next instruction)
+        while instruction
         when (typep instruction 'section-start)
           do (loop with ch = #\Space
-                   for sub across (instructions object)
+                   for sub = (head stream) then (next instruction)
+                   while sub
                    finally (terpri stream)
                    if (eq sub instruction)
                      do (write-char #\[ stream)
@@ -213,29 +222,25 @@
 
 (defun layout-instructions (stream)
   #+pprint-debug (describe stream *debug-io*)
-  (prog ((index 0)
-         (section t)
+  (prog ((section t)
          last-maybe-break
-         last-maybe-break-index
          status
-         instruction mode
+         mode
          (client (client stream))
-         (instructions (instructions stream)))
+         (instruction (head stream)))
    repeat
-     (when (< index (length instructions))
-       (setf instruction (aref instructions index))
+     (when instruction
        #+pprint-debug (let ((*debug-instruction* instruction))
                         (describe stream *debug-io*)
                         (finish-output *debug-io*)
                         (format *debug-io* "section ~a, instruction ~a, mode = ~a, allow-break-p = ~a~%"
                                 section
-                                instruction mode (or (not section)
-                                                     (and (typep section 'section-start)
-                                                          (or (eq section instruction)
-                                                              (eq (section-end section) instruction))))))
+                                instruction mode
+                                (or (not section)
+                                    (and (typep section 'section-start)
+                                         (or (eq section instruction)
+                                             (eq (section-end section) instruction))))))
        (setf status (layout client stream mode instruction
-                            (unless (zerop index)
-                              (aref instructions (1- index)))
                             (or (not section)
                                 (and (typep section 'section-start)
                                      (or (eq section instruction)
@@ -258,37 +263,35 @@
           (when (and (eq status :maybe-break)
                      (or (null last-maybe-break)
                          (ancestor-p last-maybe-break (parent instruction))))
-            (setf last-maybe-break instruction
-                  last-maybe-break-index index))
-          (incf index))
+            (setf last-maybe-break instruction))
+          (setf instruction (next instruction)))
          (:break
           (setf section (and (not (eq section instruction))
                              instruction)
                 last-maybe-break nil
-                last-maybe-break-index nil)
-          (incf index))
+                instruction (next instruction)))
          (:overflow
-          (setf mode :overflow)
-          (incf index))
+          (setf mode :overflow
+                instruction (next instruction)))
          (otherwise
           (cond (last-maybe-break
-                 (setf index last-maybe-break-index
+                 (setf instruction last-maybe-break
                        (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
                        section last-maybe-break
                        last-maybe-break nil
-                       last-maybe-break-index nil
                        mode t))
                 (section
-                 (setf index (if (eq t section)
-                                 0
-                                 (1+ (instruction-index section)))
+                 (setf instruction (if (eq t section)
+                                       (head stream)
+                                       (next section))
                        section nil
-                       (fill-pointer (fragments stream)) (fragment-index (aref instructions index))))
+                       (fill-pointer (fragments stream)) (fragment-index instruction)))
                 (t
                  (setf mode t)))))
        (go repeat)))
-  (setf (fill-pointer (instructions stream)) 0))
-
+  (setf (head stream) nil
+        (tail stream) nil))
+        
 (defun text-before-newline-p (stream index)
   (loop with fragments = (fragments stream)
         for i from (1+ index) below (length fragments)
@@ -324,31 +327,25 @@
     (layout-instructions stream)
     (write-fragments stream)))
 
-(defgeneric layout (client stream mode instruction previous-instruction allow-break-p)
-  (:method (client stream (mode (eql :overflow)) instruction previous-instruction allow-break-p)
-    (declare (ignore client stream mode instruction previous-instruction allow-break-p))
+(defgeneric layout (client stream mode instruction allow-break-p)
+  (:method (client stream (mode (eql :overflow)) instruction allow-break-p)
+    (declare (ignore client stream mode instruction allow-break-p))
     t))
 
-(defmethod layout :before
-    (client stream mode instruction (previous-instruction (eql nil)) allow-break-p)
+(defmethod layout :before (client stream mode instruction allow-break-p
+                           &aux (previous (previous instruction)))
   (declare (ignore client allow-break-p mode))
-  (setf (column instruction)
-        (trivial-stream-column:scale-column (or (trivial-stream-column:line-column (target stream)) 0)
-                                            (target stream)
-                                            :new-style (style instruction))
-        (line instruction) 0
-        (fragment-index instruction) (length (fragments stream))))
-
-(defmethod layout :before
-    (client stream mode instruction (previous-instruction instruction) allow-break-p)
-  (declare (ignore client allow-break-p mode))
-  (setf (column instruction)
-          (trivial-stream-column:scale-column (column previous-instruction)
-                                              (target stream)
-                                              :old-style (style previous-instruction)
-                                              :new-style (style instruction))
-        (line instruction) (line previous-instruction)
-        (fragment-index instruction) (length (fragments stream))))
+  (if previous
+      (setf (column instruction) (trivial-stream-column:scale-column (column previous)
+                                                                     (target stream)
+                                                                     :old-style (style previous)
+                                                                     :new-style (style instruction))
+            (line instruction) (line previous))
+      (setf (column instruction) (trivial-stream-column:scale-column (or (trivial-stream-column:line-column (target stream)) 0)
+                                                                     (target stream)
+                                                                     :new-style (style instruction))
+            (line instruction) 0))
+  (fragment-index instruction) (length (fragments stream)))
 
 (defun add-newline-fragment (client stream mode instruction)
   (declare (ignore client mode))
@@ -383,16 +380,16 @@
           (vector-push-extend text (fragments stream))
           t))))
 
-(defmethod layout (client stream mode (instruction advance) previous-instruction allow-break-p)
-  (declare (ignore previous-instruction allow-break-p))
+(defmethod layout (client stream mode (instruction advance) allow-break-p)
+  (declare (ignore allow-break-p))
   (add-tab-fragment client stream mode instruction (value instruction)))
 
-(defmethod layout (client stream mode (instruction text) previous-instruction allow-break-p)
-  (declare (ignore previous-instruction allow-break-p))
+(defmethod layout (client stream mode (instruction text) allow-break-p)
+  (declare (ignore allow-break-p))
   (add-text-fragment client stream mode instruction (value instruction)))
 
-(defmethod layout (client stream mode (instruction style) previous-instruction allow-break-p)
-  (declare (ignore previous-instruction allow-break-p))
+(defmethod layout (client stream mode (instruction style) allow-break-p)
+  (declare (ignore allow-break-p))
   (add-style-fragment client stream mode instruction (style instruction)))
 
 (defun compute-tab-size (column colnum colinc relativep)
@@ -412,8 +409,8 @@
         (t
          0)))
 
-(defmethod layout (client stream mode (instruction tab) previous-instruction allow-break-p)
-  (declare (ignore previous-instruction allow-break-p))
+(defmethod layout (client stream mode (instruction tab) allow-break-p)
+  (declare (ignore allow-break-p))
   (let* ((section-column (if (and (section instruction)
                                   (section-kind-p (kind instruction)))
                            (column (section instruction))
@@ -436,9 +433,9 @@
             (<= (- line-length line-column)
                 *print-miser-width*))))
 
-(defmethod layout (client stream mode (instruction newline) previous-instruction allow-break-p
+(defmethod layout (client stream mode (instruction newline) allow-break-p
                    &aux (miser-p (miser-p stream instruction)))
-  (declare (ignore previous-instruction))
+  (declare (ignore))
   (cond ((or (and (not allow-break-p)
                   (mandatory-kind-p (kind instruction)))
              (and (not mode)
@@ -478,8 +475,8 @@
                                       (indent (parent instruction)))))))
          :break)))
 
-(defmethod layout (client stream mode (instruction indent) previous-instruction allow-break-p)
-  (declare (ignore client stream previous-instruction allow-break-p mode))
+(defmethod layout (client stream mode (instruction indent) allow-break-p)
+  (declare (ignore client stream allow-break-p mode))
   (setf (indent (parent instruction))
         (ecase (kind instruction)
           (:block
@@ -490,13 +487,13 @@
               (- (start-column (parent instruction)))))))
   t)
 
-(defmethod layout (client stream (mode (eql :overflow)) (instruction block-start) previous-instruction allow-break-p)
-  (declare (ignore client stream previous-instruction allow-break-p))
+(defmethod layout (client stream (mode (eql :overflow)) (instruction block-start) allow-break-p)
+  (declare (ignore client stream allow-break-p))
   (setf (suffix (block-end instruction)) "")
   t)
 
-(defmethod layout (client stream mode (instruction block-start) previous-instruction allow-break-p)
-  (declare (ignore previous-instruction allow-break-p))
+(defmethod layout (client stream mode (instruction block-start) allow-break-p)
+  (declare (ignore allow-break-p))
   (let* ((column (column instruction))
          (start-column (+ column
                           (trivial-stream-column:measure-string (prefix instruction)
@@ -524,25 +521,23 @@
     (add-text-fragment client stream mode instruction
                        (prefix instruction))))
 
-(defmethod layout (client stream (mode (eql :overflow)) (instruction block-end) previous-instruction allow-break-p)
-  (declare (ignore previous-instruction allow-break-p))
+(defmethod layout (client stream (mode (eql :overflow)) (instruction block-end) allow-break-p)
+  (declare (ignore allow-break-p))
   (add-text-fragment client stream mode instruction (suffix instruction)))
 
-(defmethod layout (client stream mode (instruction block-end) previous-instruction allow-break-p)
-  (declare (ignore previous-instruction allow-break-p))
+(defmethod layout (client stream mode (instruction block-end) allow-break-p)
+  (declare (ignore allow-break-p))
   (add-text-fragment client stream mode instruction (suffix instruction)))
 
 (defmethod pprint-newline (client (stream pretty-stream) kind)
   (declare (ignore client))
-  (with-accessors ((instructions instructions)
-                   (sections sections))
+  (with-accessors ((sections sections))
                   stream
     (let* ((parent (car (blocks stream)))
            (depth (length (blocks stream)))
            (newline (make-instance 'newline
                                    :kind kind :depth depth
                                    :style (trivial-stream-column:stream-style stream)
-                                   :instruction-index (length instructions)
                                    :parent parent)))
       (setf sections
             (delete-if (lambda (s)
@@ -555,41 +550,43 @@
                        sections)
             (section newline) (car (sections stream)))
       (push newline sections)
-      (vector-push-extend newline instructions))))
+      (push-instruction newline stream))))
+
+(defun push-instruction (instruction stream &aux (current-tail (tail stream)))
+  (if current-tail
+      (setf (next current-tail) instruction
+            (previous instruction) current-tail
+            (tail stream) instruction)
+      (setf (head stream) instruction
+            (tail stream) instruction))
+  instruction)
 
 (defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
   (declare (ignore client))
-  (vector-push-extend (make-instance 'tab
+  (push-instruction (make-instance 'tab
                                      :kind kind :colnum colnum :colinc colinc
                                      :style (trivial-stream-column:stream-style stream)
                                      :section (car (sections stream))
-                                     :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
-                      (instructions stream)))
+                    stream))
 
 (defmethod pprint-indent (client (stream pretty-stream) relative-to n)
   (declare (ignore client))
-  (vector-push-extend (make-instance 'indent
+  (push-instruction (make-instance 'indent
                                      :kind relative-to :width n
                                      :style (trivial-stream-column:stream-style stream)
                                      :section (car (sections stream))
-                                     :instruction-index (length (instructions stream))
                                      :parent (car (blocks stream)))
-                      (instructions stream)))
+                    stream))
 
-(defun get-text-buffer (stream)
-  (with-accessors ((instructions instructions))
-                  stream
-    (let ((instruction (and (plusp (length instructions))
-                            (aref instructions (1- (length instructions))))))
-      (unless (typep instruction 'text)
-        (setf instruction (make-instance 'text
-                                             :section (car (sections stream))
-                                             :style (trivial-stream-column:stream-style stream)
-                                             :instruction-index (length instructions)
-                                             :parent (car (blocks stream))))
-        (vector-push-extend instruction instructions))
-      (value instruction))))
+(defun get-text-buffer (stream &aux (current-tail (tail stream)))
+  (value (if (typep current-tail 'text)
+             current-tail
+             (push-instruction (make-instance 'text
+                                       :section (car (sections stream))
+                                       :style (trivial-stream-column:stream-style stream)
+                                       :parent (car (blocks stream)))
+                               stream))))
 
 (defmethod make-pretty-stream (client (stream broadcast-stream))
   (declare (ignore client))
@@ -618,31 +615,29 @@
   (let ((block-start (make-instance 'block-start
                                     :section (car (sections stream))
                                     :style (trivial-stream-column:stream-style stream)
-                                    :instruction-index (length (instructions stream))
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix-p per-line-prefix-p
                                     :depth (length (blocks stream))
                                     :parent (car (blocks stream)))))
     (push block-start (blocks stream))
     (push block-start (sections stream))
-    (vector-push-extend block-start (instructions stream))))
+    (push-instruction block-start stream)))
 
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :section (car (sections stream))
                                   :style (trivial-stream-column:stream-style stream)
-                                  :instruction-index (length (instructions stream))
                                   :suffix (normalize-text client stream suffix)
                                   :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
     (pop (blocks stream))
-    (vector-push-extend block-end (instructions stream))
+    (push-instruction block-end stream)
     (process-instructions stream)))
 
-(defun frob-style (stream style)
+(defun frob-style (stream style &aux (current-tail (tail stream)))
   (cond (style)
-        ((plusp (length (instructions stream)))
-         (style (aref (instructions stream) (1- (length (instructions stream))))))
+        (current-tail
+         (style current-tail))
         (t
          (trivial-stream-column:style stream))))
 
@@ -709,38 +704,36 @@
       (pprint-newline (client stream) stream :literal-fresh)
       (fresh-line (target stream))))
 
-(defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream))
-  (or (and (not (zerop (length (instructions stream))))
-           (column (aref (instructions stream) (1- (length (instructions stream))))))
+(defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream) &aux (current-tail (tail stream)))
+  (or (and current-tail
+           (column current-tail))
       (and (blocks stream)
            (start-column (car (blocks stream))))
       (trivial-stream-column:line-column (target stream))))
 
 (defmethod trivial-gray-streams:stream-advance-to-column ((stream pretty-stream) column)
   (cond ((blocks stream)
-         (vector-push-extend (make-instance 'advance
-                                            :value column
-                                            :instruction-index (length (instructions stream))
-                                            :parent (car (blocks stream)))
-                             (instructions stream))
+         (push-instruction (make-instance 'advance
+                                          :value column
+                                          :parent (car (blocks stream)))
+                           stream)
          t)
         ((trivial-stream-column:advance-to-column column (target stream)))))
 
 ;;; trivial-stream-column protocal support
 
-(defmethod trivial-stream-column:stream-style ((stream pretty-stream))
-  (if (plusp (length (instructions stream)))
-      (style (aref (instructions stream) (1- (length (instructions stream)))))
+(defmethod trivial-stream-column:stream-style ((stream pretty-stream) &aux (current-tail (tail stream)))
+  (if current-tail
+      (style current-tail)
       (trivial-stream-column:style (target stream))))
 
 (defmethod (setf trivial-stream-column:stream-style) (new-style (stream pretty-stream))
   (if (blocks stream)
-      (vector-push-extend (make-instance 'style
-                                         :style new-style
-                                         :section (car (sections stream))
-                                         :instruction-index (length (instructions stream))
-                                         :parent (car (blocks stream)))
-                          (instructions stream))
+      (push-instruction (make-instance 'style
+                                       :style new-style
+                                       :section (car (sections stream))
+                                       :parent (car (blocks stream)))
+                        stream)
       (trivial-stream-column:set-style new-style (target stream))))
 
 (defmethod trivial-stream-column:stream-copy-style ((stream pretty-stream) style &rest overrides &key &allow-other-keys)
