@@ -17,7 +17,6 @@
             :type (or null section-start))
    (fragment-index :accessor fragment-index
                    :initarg :fragment-index
-                   :initform 0
                    :type integer)
    (line :accessor line
          :initarg :line
@@ -345,7 +344,7 @@
                                                                      (target stream)
                                                                      :new-style (style instruction))
             (line instruction) 0))
-  (fragment-index instruction) (length (fragments stream)))
+  (setf (fragment-index instruction) (length (fragments stream))))
 
 (defun add-newline-fragment (client stream mode instruction)
   (declare (ignore client mode))
@@ -529,6 +528,13 @@
   (declare (ignore allow-break-p))
   (add-text-fragment client stream mode instruction (suffix instruction)))
 
+(defun push-instruction (instruction stream &aux (current-tail (tail stream)))
+  (if current-tail
+      (setf (next current-tail) instruction
+            (previous instruction) current-tail)
+      (setf (head stream) instruction))
+  (setf (tail stream) instruction))
+
 (defmethod pprint-newline (client (stream pretty-stream) kind)
   (declare (ignore client))
   (with-accessors ((sections sections))
@@ -551,15 +557,6 @@
             (section newline) (car (sections stream)))
       (push newline sections)
       (push-instruction newline stream))))
-
-(defun push-instruction (instruction stream &aux (current-tail (tail stream)))
-  (if current-tail
-      (setf (next current-tail) instruction
-            (previous instruction) current-tail
-            (tail stream) instruction)
-      (setf (head stream) instruction
-            (tail stream) instruction))
-  instruction)
 
 (defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
   (declare (ignore client))
