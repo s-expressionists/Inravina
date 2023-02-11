@@ -596,7 +596,6 @@
   stream)
 
 (defmethod make-pretty-stream (client stream)
-  (check-output-stream stream)
   (make-instance 'pretty-stream :target stream :client client))
 
 #+sbcl

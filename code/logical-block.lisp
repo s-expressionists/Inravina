@@ -25,34 +25,14 @@
          nil)
         (t)))
 
-(defun do-pprint-logical-block (client stream object prefix per-line-prefix-p suffix function)
-  (check-type prefix string)
-  (check-type suffix string)
-  (let ((stream (make-pretty-stream client (coerce-output-stream-designator stream))))
-    (cond ((not (pprint-valid-list-p client stream object))
-           (incless:write-object client object stream))
-          ((and (not *print-readably*)
-                (eql 0 *print-level*))
-           (write-char #\# stream))
-          (t
-           (incless:handle-circle client object stream
-                                  (lambda (object stream)
-                                    (let ((*print-level* (and *print-level* (max 0 (1- *print-level*)))))
-                                      (pprint-start-logical-block client stream prefix per-line-prefix-p)
-                                      (unwind-protect
-                                          (funcall function stream object)
-                                        (pprint-end-logical-block client stream suffix)))))))
-    nil))
-
-(defmacro pprint-logical-block ((client stream-symbol object
-                                &key (prefix "" prefix-p)
-                                     (per-line-prefix "" per-line-prefix-p)
-                                     (suffix ""))
-                                &body body)
+(defun expand-logical-block (client stream-symbol object
+                             prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
+                             pprint-exit-if-list-exhausted pprint-pop
+                             body)
   (when (and prefix-p per-line-prefix-p)
     (error 'program-error))
   (check-type stream-symbol symbol)
-  (let ((tag-name (gensym))
+  (let ((block-name (gensym))
         (object-var (gensym))
         (count-var (gensym))
         (stream-var (cond ((null stream-symbol)
@@ -60,25 +40,53 @@
                           ((eq t stream-symbol)
                            '*terminal-io*)
                           (t
-                           stream-symbol))))
-    `(do-pprint-logical-block ,client ,stream-symbol ,object
-                              ,(if per-line-prefix-p
-                                   per-line-prefix
-                                   prefix)
-                              ,per-line-prefix-p ,suffix
-                              (lambda (,stream-var ,object-var &aux (,count-var 0))
-                                (declare (ignorable ,stream-var ,object-var ,count-var))
-                                (block ,tag-name
-                                  (macrolet ((pprint-exit-if-list-exhausted ()
-                                               '(unless ,object-var
-                                                  (return-from ,tag-name)))
-                                             (pprint-pop ()
-                                               '(progn
-                                                  (unless (pprint-pop-p ,client ,stream-var ,object-var ,count-var)
-                                                    (return-from ,tag-name))
-                                                  (incf ,count-var)
-                                                  (pop ,object-var))))
-                                    ,@body))))))
+                           stream-symbol)))
+        (prefix-var (gensym))
+        (suffix-var (gensym)))
+    `(let ((,stream-var (make-pretty-stream ,client (coerce-output-stream-designator ,stream-symbol)))
+           (,object-var ,object)
+           (,prefix-var ,(cond (per-line-prefix-p per-line-prefix)
+                               (prefix-p prefix)
+                               (t "")))
+           (,suffix-var ,suffix))
+       (check-type ,prefix-var string)
+       (check-type ,suffix-var string)
+       (cond ((not (pprint-valid-list-p ,client ,stream-var ,object-var))
+              (incless:write-object ,client ,object-var ,stream-var))
+             ((and (not *print-readably*)
+                   (eql 0 *print-level*))
+              (write-char #\# ,stream-var))
+             (t
+              (incless:handle-circle ,client ,object-var ,stream-var
+                                     (lambda (,object-var ,stream-var
+                                              &aux (*print-level* (and *print-level* (max 0 (1- *print-level*))))
+                                                   (,count-var 0))
+                                       (declare (ignorable ,stream-var ,object-var ,count-var))
+                                       (pprint-start-logical-block ,client ,stream-var ,prefix-var ,per-line-prefix-p)
+                                       (unwind-protect
+                                            (block ,block-name
+                                              (macrolet ((,pprint-exit-if-list-exhausted ()
+                                                           '(unless ,object-var
+                                                             (return-from ,block-name)))
+                                                         (,pprint-pop ()
+                                                           '(progn
+                                                             (unless (pprint-pop-p ,client ,stream-var ,object-var ,count-var)
+                                                               (return-from ,block-name))
+                                                             (incf ,count-var)
+                                                             (pop ,object-var))))
+                                                ,@body))
+                                         (pprint-end-logical-block ,client ,stream-var ,suffix-var))))))
+       nil)))
+
+(defmacro pprint-logical-block ((client stream-symbol object
+                                &key (prefix "" prefix-p)
+                                     (per-line-prefix "" per-line-prefix-p)
+                                     (suffix "" suffix-p))
+                                &body body)
+  (expand-logical-block client stream-symbol object
+                        prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
+                        'pprint-exit-if-list-exhausted 'pprint-pop
+                        body))
 
 (defmacro pprint-exit-if-list-exhausted ()
   "Tests whether or not the list passed to the lexically current logical block has

@@ -79,39 +79,12 @@
   (defmacro pprint-logical-block ((stream-symbol object
                                    &key (prefix "" prefix-p)
                                      (per-line-prefix "" per-line-prefix-p)
-                                     (suffix ""))
+                                     (suffix "" suffix-p))
                                   &body body)
-    (when (and prefix-p per-line-prefix-p)
-      (error 'program-error))
-    (check-type stream-symbol symbol)
-    (let ((tag-name (gensym))
-          (object-var (gensym))
-          (count-var (gensym))
-          (stream-var (cond ((null stream-symbol)
-                             '*standard-output*)
-                            ((eq t stream-symbol)
-                             '*terminal-io*)
-                            (t
-                             stream-symbol))))
-      `(inravina:do-pprint-logical-block *client* ,stream-symbol ,object
-         ,(if per-line-prefix-p
-              per-line-prefix
-              prefix)
-         ,per-line-prefix-p ,suffix
-         (lambda (,stream-var ,object-var &aux (,count-var 0))
-           (declare (ignorable ,stream-var ,object-var ,count-var))
-           (block ,tag-name
-             (macrolet ((pprint-exit-if-list-exhausted ()
-                          '(unless ,object-var
-                            (return-from ,tag-name)))
-                        (pprint-pop ()
-                          '(progn
-                            (unless (inravina:pprint-pop-p *client* ,stream-var
-                                                           ,object-var ,count-var)
-                              (return-from ,tag-name))
-                            (incf ,count-var)
-                            (pop ,object-var))))
-               ,@body))))))
+    (inravina:expand-logical-block '*client* stream-symbol object
+                                   prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
+                                   'pprint-exit-if-list-exhausted 'pprint-pop
+                                   body))
 
   (defmacro pprint-exit-if-list-exhausted ()
     "Tests whether or not the list passed to the lexically current logical block has

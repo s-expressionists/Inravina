@@ -17,9 +17,9 @@
   (:local-nicknames (:trivial-gray-streams :cyclosis))
   (:export #:*options*
            #:*print-pprint-dispatch*
-           #:copy-pprint-dispatch
-           #:do-pprint-logical-block
            #:coerce-output-stream-designator
+           #:copy-pprint-dispatch
+           #:expand-logical-block
            #:get-named-style
            #:make-dispatch-function
            #:make-pretty-stream
