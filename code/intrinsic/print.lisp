@@ -40,33 +40,36 @@
     (inravina:set-pprint-dispatch *client* table type-specifier function priority))
 
   (defun pprint-fill (stream object &optional (colon-p t) at-sign-p)
-    (inravina:pprint-fill *client* stream object colon-p at-sign-p)
+    (inravina:pprint-fill *client* (inravina:coerce-output-stream-designator stream)
+                          object colon-p at-sign-p)
     nil)
 
   (defun pprint-linear (stream object &optional (colon-p t) at-sign-p)
-    (inravina:pprint-linear *client* stream object colon-p at-sign-p)
+    (inravina:pprint-linear *client* (inravina:coerce-output-stream-designator stream)
+                            object colon-p at-sign-p)
     nil)
 
   (defun pprint-tabular (stream object &optional (colon-p t) at-sign-p (tabsize 16))
-    (inravina:pprint-tabular *client* stream object colon-p at-sign-p tabsize)
+    (inravina:pprint-tabular *client* (inravina:coerce-output-stream-designator stream)
+                             object colon-p at-sign-p tabsize)
     nil)
 
   (defun pprint-indent (relative-to n &optional stream)
     (check-type relative-to (member :block :current))
-    (when *print-pretty*
-      (inravina:pprint-indent *client* (inravina:frob-output-stream stream) relative-to n))
+    (inravina:pprint-indent *client* (inravina:coerce-output-stream-designator stream)
+                            relative-to n)
     nil)
 
   (defun pprint-newline (kind &optional stream)
     (check-type kind (member :linear :fill :miser :mandatory))
-    (when *print-pretty*
-      (inravina:pprint-newline *client* (inravina:frob-output-stream stream) kind))
+    (inravina:pprint-newline *client* (inravina:coerce-output-stream-designator stream)
+                             kind)
     nil)
 
   (defun pprint-tab (kind colnum colinc &optional stream)
     (check-type kind (member :line :section :line-relative :section-relative))
-    (when *print-pretty*
-      (inravina:pprint-tab *client* (inravina:frob-output-stream stream) kind colnum colinc))
+    (inravina:pprint-tab *client* (inravina:coerce-output-stream-designator stream)
+                         kind colnum colinc)
     nil)
 
   (defun pprint-dispatch (object &optional (table *print-pprint-dispatch*))

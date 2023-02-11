@@ -19,7 +19,7 @@
            #:*print-pprint-dispatch*
            #:copy-pprint-dispatch
            #:do-pprint-logical-block
-           #:frob-output-stream
+           #:coerce-output-stream-designator
            #:get-named-style
            #:make-dispatch-function
            #:make-pretty-stream

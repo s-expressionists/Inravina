@@ -561,28 +561,28 @@
 (defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
   (declare (ignore client))
   (push-instruction (make-instance 'tab
-                                     :kind kind :colnum colnum :colinc colinc
-                                     :style (trivial-stream-column:stream-style stream)
-                                     :section (car (sections stream))
-                                     :parent (car (blocks stream)))
+                                   :kind kind :colnum colnum :colinc colinc
+                                   :style (trivial-stream-column:stream-style stream)
+                                   :section (car (sections stream))
+                                   :parent (car (blocks stream)))
                     stream))
 
 (defmethod pprint-indent (client (stream pretty-stream) relative-to n)
   (declare (ignore client))
   (push-instruction (make-instance 'indent
-                                     :kind relative-to :width n
-                                     :style (trivial-stream-column:stream-style stream)
-                                     :section (car (sections stream))
-                                     :parent (car (blocks stream)))
+                                   :kind relative-to :width n
+                                   :style (trivial-stream-column:stream-style stream)
+                                   :section (car (sections stream))
+                                   :parent (car (blocks stream)))
                     stream))
 
 (defun get-text-buffer (stream &aux (current-tail (tail stream)))
   (value (if (typep current-tail 'text)
              current-tail
              (push-instruction (make-instance 'text
-                                       :section (car (sections stream))
-                                       :style (trivial-stream-column:stream-style stream)
-                                       :parent (car (blocks stream)))
+                                              :section (car (sections stream))
+                                              :style (trivial-stream-column:stream-style stream)
+                                              :parent (car (blocks stream)))
                                stream))))
 
 (defmethod make-pretty-stream (client (stream broadcast-stream))
@@ -595,13 +595,8 @@
   (declare (ignore client))
   stream)
 
-(defmethod make-pretty-stream (client (stream (eql nil)))
-  (call-next-method client *standard-output*))
-
-(defmethod make-pretty-stream (client (stream (eql t)))
-  (call-next-method client *terminal-io*))
-
 (defmethod make-pretty-stream (client stream)
+  (check-output-stream stream)
   (make-instance 'pretty-stream :target stream :client client))
 
 #+sbcl

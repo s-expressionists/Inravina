@@ -1,5 +1,21 @@
 (in-package #:inravina)
 
+(declaim (inline coerce-output-stream-designator))
+
+(defun coerce-output-stream-designator (designator)
+  (cond ((null designator)
+         *standard-output*)
+        ((eq designator t) 
+         *terminal-io*)
+        ((output-stream-p designator)
+         designator)
+        (t
+         (error 'simple-type-error
+                :datum designator
+                :expected-type '(satisfies output-stream-p)
+                :format-control "~S isn't an output stream."
+                :format-arguments (list designator)))))
+
 (defvar *quasiquote* nil)
 
 (defvar *options*
@@ -35,22 +51,32 @@
 
 (defgeneric pprint-indent (client stream relative-to n)
   (:method (client stream relative-to n)
-    (declare (ignore client stream relative-to n))))
-
+    (declare (ignore stream client relative-to n)))
+  (:method :around (client stream relative-to n)
+    (when *print-pretty*
+      (call-next-method))))
+  
 (defgeneric pprint-newline (client stream kind)
   (:method (client stream kind)
-    (declare (ignore client stream kind))))
+    (declare (ignore client stream kind)))
+  (:method :around (client stream kind)
+    (when (or *print-pretty*
+              (member kind '(:literal-mandatory :literal-fresh)))
+      (call-next-method))))
 
 (defgeneric pprint-tab (client stream kind colnum colinc)
   (:method (client stream kind colnum colinc)
-    (declare (ignore client stream kind colnum colinc))))
+    (declare (ignore client stream kind colnum colinc)))
+  (:method :around (client stream kind colnum colinc)
+    (when *print-pretty*
+      (call-next-method))))
 
 (defgeneric pprint-fill-plist (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-linear-plist (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-tabular-plist (client stream object &optional colon-p at-sign-p tabsize))
-
+    
 (defgeneric pprint-start-logical-block (client stream prefix per-line-prefix-p)
   (:method (client stream prefix per-line-prefix-p)
     (declare (ignore client stream prefix per-line-prefix-p))))
@@ -59,7 +85,11 @@
   (:method (client stream suffix)
     (declare (ignore client stream suffix))))
 
-(defgeneric make-pretty-stream (client stream))
+(defgeneric make-pretty-stream (client stream)
+  (:method (client (stream (eql nil)))
+    (call-next-method client *standard-output*))
+  (:method (client (stream (eql t)))
+    (call-next-method client *terminal-io*)))
 
 (defgeneric pretty-stream-p (stream)
   (:method (stream)
@@ -123,22 +153,6 @@
 (defgeneric pprint-apply (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-defclass (client stream object &rest options &key &allow-other-keys))
-
-(defmacro frob-output-stream (stream)
-  (let ((svar (gensym)))
-    `(let ((,svar ,stream))
-       (cond ((null ,svar) 
-              *standard-output*)
-             ((eq ,svar t) 
-              *terminal-io*)
-             ((output-stream-p ,svar)
-              ,svar)
-             (t
-              (error 'simple-type-error
-                     :datum ,svar
-                     :expected-type '(satisfies output-stream-p)
-                     :format-control "~S isn't an output stream."
-                     :format-arguments (list ,svar)))))))
 
 (defgeneric get-named-style (client stream name)
   (:method (client stream name)
