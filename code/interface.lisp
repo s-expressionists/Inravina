@@ -53,6 +53,7 @@
   (:method (client stream relative-to n)
     (declare (ignore stream client relative-to n)))
   (:method :around (client stream relative-to n)
+    (declare (ignore client stream relative-to n))
     (when *print-pretty*
       (call-next-method))))
   
@@ -60,6 +61,7 @@
   (:method (client stream kind)
     (declare (ignore client stream kind)))
   (:method :around (client stream kind)
+    (declare (ignore client stream))
     (when (or *print-pretty*
               (member kind '(:literal-mandatory :literal-fresh)))
       (call-next-method))))
@@ -68,6 +70,7 @@
   (:method (client stream kind colnum colinc)
     (declare (ignore client stream kind colnum colinc)))
   (:method :around (client stream kind colnum colinc)
+    (declare (ignore client stream kind colnum colinc))
     (when *print-pretty*
       (call-next-method))))
 

@@ -60,32 +60,47 @@
     (prin1 (value obj) stream)))
 
 (defclass indent (instruction)
-  ((kind :reader kind
-         :initarg :kind
-         :type (member :block :current))
-   (width :reader width
+  ((width :reader width
           :initarg :width    
           :type real)))
 
+(defclass block-indent (indent)
+  ())
+
+(defclass current-indent (indent)
+  ())
+
 (defmethod print-object ((obj indent) stream)
   (print-unreadable-object (obj stream :type t :identity t)
-    (prin1 (kind obj) stream)
-    (write-char #\Space stream)
     (prin1 (width obj) stream)))
 
 (defclass newline (section-start)
-  ((kind :reader kind
-         :initarg :kind
-         :type newline-kind)))
+  ((literal-p :reader literal-p
+             :initarg :literal-p
+             :type boolean)))
+
+(defclass fresh-newline (newline)
+  ())
+
+(defclass mandatory-newline (newline)
+  ())
+
+(defclass fill-newline (newline)
+  ())
+
+(defclass linear-newline (newline)
+  ())
+
+(defclass miser-newline (newline)
+  ())
 
 (defmethod print-object ((obj newline) stream)
-  (print-unreadable-object (obj stream :type t :identity t)
-    (prin1 (kind obj) stream)))
+  (print-unreadable-object (obj stream :type t :identity t)))
 
 (defclass tab (instruction)
-  ((kind :reader kind
-         :initarg :kind
-         :type tab-kind)
+  ((relative-p :reader relative-p
+               :initarg :relative-p
+               :type boolean)
    (colnum :reader colnum
            :initarg :colnum    
            :type (or null real))
@@ -93,9 +108,15 @@
            :initarg :colinc    
            :type (or null real))))
 
+(defclass line-tab (tab)
+  ())
+
+(defclass section-tab (tab)
+  ())
+
 (defmethod print-object ((obj tab) stream)
   (print-unreadable-object (obj stream :type t :identity t)
-    (prin1 (kind obj) stream)
+    (prin1 (relative-p obj) stream)
     (write-char #\Space stream)
     (prin1 (colnum obj) stream)
     (write-char #\Space stream)
@@ -155,7 +176,7 @@
 
 (defmethod describe-object ((object pretty-stream) stream)
   (when *debug-instruction*
-    (loop for instruction = (head stream) then (next instruction)
+    (loop for instruction = (head object) then (next instruction)
           for char = (if (eq instruction *debug-instruction*)
                              #\*
                              #\Space)
@@ -165,32 +186,28 @@
             do (dotimes (i (length (value instruction))) (write-char char stream))
           else
             do (write-char char stream)))
-  (loop for instruction = (head stream) then (next instruction)
+  (loop for instruction = (head object) then (next instruction)
         while instruction
         do (typecase instruction
              (block-start (write-char #\< stream))
              (block-end (write-char #\> stream))
-             (newline (write-char (case (kind instruction)
-                                    (:fill #\f)
-                                    (:linear #\l)
-                                    (:mandatory #\x)
-                                    (:miser #\m)
-                                    (:fresh #\r)
-                                    (:literal-fill #\F)
-                                    (:literal-linear #\L)
-                                    (:literal-mandatory #\X)
-                                    (:literal-miser #\M)
-                                    (:literal-fresh #\R))
-                                  stream))
+             (fresh-newline (write-char (if (literal-p instruction) #\R #\r) stream))
+             (mandatory-newline (write-char (if (literal-p instruction) #\X #\X) stream))
+             (linear-newline (write-char (if (literal-p instruction) #\L #\l) stream))
+             (fill-newline (write-char (if (literal-p instruction) #\F #\f) stream))
+             (miser-newline (write-char (if (literal-p instruction) #\M #\m) stream))
+             (block-indent (write-char #\I stream))
+             (current-indent (write-char #\i stream))
+             (advance (write-char #\a stream))
              (text (dotimes (i (length (value instruction)))
                      (write-char #\- stream)))
              (otherwise (write-char #\? stream))))
   (terpri stream)
-  (loop for instruction = (head stream) then (next instruction)
+  (loop for instruction = (head object) then (next instruction)
         while instruction
         when (typep instruction 'section-start)
           do (loop with ch = #\Space
-                   for sub = (head stream) then (next instruction)
+                   for sub = (head object) then (next instruction)
                    while sub
                    finally (terpri stream)
                    if (eq sub instruction)
@@ -408,20 +425,28 @@
         (t
          0)))
 
-(defmethod layout (client stream mode (instruction tab) allow-break-p)
+(defmethod layout (client stream mode (instruction section-tab) allow-break-p
+                   &aux (column (column instruction)))
   (declare (ignore allow-break-p))
-  (let* ((section-column (if (and (section instruction)
-                                  (section-kind-p (kind instruction)))
-                           (column (section instruction))
-                           0))
-         (column (- (column instruction) section-column)))
-    (add-tab-fragment client stream mode instruction
-                      (+ section-column
-                         column
-                         (compute-tab-size column
-                                           (colnum instruction)
-                                           (colinc instruction)
-                                           (relative-kind-p (kind instruction)))))))
+  (add-tab-fragment client stream mode instruction
+                    (+ column
+                       (compute-tab-size (- column
+                                            (if (section instruction)
+                                                (column (section instruction))
+                                                0))
+                                         (colnum instruction)
+                                         (colinc instruction)
+                                         (relative-p instruction)))))
+
+(defmethod layout (client stream mode (instruction line-tab) allow-break-p
+                   &aux (column (column instruction)))
+  (declare (ignore allow-break-p))
+  (add-tab-fragment client stream mode instruction
+                    (+ column
+                       (compute-tab-size column
+                                         (colnum instruction)
+                                         (colinc instruction)
+                                         (relative-p instruction)))))
 
 (defun miser-p (stream instruction
                 &aux (line-length (line-length stream))
@@ -432,30 +457,55 @@
             (<= (- line-length line-column)
                 *print-miser-width*))))
 
-(defmethod layout (client stream mode (instruction newline) allow-break-p
+(defmethod layout (client stream mode (instruction mandatory-newline) allow-break-p)
+  (declare (ignore client stream mode))
+  (if allow-break-p
+      (call-next-method)
+      nil))
+
+(defmethod layout (client stream mode (instruction miser-newline) allow-break-p
                    &aux (miser-p (miser-p stream instruction)))
-  (declare (ignore))
-  (cond ((or (and (not allow-break-p)
-                  (mandatory-kind-p (kind instruction)))
-             (and (not mode)
-                  allow-break-p
-                  (miser-kind-p (kind instruction))
-                  miser-p))
+  (declare (ignore client))
+  (cond ((and (not mode)
+              allow-break-p
+              miser-p)
          nil)
         ((and (not mode)
               (or (not allow-break-p)
-                  (and (fresh-kind-p (kind instruction))
-                       (zerop (column instruction)))
-                  (and (miser-kind-p (kind instruction))
-                       (not miser-p))))
+                  (not miser-p)))
+         t)
+        (t
+         (call-next-method))))
+  
+(defmethod layout (client stream mode (instruction fresh-newline) allow-break-p)
+  (declare (ignore client stream))
+  (if (and (not mode)
+           (or (not allow-break-p)
+               (zerop (column instruction))))
+      t
+      (call-next-method)))
+
+(defmethod layout (client stream mode (instruction fill-newline) allow-break-p)
+  (declare (ignore client))
+  (cond ((and (not mode)
+              (not allow-break-p))
          t)
         ((and (not mode)
-              (or (and (fill-kind-p (kind instruction))
-                       (not miser-p))
-                  #+(or)(and (miser-kind-p (kind instruction))
-                       miser-p)))
+              (not (miser-p stream instruction)))
          :maybe-break)
-        ((and (not *print-readably*)
+        (t
+         (call-next-method))))
+
+(defmethod layout (client stream mode (instruction linear-newline) allow-break-p)
+  (declare (ignore client stream))
+  (if (and (not mode)
+           (not allow-break-p))
+      t
+      (call-next-method)))
+
+(defmethod layout (client stream mode (instruction newline) allow-break-p)
+  (declare (ignore allow-break-p))
+  (cond ((and (not *print-readably*)
               *print-lines*
               (>= (1+ (line instruction)) *print-lines*))
          (add-text-fragment client stream mode instruction "..")
@@ -466,7 +516,7 @@
            (map nil (lambda (fragment)
                       (vector-push-extend fragment (fragments stream)))
                 (prefix-fragments (parent instruction)))
-           (unless (literal-kind-p (kind instruction))
+           (unless (literal-p instruction)
              (add-tab-fragment client stream mode instruction
                                (if *print-miser-width*
                                    (start-column (parent instruction))
@@ -474,16 +524,18 @@
                                       (indent (parent instruction)))))))
          :break)))
 
-(defmethod layout (client stream mode (instruction indent) allow-break-p)
+(defmethod layout (client stream mode (instruction block-indent) allow-break-p)
   (declare (ignore client stream allow-break-p mode))
   (setf (indent (parent instruction))
-        (ecase (kind instruction)
-          (:block
-           (width instruction))
-          (:current
-           (+ (width instruction)
-              (column instruction)
-              (- (start-column (parent instruction)))))))
+        (width instruction))
+  t)
+
+(defmethod layout (client stream mode (instruction current-indent) allow-break-p)
+  (declare (ignore client stream allow-break-p mode))
+  (setf (indent (parent instruction))
+        (+ (width instruction)
+           (column instruction)
+           (- (start-column (parent instruction)))))
   t)
 
 (defmethod layout (client stream (mode (eql :overflow)) (instruction block-start) allow-break-p)
@@ -541,8 +593,14 @@
                   stream
     (let* ((parent (car (blocks stream)))
            (depth (length (blocks stream)))
-           (newline (make-instance 'newline
-                                   :kind kind :depth depth
+           (newline (make-instance (ecase kind
+                                     ((:fresh :literal-fresh) 'fresh-newline)
+                                     ((:mandatory :literal-mandatory) 'mandatory-newline)
+                                     ((:miser :literal-miser) 'miser-newline)
+                                     ((:linear :literal-linear) 'linear-newline)
+                                     ((:fill :literal-fill) 'fill-newline))
+                                   :literal-p (literal-kind-p kind)
+                                   :depth depth
                                    :style (trivial-stream-column:stream-style stream)
                                    :parent parent)))
       (setf sections
@@ -560,8 +618,11 @@
 
 (defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
   (declare (ignore client))
-  (push-instruction (make-instance 'tab
-                                   :kind kind :colnum colnum :colinc colinc
+  (push-instruction (make-instance (ecase kind
+                                     ((:line :line-relative) 'line-tab)
+                                     ((:section :section-relative) 'section-tab))
+                                   :relative-p (relative-kind-p kind)
+                                   :colnum colnum :colinc colinc
                                    :style (trivial-stream-column:stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
@@ -569,8 +630,10 @@
 
 (defmethod pprint-indent (client (stream pretty-stream) relative-to n)
   (declare (ignore client))
-  (push-instruction (make-instance 'indent
-                                   :kind relative-to :width n
+  (push-instruction (make-instance (ecase relative-to
+                                     (:block 'block-indent)
+                                     (:current 'current-indent))                                          
+                                   :width n
                                    :style (trivial-stream-column:stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
@@ -705,6 +768,8 @@
 (defmethod trivial-gray-streams:stream-advance-to-column ((stream pretty-stream) column)
   (cond ((blocks stream)
          (push-instruction (make-instance 'advance
+                                          :style (trivial-stream-column:stream-style stream)
+                                          :section (car (sections stream))
                                           :value column
                                           :parent (car (blocks stream)))
                            stream)
