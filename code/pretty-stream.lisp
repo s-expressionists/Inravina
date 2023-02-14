@@ -75,9 +75,7 @@
     (prin1 (width obj) stream)))
 
 (defclass newline (section-start)
-  ((literal-p :reader literal-p
-             :initarg :literal-p
-             :type boolean)))
+  ())
 
 (defclass fresh-newline (newline)
   ())
@@ -94,14 +92,29 @@
 (defclass miser-newline (newline)
   ())
 
+(defclass literal-newline (newline)
+  ())
+
+(defclass fresh-literal-newline (literal-newline fresh-newline)
+  ())
+
+(defclass mandatory-literal-newline (literal-newline mandatory-newline)
+  ())
+
+(defclass fill-literal-newline (literal-newline fill-newline)
+  ())
+
+(defclass linear-literal-newline (literal-newline linear-newline)
+  ())
+
+(defclass miser-literal-newline (literal-newline miser-newline)
+  ())
+
 (defmethod print-object ((obj newline) stream)
   (print-unreadable-object (obj stream :type t :identity t)))
 
 (defclass tab (instruction)
-  ((relative-p :reader relative-p
-               :initarg :relative-p
-               :type boolean)
-   (colnum :reader colnum
+  ((colnum :reader colnum
            :initarg :colnum    
            :type (or null real))
    (colinc :reader colinc
@@ -114,10 +127,17 @@
 (defclass section-tab (tab)
   ())
 
+(defclass relative-tab (tab)
+  ())
+
+(defclass line-relative-tab (relative-tab line-tab)
+  ())
+
+(defclass section-relative-tab (relative-tab section-tab)
+  ())
+
 (defmethod print-object ((obj tab) stream)
   (print-unreadable-object (obj stream :type t :identity t)
-    (prin1 (relative-p obj) stream)
-    (write-char #\Space stream)
     (prin1 (colnum obj) stream)
     (write-char #\Space stream)
     (prin1 (colinc obj) stream)))
@@ -191,14 +211,24 @@
         do (typecase instruction
              (block-start (write-char #\< stream))
              (block-end (write-char #\> stream))
-             (fresh-newline (write-char (if (literal-p instruction) #\R #\r) stream))
-             (mandatory-newline (write-char (if (literal-p instruction) #\X #\X) stream))
-             (linear-newline (write-char (if (literal-p instruction) #\L #\l) stream))
-             (fill-newline (write-char (if (literal-p instruction) #\F #\f) stream))
-             (miser-newline (write-char (if (literal-p instruction) #\M #\m) stream))
+             (fresh-newline (write-char #\r stream))
+             (fresh-literal-newline (write-char #\R stream))
+             (mandatory-newline (write-char #\x stream))
+             (mandatory-literal-newline (write-char #\x stream))
+             (linear-newline (write-char #\l stream))
+             (linear-literal-newline (write-char #\L stream))
+             (fill-newline (write-char #\f stream))
+             (fill-literal-newline (write-char #\F stream))
+             (miser-newline (write-char #\m stream))
+             (miser-literal-newline (write-char #\M stream))
              (block-indent (write-char #\I stream))
              (current-indent (write-char #\i stream))
              (advance (write-char #\a stream))
+             (line-tab (write-char #\t stream))
+             (line-relative-tab (write-char #\T stream))
+             (section-tab (write-char #\u stream))
+             (section-relative-tab (write-char #\U stream))
+             (style (write-char #\s stream))
              (text (dotimes (i (length (value instruction)))
                      (write-char #\- stream)))
              (otherwise (write-char #\? stream))))
@@ -436,7 +466,7 @@
                                                 0))
                                          (colnum instruction)
                                          (colinc instruction)
-                                         (relative-p instruction)))))
+                                         (typep instruction 'relative-tab)))))
 
 (defmethod layout (client stream mode (instruction line-tab) allow-break-p
                    &aux (column (column instruction)))
@@ -446,7 +476,7 @@
                        (compute-tab-size column
                                          (colnum instruction)
                                          (colinc instruction)
-                                         (relative-p instruction)))))
+                                         (typep instruction 'relative-tab)))))
 
 (defun miser-p (stream instruction
                 &aux (line-length (line-length stream))
@@ -516,7 +546,7 @@
            (map nil (lambda (fragment)
                       (vector-push-extend fragment (fragments stream)))
                 (prefix-fragments (parent instruction)))
-           (unless (literal-p instruction)
+           (unless (typep instruction 'literal-newline)
              (add-tab-fragment client stream mode instruction
                                (if *print-miser-width*
                                    (start-column (parent instruction))
@@ -594,12 +624,16 @@
     (let* ((parent (car (blocks stream)))
            (depth (length (blocks stream)))
            (newline (make-instance (ecase kind
-                                     ((:fresh :literal-fresh) 'fresh-newline)
-                                     ((:mandatory :literal-mandatory) 'mandatory-newline)
-                                     ((:miser :literal-miser) 'miser-newline)
-                                     ((:linear :literal-linear) 'linear-newline)
-                                     ((:fill :literal-fill) 'fill-newline))
-                                   :literal-p (literal-kind-p kind)
+                                     (:fresh 'fresh-newline)
+                                     (:fresh-literal 'fresh-literal-newline)
+                                     (:mandatory 'mandatory-newline)
+                                     (:mandatory-literal 'mandatory-literal-newline)
+                                     (:miser 'miser-newline)
+                                     (:miser-literal 'miser-literal-newline)
+                                     (:linear 'linear-newline)
+                                     (:linear-literal 'linear-literal-newline)
+                                     (:fill 'fill-newline)
+                                     (:fill-literal 'fill-literal-newline))
                                    :depth depth
                                    :style (trivial-stream-column:stream-style stream)
                                    :parent parent)))
@@ -619,9 +653,10 @@
 (defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
   (declare (ignore client))
   (push-instruction (make-instance (ecase kind
-                                     ((:line :line-relative) 'line-tab)
-                                     ((:section :section-relative) 'section-tab))
-                                   :relative-p (relative-kind-p kind)
+                                     (:line 'line-tab)
+                                     (:line-relative 'line-relative-tab)
+                                     (:section 'section-tab)
+                                     (:section-relative 'section-relative-tab))
                                    :colnum colnum :colinc colinc
                                    :style (trivial-stream-column:stream-style stream)
                                    :section (car (sections stream))
@@ -704,7 +739,7 @@
   (cond ((null (blocks stream))
          (write-char char (target stream)))
         ((char= char #\Newline)
-         (pprint-newline (client stream) stream :literal-mandatory))
+         (pprint-newline (client stream) stream :mandatory-literal))
         (t
          (vector-push-extend char (get-text-buffer stream))))
   char)
@@ -729,7 +764,7 @@
           (setf pos (position #\newline string :start start :end end))z
           (when pos
             (append-text start pos)
-            (pprint-newline (client stream) stream :literal-mandatory)
+            (pprint-newline (client stream) stream :mandatory-literal)
             (setf start (1+ pos))
             (go next))
           (append-text start end)))
@@ -750,12 +785,12 @@
 
 (defmethod trivial-gray-streams:stream-terpri ((stream pretty-stream))
   (if (blocks stream)
-      (pprint-newline (client stream) stream :literal-mandatory)
+      (pprint-newline (client stream) stream :mandatory-literal)
       (terpri (target stream))))
 
 (defmethod trivial-gray-streams:stream-fresh-line ((stream pretty-stream))
   (if (blocks stream)
-      (pprint-newline (client stream) stream :literal-fresh)
+      (pprint-newline (client stream) stream :fresh-literal)
       (fresh-line (target stream))))
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream) &aux (current-tail (tail stream)))
