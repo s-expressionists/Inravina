@@ -121,6 +121,7 @@
     ((cons (member define-compiler-macro
                    define-modify-macro
                    define-setf-expander
+                   define-symbol-macro
                    defmacro
                    defmethod
                    deftype
@@ -159,8 +160,11 @@
      -20
      pprint-macro-char :prefix "#'")
     ((cons (member and
+                   declaim
+                   declare
                    if
-                   or))
+                   or
+                   proclaim))
      -20
      pprint-function-call :newline :linear)
     ((cons (member destructuring-bind))
@@ -182,6 +186,8 @@
      pprint-prog)
     ((cons (member block
                    catch
+                   check-type
+                   compile
                    defconstant
                    defparameter
                    defvar
@@ -189,6 +195,7 @@
                    prog1
                    return-from
                    return
+                   the
                    throw
                    unless
                    unwind-protect
@@ -244,6 +251,16 @@
     ((cons (member symbol-macrolet))
      -20
      pprint-symbol-macrolet)
+    ((cons (member declaration
+                   dynamic-extent
+                   inline
+                   ignorable
+                   ignore
+                   notinline
+                   satisfies
+                   special))
+     -20
+     pprint-function-call)
     ((cons (member psetf
                    psetq
                    set

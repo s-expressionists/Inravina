@@ -88,6 +88,13 @@
   (:method (client stream suffix)
     (declare (ignore client stream suffix))))
 
+(defgeneric pprint-valid-list-p (client stream object)
+  (:method (client stream object)
+    (declare (ignore client))
+    (and (listp object)
+         (not (and (getf *quasiquote* stream)
+                   (typep object 'unquote-form))))))
+
 (defgeneric make-pretty-stream (client stream)
   (:method (client (stream (eql nil)))
     (call-next-method client *standard-output*))

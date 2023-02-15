@@ -194,6 +194,10 @@
 
 (defparameter *debug-instruction* nil)
 
+(defparameter *debug-section* nil)
+
+(defparameter *pprint-debug* nil)
+
 (defmethod describe-object ((object pretty-stream) stream)
   (when *debug-instruction*
     (loop for instruction = (head object) then (next instruction)
@@ -235,9 +239,11 @@
   (terpri stream)
   (loop for instruction = (head object) then (next instruction)
         while instruction
-        when (typep instruction 'section-start)
+        when (and (typep instruction 'section-start)
+                  (or (not *debug-instruction*)
+                      (eq *debug-section* instruction)))
           do (loop with ch = #\Space
-                   for sub = (head object) then (next instruction)
+                   for sub = (head object) then (next sub)
                    while sub
                    finally (terpri stream)
                    if (eq sub instruction)
@@ -267,7 +273,8 @@
           return nil))
 
 (defun layout-instructions (stream)
-  #+pprint-debug (describe stream *debug-io*)
+  #+pprint-debug (when *pprint-debug*
+                   (describe stream *debug-io*))
   (prog ((section t)
          last-maybe-break
          status
@@ -276,16 +283,18 @@
          (instruction (head stream)))
    repeat
      (when instruction
-       #+pprint-debug (let ((*debug-instruction* instruction))
-                        (describe stream *debug-io*)
-                        (finish-output *debug-io*)
-                        (format *debug-io* "section ~a, instruction ~a, mode = ~a, allow-break-p = ~a~%"
-                                section
-                                instruction mode
-                                (or (not section)
-                                    (and (typep section 'section-start)
-                                         (or (eq section instruction)
-                                             (eq (section-end section) instruction))))))
+       #+pprint-debug (when *pprint-debug*
+                        (let ((*debug-instruction* instruction)
+                              (*debug-section* section))
+                          (describe stream *debug-io*)
+                          (finish-output *debug-io*)
+                          (format *debug-io* "section ~a, instruction ~a, mode = ~a, allow-break-p = ~a~%"
+                                  section
+                                  instruction mode
+                                  (or (not section)
+                                      (and (typep section 'section-start)
+                                           (or (eq section instruction)
+                                               (eq (section-end section) instruction)))))))
        (setf status (layout client stream mode instruction
                             (or (not section)
                                 (and (typep section 'section-start)
@@ -293,8 +302,9 @@
                                          (eq (section-end section) instruction)))))
              mode (and (eq :overflow mode) mode))
        #+pprint-debug
-       (format *debug-io* "status = ~a, mode = ~a~%"
-               status mode)
+       (when *pprint-debug*
+         (format *debug-io* "status = ~a, mode = ~a~%"
+                 status mode))
        (case status
          ((t :maybe-break)
           (cond ((and (or (null section)

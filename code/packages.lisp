@@ -58,12 +58,14 @@
            #:pprint-progn
            #:pprint-progv
            #:pprint-simple-loop
+           #:pprint-skip-p
            #:pprint-start-logical-block
            #:pprint-structure-object
            #:pprint-tab
            #:pprint-tabular
            #:pprint-tabular-plist
            #:pprint-tagbody
+           #:pprint-valid-list-p
            #:pprint-with
            #:pretty-stream
            #:pretty-stream-p

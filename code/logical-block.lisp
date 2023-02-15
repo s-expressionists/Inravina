@@ -1,11 +1,5 @@
 (in-package #:inravina)
 
-(defun pprint-valid-list-p (client stream object)
-  (declare (ignore client))
-  (and (listp object)
-       (not (and (getf *quasiquote* stream)
-                 (typep object 'unquote-form)))))
-
 (defun pprint-pop-p (client stream object count)
   (cond ((and (plusp count)
               (not (pprint-valid-list-p client stream object)))
