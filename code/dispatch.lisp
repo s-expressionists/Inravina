@@ -212,26 +212,23 @@
     ((cons (member progv))
      -20
      pprint-progv)
-    #+(or (and clasp (not staging)) clisp ecl mezzano sbcl)
-    ((cons (member #+clasp eclector.reader:quasiquote
-                   #+clisp system::backquote
+    #+(or clisp ecl mezzano sbcl)
+    ((cons (member #+clisp system::backquote
                    #+ecl si:quasiquote
                    #+mezzano mezzano.internals::backquote
                    #+sbcl sb-int:quasiquote)
            (cons t null))
      -20
      pprint-quasiquote :prefix "`" :quote t)
-    #+(or (and clasp (not staging)) clisp ecl mezzano)
-    ((cons (member #+clasp eclector.reader:unquote
-                   #+clisp system::unquote
+    #+(or clisp ecl mezzano)
+    ((cons (member #+clisp system::unquote
                    #+ecl si:unquote
                    #+mezzano mezzano.internals::bq-comma)
            (cons t null))
      -20
      pprint-quasiquote :prefix "," :quote nil)
-    #+(or (and clasp (not staging)) clisp ecl mezzano)
-    ((cons (member #+clasp eclector.reader:unquote-splicing
-                   #+clisp system::splice
+    #+(or clisp ecl mezzano)
+    ((cons (member #+clisp system::splice
                    #+ecl si:unquote-splice
                    #+mezzano mezzano.internals::bq-comma-atsign)
            (cons t null))
@@ -306,11 +303,32 @@
      -10
      pprint-symbol)))
 
+(defvar +quasiquote-entries+
+  #-clasp nil
+  #+clasp
+  '(("eclector.reader" "quasiquote"
+     -20
+     pprint-quasiquote :prefix "`" :quote t)
+    ("eclector.reader" "unquote"
+     -20
+     pprint-quasiquote :prefix "," :quote nil)
+    ("eclector.reader" "unquote-splicing"
+     -20
+     pprint-quasiquote :prefix ",@" :quote nil)))
+
 (defmethod copy-pprint-dispatch (client (table (eql nil)) &optional read-only)
   (declare (ignore table))
   (let ((new-table (make-instance 'dispatch-table)))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
           do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
+    (loop for (package symbol priority name . rest) in +quasiquote-entries+
+          for pkg = (find-package package)
+          for sym = (when pkg
+                      (find-symbol symbol package))
+          when sym
+            do (set-pprint-dispatch client new-table
+                                    `(cons (member ,sym) (cons t nil))
+                                    (fdefinition name) priority :client-stream-object rest))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
     new-table))

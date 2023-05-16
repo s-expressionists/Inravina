@@ -20,7 +20,7 @@
   (lambda (stream object)
     (apply function object (inravina:make-pretty-stream *client* stream) rest)))
 
-(defparameter *initial-pprint-dispatch* (inravina:copy-pprint-dispatch *client* t t))
+(defparameter *initial-pprint-dispatch* (inravina:copy-pprint-dispatch *client* nil t))
 
 (defparameter *standard-pprint-dispatch* (inravina:copy-pprint-dispatch *client* nil t))
 
