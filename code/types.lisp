@@ -42,3 +42,29 @@
 (defun relative-kind-p (kind)
   (and (member kind '(:line-relative :section-relative))
        t))
+
+(defvar +unquote-symbols+ nil)
+
+(defun find-unquote-symbols ()
+  (setf +unquote-symbols+
+        (loop for (package symbol) in #+clasp '(("ECLECTOR.READER" "UNQUOTE")
+                                                ("ECLECTOR.READER" "UNQUOTE-SPLICING"))
+                                      #+ecl '(("SI" "UNQUOTE")
+                                              ("SI" "UNQUOTE-SPLICE")
+                                              ("SI" "UNQUOTE-NSPLICE"))
+                                      #-(or clasp ecl) nil
+              for pkg = (find-package package)
+              for sym = (when pkg
+                          (find-symbol symbol pkg))
+              when sym
+                collect sym)))
+
+(find-unquote-symbols)
+
+(defun unquote-form-p (form)
+  (and (listp form)
+       (cdr form)
+       (listp (cdr form))
+       (null (cddr form))
+       (member (first form) +unquote-symbols+)
+       t))

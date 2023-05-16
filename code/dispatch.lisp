@@ -306,13 +306,13 @@
 (defvar +quasiquote-entries+
   #-clasp nil
   #+clasp
-  '(("eclector.reader" "quasiquote"
+  '(("ECLECTOR.READER" "QUASIQUOTE"
      -20
      pprint-quasiquote :prefix "`" :quote t)
-    ("eclector.reader" "unquote"
+    ("ECLECTOR.READER" "UNQUOTE"
      -20
      pprint-quasiquote :prefix "," :quote nil)
-    ("eclector.reader" "unquote-splicing"
+    ("ECLECTOR.READER" "UNQUOTE-SPLICING"
      -20
      pprint-quasiquote :prefix ",@" :quote nil)))
 
@@ -324,10 +324,10 @@
     (loop for (package symbol priority name . rest) in +quasiquote-entries+
           for pkg = (find-package package)
           for sym = (when pkg
-                      (find-symbol symbol package))
+                      (find-symbol symbol pkg))
           when sym
             do (set-pprint-dispatch client new-table
-                                    `(cons (member ,sym) (cons t nil))
+                                    `(cons (member ,sym) (cons t null))
                                     (fdefinition name) priority :client-stream-object rest))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))

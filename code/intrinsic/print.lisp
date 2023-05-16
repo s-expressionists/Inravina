@@ -28,7 +28,7 @@
 
   #+sbcl (declaim (type inravina::dispatch-table *print-pprint-dispatch*))
 
-  (defparameter *print-pprint-dispatch* (inravina:copy-pprint-dispatch *client* t))
+  (defparameter *print-pprint-dispatch* (inravina:copy-pprint-dispatch *client* nil))
 
   (defun copy-pprint-dispatch (&optional (table *print-pprint-dispatch*))
     (check-type table (or null inravina::dispatch-table))

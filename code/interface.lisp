@@ -93,7 +93,7 @@
     (declare (ignore client))
     (and (listp object)
          (not (and (getf *quasiquote* stream)
-                   (typep object 'unquote-form))))))
+                   (unquote-form-p object))))))
 
 (defgeneric make-pretty-stream (client stream)
   (:method (client (stream (eql nil)))
