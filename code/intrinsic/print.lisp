@@ -24,9 +24,12 @@
 
 (defparameter *standard-pprint-dispatch* (inravina:copy-pprint-dispatch *client* nil t))
 
-(trivial-package-locks:with-unlocked-packages (:common-lisp)
+(let ((*print-pretty* nil))
 
-  #+sbcl (declaim (type inravina::dispatch-table *print-pprint-dispatch*))
+(trivial-package-locks:with-unlocked-packages (:common-lisp)
+  #+sbcl (handler-bind ((warning (lambda (condition)
+                                   (muffle-warning condition))))
+           (declaim (type inravina::dispatch-table *print-pprint-dispatch*)))
 
   (defparameter *print-pprint-dispatch* (inravina:copy-pprint-dispatch *client* nil))
 
@@ -96,4 +99,4 @@
   (defmacro pprint-pop ()
     "Pops one element from the list being printed in the lexically current logical
    block, obeying *print-length* and *print-circle*."
-    (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK.")))
+    (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))))
