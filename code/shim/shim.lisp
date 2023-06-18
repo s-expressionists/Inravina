@@ -19,5 +19,5 @@
 #+sbcl
 (setf sb-pretty::*standard-pprint-dispatch-table* inravina-intrinsic:*standard-pprint-dispatch*)
 
-#+sbcl
+#+cmucl
 (setf pp::*initial-pprint-dispatch* inravina-intrinsic:*standard-pprint-dispatch*)
