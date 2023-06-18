@@ -19,6 +19,7 @@
            #:*print-pprint-dispatch*
            #:coerce-output-stream-designator
            #:copy-pprint-dispatch
+           #:define-interface
            #:expand-logical-block
            #:get-named-style
            #:make-dispatch-function

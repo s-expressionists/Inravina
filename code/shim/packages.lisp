@@ -1,3 +1,5 @@
 (defpackage #:inravina-shim
   (:use #:common-lisp)
-  (:export))
+  (:export #:*client*
+           #:*standard-pprint-dispatch*
+           #:shim-client))

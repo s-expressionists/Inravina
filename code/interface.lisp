@@ -184,3 +184,90 @@
               (funcall ,body-fun))))))
 
 (defgeneric make-dispatch-function (client pattern function rest))
+
+(defmacro define-interface (client-class &optional intrinsic)
+  (let* ((client-var (intern "*CLIENT*"))
+         (intrinsic-pkg (if intrinsic (find-package "COMMON-LISP") *package*))
+         (initial-pprint-dispatch-var (intern "*INITIAL-PPRINT-DISPATCH*"))
+         (standard-pprint-dispatch-var (intern "*STANDARD-PPRINT-DISPATCH*"))
+         (print-pprint-dispatch-var (intern "*PRINT-PPRINT-DISPATCH*" intrinsic-pkg))
+         (pprint-pop-func (intern "PPRINT-POP" intrinsic-pkg))
+         (pprint-exit-if-list-exhausted-func (intern "PPRINT-EXIT-IF-LIST-EXHAUSTED" intrinsic-pkg)))
+    `(progn
+       (defparameter ,client-var (make-instance ',client-class))
+       (defmethod inravina:make-dispatch-function
+           ((client ,client-class) (pattern (eql :client-stream-object)) function rest)
+         (lambda (stream object)
+           (apply function ,client-var (inravina:make-pretty-stream ,client-var stream) object rest)))
+       (defmethod inravina:make-dispatch-function
+           ((client ,client-class) (pattern (eql :client-object-stream)) function rest)
+         (lambda (stream object)
+           (apply function ,client-var object (inravina:make-pretty-stream ,client-var stream) rest)))
+       (defmethod inravina:make-dispatch-function
+           ((client ,client-class) (pattern (eql :stream-object)) function rest)
+         (lambda (stream object)
+           (apply function (inravina:make-pretty-stream ,client-var stream) object rest)))
+       (defmethod inravina:make-dispatch-function
+           ((client ,client-class) (pattern (eql :object-stream)) function rest)
+         (lambda (stream object)
+           (apply function object (inravina:make-pretty-stream ,client-var stream) rest)))
+       (defparameter ,initial-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t))
+       (defparameter ,standard-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t))
+       (defparameter ,print-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil))
+       (defun ,(intern "COPY-PPRINT-DISPATCH" intrinsic-pkg) (&optional (table ,print-pprint-dispatch-var))
+         (check-type table (or null inravina::dispatch-table))
+         (inravina:copy-pprint-dispatch ,client-var table))
+       (defun ,(intern "SET-PPRINT-DISPATCH" intrinsic-pkg)
+           (type-specifier function &optional (priority 0) (table ,print-pprint-dispatch-var))
+         (check-type priority real)
+         (check-type table inravina::dispatch-table)
+         (inravina:set-pprint-dispatch ,client-var table type-specifier function priority))
+       (defun ,(intern "PPRINT-FILL" intrinsic-pkg) (stream object &optional (colon-p t) at-sign-p)
+         (inravina:pprint-fill ,client-var (inravina:coerce-output-stream-designator stream)
+                               object colon-p at-sign-p)
+         nil)
+       (defun ,(intern "PPRINT-LINEAR" intrinsic-pkg) (stream object &optional (colon-p t) at-sign-p)
+         (inravina:pprint-linear ,client-var (inravina:coerce-output-stream-designator stream)
+                                 object colon-p at-sign-p)
+         nil)
+       (defun ,(intern "PPRINT-TABULAR" intrinsic-pkg) (stream object &optional (colon-p t) at-sign-p (tabsize 16))
+         (inravina:pprint-tabular ,client-var (inravina:coerce-output-stream-designator stream)
+                                  object colon-p at-sign-p tabsize)
+         nil)
+       (defun ,(intern "PPRINT-INDENT" intrinsic-pkg) (relative-to n &optional stream)
+         (check-type relative-to (member :block :current))
+         (inravina:pprint-indent ,client-var (inravina:coerce-output-stream-designator stream)
+                                 relative-to n)
+         nil)
+       (defun ,(intern "PPRINT-NEWLINE" intrinsic-pkg) (kind &optional stream)
+         (check-type kind (member :linear :fill :miser :mandatory))
+         (inravina:pprint-newline ,client-var (inravina:coerce-output-stream-designator stream)
+                                  kind)
+         nil)
+       (defun ,(intern "PPRINT-TAB" intrinsic-pkg) (kind colnum colinc &optional stream)
+         (check-type kind (member :line :section :line-relative :section-relative))
+         (inravina:pprint-tab ,client-var (inravina:coerce-output-stream-designator stream)
+                              kind colnum colinc)
+         nil)
+       (defun ,(intern "PPRINT-DISPATCH" intrinsic-pkg) (object &optional (table ,print-pprint-dispatch-var))
+         (check-type table (or null inravina::dispatch-table))
+         (inravina:pprint-dispatch ,client-var (or table ,initial-pprint-dispatch-var) object))
+       (defmacro ,(intern "PPRINT-LOGICAL-BLOCK" intrinsic-pkg) ((stream-symbol object
+                                        &key (prefix "" prefix-p)
+                                          (per-line-prefix "" per-line-prefix-p)
+                                          (suffix "" suffix-p))
+                                       &body body)
+         (inravina:expand-logical-block ',client-var stream-symbol object
+                                        prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
+                                        ',pprint-exit-if-list-exhausted-func ',pprint-pop-func
+                                        body))
+       (defmacro ,pprint-exit-if-list-exhausted-func ()
+         "Tests whether or not the list passed to the lexically current logical block has
+ been exhausted. If this list has been reduced to nil, pprint-exit-if-list-exhausted
+ terminates the execution of the lexically current logical block except for the
+ printing of the suffix. Otherwise pprint-exit-if-list-exhausted returns nil."
+         (error "PPRINT-EXIT-IF-LIST-EXHAUSTED must be lexically inside PPRINT-LOGICAL-BLOCK."))
+       (defmacro ,pprint-pop-func ()
+         "Pops one element from the list being printed in the lexically current logical
+ block, obeying *print-length* and *print-circle*."
+         (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK.")))))
