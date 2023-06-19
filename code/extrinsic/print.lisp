@@ -3,7 +3,7 @@
 (defclass extrinsic-client (incless-extrinsic:extrinsic-client)
   ())
 
-(inravina:define-interface extrinsic-client)
+(inravina:define-interface (extrinsic-client))
 
 (setf incless-extrinsic:*client* *client*)
 

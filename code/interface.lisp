@@ -185,14 +185,15 @@
 
 (defgeneric make-dispatch-function (client pattern function rest))
 
-(defmacro define-interface (client-class &optional intrinsic)
+(defmacro define-interface ((client-class &optional intrinsic) &body body)
   (let* ((client-var (intern "*CLIENT*"))
          (intrinsic-pkg (if intrinsic (find-package "COMMON-LISP") *package*))
          (initial-pprint-dispatch-var (intern "*INITIAL-PPRINT-DISPATCH*"))
          (standard-pprint-dispatch-var (intern "*STANDARD-PPRINT-DISPATCH*"))
          (print-pprint-dispatch-var (intern "*PRINT-PPRINT-DISPATCH*" intrinsic-pkg))
          (pprint-pop-func (intern "PPRINT-POP" intrinsic-pkg))
-         (pprint-exit-if-list-exhausted-func (intern "PPRINT-EXIT-IF-LIST-EXHAUSTED" intrinsic-pkg)))
+         (pprint-exit-if-list-exhausted-func (intern "PPRINT-EXIT-IF-LIST-EXHAUSTED" intrinsic-pkg))
+         (initialize-func (intern "INITIALIZE")))
     `(progn
        (defparameter ,client-var (make-instance ',client-class))
        (defmethod inravina:make-dispatch-function
@@ -211,9 +212,9 @@
            ((client ,client-class) (pattern (eql :object-stream)) function rest)
          (lambda (stream object)
            (apply function object (inravina:make-pretty-stream ,client-var stream) rest)))
-       (defparameter ,initial-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t))
-       (defparameter ,standard-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t))
-       (defparameter ,print-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil))
+       (defvar ,initial-pprint-dispatch-var)
+       (defvar ,standard-pprint-dispatch-var)
+       (defvar ,print-pprint-dispatch-var)
        (defun ,(intern "COPY-PPRINT-DISPATCH" intrinsic-pkg) (&optional (table ,print-pprint-dispatch-var))
          (check-type table (or null inravina::dispatch-table))
          (inravina:copy-pprint-dispatch ,client-var table))
@@ -270,4 +271,11 @@
        (defmacro ,pprint-pop-func ()
          "Pops one element from the list being printed in the lexically current logical
  block, obeying *print-length* and *print-circle*."
-         (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK.")))))
+         (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
+       (defun ,initialize-func ()
+         (find-unquote-symbols)
+         (setf ,initial-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t)
+               ,standard-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t)
+               ,print-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil))
+         ,@body)
+       (,initialize-func))))

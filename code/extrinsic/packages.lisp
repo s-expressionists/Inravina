@@ -2,6 +2,7 @@
   (:use #:common-lisp)
   (:shadow #:*print-pprint-dispatch*
            #:copy-pprint-dispatch
+           #:initialize
            #:pprint-dispatch
            #:pprint-exit-if-list-exhausted
            #:pprint-fill

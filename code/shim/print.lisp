@@ -4,21 +4,22 @@
   ())
 
 (trivial-package-locks:with-unlocked-packages (:common-lisp)
+  #+sbcl
   (handler-bind ((warning (lambda (condition)
-                                   (muffle-warning condition))))
-           #+sbcl (declaim (type inravina::dispatch-table *print-pprint-dispatch*))
-  (inravina:define-interface shim-client t)))
-
-;;; The following hacks are all to make WITH-STANDARD-IO-SYNTAX work.
-
-#+(or clasp ecl)
-(setf (first (cdr si::+io-syntax-progv-list+)) *standard-pprint-dispatch*)
-
-#+ecl
-(setf (first (cdr si::+ecl-syntax-progv-list+)) *standard-pprint-dispatch*)
-
-#+ccl
-(setf ccl::*standard-pprint-dispatch-table* *standard-pprint-dispatch*)
+                            (muffle-warning condition))))
+    (declaim (type inravina::dispatch-table *print-pprint-dispatch*)))
+  (inravina:define-interface (shim-client t)
+    ;;; The following hacks are all to make WITH-STANDARD-IO-SYNTAX work.
+    #+(or clasp ecl)
+    (setf (first (cdr si::+io-syntax-progv-list+)) *standard-pprint-dispatch*)
+    #+ecl
+    (setf (first (cdr si::+ecl-syntax-progv-list+)) *standard-pprint-dispatch*)
+    #+ccl
+    (setf ccl::*standard-pprint-dispatch-table* *standard-pprint-dispatch*)
+    #+sbcl
+    (setf sb-pretty::*standard-pprint-dispatch-table* *standard-pprint-dispatch*)
+    #+cmucl
+    (setf pp::*initial-pprint-dispatch* *standard-pprint-dispatch*)))
 
 #+sbcl
 (trivial-package-locks:with-unlocked-packages (:sb-impl)
@@ -49,11 +50,6 @@
         (*suppress-print-errors* nil)
         (*print-vector-length* nil))
     (funcall function))))
-
-#+(or)(setf sb-pretty::*standard-pprint-dispatch-table* *standard-pprint-dispatch*)
-
-#+cmucl
-(setf pp::*initial-pprint-dispatch* *standard-pprint-dispatch*)
 
 #+abcl
 (trivial-package-locks:with-unlocked-packages (:system)

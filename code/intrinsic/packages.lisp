@@ -2,5 +2,6 @@
   (:use #:common-lisp)
   (:export #:*client*
            #:*standard-pprint-dispatch*
+           #:initialize
            #:intrinsic-client))
 
