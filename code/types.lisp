@@ -62,9 +62,8 @@
 (find-unquote-symbols)
 
 (defun unquote-form-p (form)
-  (and (listp form)
-       (cdr form)
-       (listp (cdr form))
+  (and (consp form)
+       (consp (cdr form))
        (null (cddr form))
-       (member (first form) +unquote-symbols+)
+       (member (car form) +unquote-symbols+)
        t))
