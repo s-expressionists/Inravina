@@ -102,6 +102,10 @@
   (when (and prefix-p per-line-prefix-p)
     (error 'program-error))
   `(unwind-protect
-       (progn (pprint-start-logical-block ,client ,stream ,prefix ,per-line-prefix)
+       (progn (pprint-start-logical-block ,client ,stream
+                                          ,(cond (prefix-p prefix)
+                                                 (per-line-prefix-p per-line-prefix)
+                                                 (t ""))
+                                          ,per-line-prefix-p)
               ,@body)
      (pprint-end-logical-block ,client ,stream ,suffix)))
