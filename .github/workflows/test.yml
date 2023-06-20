@@ -24,7 +24,10 @@ jobs:
     steps:
     - name: Setup environment
       run: |
-        echo -e "(load \"/root/quicklisp/setup.lisp\")" > ~/.clasprc
+        for RC in ~/.abclrc ~/ccl-init.lisp ~/.clasprc ~/.clisprc ~/.cmucl-init.lisp ~/.eclrc ~/.sbclrc
+        do
+          echo -e "(load \"/root/quicklisp/setup.lisp\")" > $RC
+        done
     - name: Checkout trivial-stream-column
       uses: actions/checkout@v3
       with:
