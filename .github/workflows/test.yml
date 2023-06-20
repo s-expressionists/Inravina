@@ -34,6 +34,7 @@ jobs:
         path: inravina
     - name: Setup ASDF registry
       run: |
+        mkdir -p ~/.config/common-lisp/source-registry.conf.d
         asdf-add
     - name: Run Shim Tests (clasp)
       run: |
