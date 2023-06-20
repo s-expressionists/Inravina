@@ -383,7 +383,7 @@
             "Tried to modify a read-only pprint dispatch table: ~A"
             table)))
 
-(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function (eql nil)) &optional priority pattern arguments)
+(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function null) &optional priority pattern arguments)
   (declare (ignore client priority pattern arguments))
   (check-table-read-only table)
   (setf (dispatch-table-entries table) (delete type-specifier (dispatch-table-entries table)
@@ -405,7 +405,9 @@
   (set-pprint-dispatch client table type-specifier nil)
   (let ((entry (make-instance 'dispatch-entry
                               :type-specifier type-specifier
-                              :function function
+                              :function (if (symbolp function)
+                                            (fdefinition function)
+                                            function)
                               :test-function (make-test-function type-specifier)
                               :dispatch-function (make-dispatch-function client (or pattern :stream-object) function arguments)
                               :priority (or priority 0)
