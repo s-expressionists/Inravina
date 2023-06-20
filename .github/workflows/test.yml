@@ -44,8 +44,8 @@ jobs:
         path: inravina
     - name: Setup ASDF registry
       run: |
-        ls
         asdf-add
+        sbcl --non-interactive --eval "(ql:quickload :inravina)"
     - name: Run Shim Tests (clasp)
       run: |
         clasp --eval "(asdf:test-system :inravina-shim)"
