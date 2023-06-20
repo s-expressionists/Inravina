@@ -17,17 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/yitzchak/archlinux-cl:latest
-      env:
-        XDG_CONFIG_HOME: /root/.config
-        XDG_DATA_HOME: /root/.local/share
-        XDG_CACHE_HOME: /root/.cache
     steps:
     - name: Setup environment
       run: |
-        for RC in ~/.abclrc ~/ccl-init.lisp ~/.clasprc ~/.clisprc ~/.cmucl-init.lisp ~/.eclrc ~/.sbclrc
-        do
-          echo -e "(load \"/root/quicklisp/setup.lisp\")" > $RC
-        done
+        make-rc
     - name: Checkout trivial-stream-column
       uses: actions/checkout@v3
       with:
@@ -45,7 +38,7 @@ jobs:
     - name: Setup ASDF registry
       run: |
         asdf-add
-        sbcl --non-interactive --eval "(ql:quickload :inravina)"
+        sbcl --non-interactive --eval "(ql:quickload :inravina-shim)"
     - name: Run Shim Tests (clasp)
       run: |
         clasp --eval "(asdf:test-system :inravina-shim)"
