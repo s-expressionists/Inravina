@@ -18,29 +18,27 @@ jobs:
     container:
       image: ghcr.io/yitzchak/archlinux-cl:latest
     steps:
-    - name: Set permissions
+    - name: Setup environment
       run: |
-        sudo chown -R build: .
-        sudo chown -R build: /github/home
+        make-rc
     - name: Checkout trivial-stream-column
       uses: actions/checkout@v3
       with:
         repository: yitzchak/trivial-stream-column
-    - name: Setup trivial-stream-column
-      run: |
-        asdf-add
+        path: trivial-stream-column
     - name: Checkout Incless
       uses: actions/checkout@v3
       with:
         repository: s-expressionists/Incless
-    - name: Setup Incless
-      run: |
-        asdf-add
+        path: incless
     - name: Checkout Inravina
       uses: actions/checkout@v3
-    - name: Setup Inravina
+      with:
+        path: inravina
+    - name: Setup ASDF registry
       run: |
         asdf-add
+        clasp --non-interactive --eval "(ql:quickload :inravina-shim)"
     - name: Run Shim Tests (clasp)
       run: |
         clasp --eval "(asdf:test-system :inravina-shim)"
