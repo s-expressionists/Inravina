@@ -37,8 +37,13 @@
 (defvar +ansi-test-repository+ "https://gitlab.common-lisp.net/ansi-test/ansi-test.git")
 
 (defun test (&rest args &key skip-sync &allow-other-keys)
-  (let ((*default-pathname-defaults* (merge-pathnames (make-pathname :directory '(:relative "dependencies" "ansi-test"))
-                                                      (asdf:component-pathname (asdf:find-system :inravina-shim/test)))))
+  (let* ((system (asdf:find-system :inravina-shim/test))
+         (expected-failures (asdf:component-pathname (asdf:find-component system '("code"
+                                                                                   #+clasp "expected-failures-clasp.sexp"
+                                                                                   #+cmucl "expected-failures-cmucl.sexp"
+                                                                                   #-(or clasp cmucl) "expected-failures.sexp"))))
+         (*default-pathname-defaults* (merge-pathnames (make-pathname :directory '(:relative "dependencies" "ansi-test"))
+                                                       (asdf:component-pathname system))))
     (if skip-sync
         (check-repo :directory *default-pathname-defaults* :repository +ansi-test-repository+)
         (apply #'sync-repo :directory *default-pathname-defaults* :repository +ansi-test-repository+ args))
@@ -49,4 +54,4 @@
       (unless (or (alexandria:starts-with-subseq "PPRINT." (symbol-name name))
                   (alexandria:starts-with-subseq "PPRINT-" (symbol-name name)))
         (uiop:symbol-call :regression-test :rem-test name)))
-    (uiop:symbol-call :regression-test :do-tests :exit t)))
+    (uiop:symbol-call :regression-test :do-tests :exit t :expected-failures expected-failures)))
