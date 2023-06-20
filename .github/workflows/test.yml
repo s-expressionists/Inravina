@@ -17,6 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/yitzchak/archlinux-cl:latest
+      env:
+        XDG_CONFIG_HOME: /root/.config
+        XDG_DATA_HOME: /root/.local/share
+        XDG_CACHE_HOME: /root/.cache
     steps:
     - name: Setup environment
       run: |
@@ -37,7 +41,7 @@ jobs:
         path: inravina
     - name: Setup ASDF registry
       run: |
-        mkdir -p ~/.config/common-lisp/source-registry.conf.d
+        ls
         asdf-add
     - name: Run Shim Tests (clasp)
       run: |
