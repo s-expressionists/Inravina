@@ -20,7 +20,7 @@ jobs:
     steps:
     - name: Setup environment
       run: |
-        echo -e "HOME=/root" >> $GITHUB_ENV
+        echo -e "(load \"/root/quicklisp/setup.lisp\")" > ~/.clasprc
     - name: Checkout trivial-stream-column
       uses: actions/checkout@v3
       with:
