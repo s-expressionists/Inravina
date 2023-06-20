@@ -34,7 +34,7 @@ jobs:
         path: inravina
     - name: Setup ASDF registry
       run: |
-        asdf-add
+        ~/.local/bin/asdf-add
     - name: Run Shim Tests (clasp)
       run: |
         clasp --eval "(asdf:test-system :inravina-shim)"
