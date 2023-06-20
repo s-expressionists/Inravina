@@ -38,7 +38,7 @@ jobs:
     - name: Setup ASDF registry
       run: |
         asdf-add
-        sbcl --non-interactive --eval "(ql:quickload :inravina-shim)"
+        clasp --non-interactive --eval "(ql:quickload :inravina-shim)"
     - name: Run Shim Tests (clasp)
       run: |
         clasp --eval "(asdf:test-system :inravina-shim)"
