@@ -1,0 +1,43 @@
+name: test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/yitzchak/archlinux-cl:latest
+    steps:
+    - name: Checkout trivial-stream-column
+      uses: actions/checkout@v3
+      with:
+        repository: yitzchak/trivial-stream-column
+    - name: Setup trivial-stream-column
+      run: |
+        asdf-add
+    - name: Checkout Incless
+      uses: actions/checkout@v3
+      with:
+        repository: s-expressionists/Incless
+    - name: Setup Incless
+      run: |
+        asdf-add
+    - name: Checkout Inravina
+      uses: actions/checkout@v3
+    - name: Setup Inravina
+      run: |
+        asdf-add
+    - name: Run Shim Tests (clasp)
+      run: |
+        clasp --eval "(asdf:test-system :inravina-shim)"
+
