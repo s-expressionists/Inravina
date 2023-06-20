@@ -18,6 +18,10 @@ jobs:
     container:
       image: ghcr.io/yitzchak/archlinux-cl:latest
     steps:
+    - name: Set permissions
+      run: |
+        sudo chown -R build: .
+        sudo chown -R build: /github/home
     - name: Checkout trivial-stream-column
       uses: actions/checkout@v3
       with:
