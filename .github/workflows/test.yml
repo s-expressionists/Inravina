@@ -22,6 +22,7 @@ jobs:
       run: |
         sudo chown -R build: .
         sudo chown -R build: /__w
+        sudo chown -R build: /home/runner
     - name: Checkout trivial-stream-column
       uses: actions/checkout@v3
       with:
