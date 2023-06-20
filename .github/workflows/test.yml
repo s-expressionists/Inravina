@@ -21,7 +21,7 @@ jobs:
     - name: Setup environment
       run: |
         echo -e "HOME=/root" >> $GITHUB_ENV
-   - name: Checkout trivial-stream-column
+    - name: Checkout trivial-stream-column
       uses: actions/checkout@v3
       with:
         repository: yitzchak/trivial-stream-column
