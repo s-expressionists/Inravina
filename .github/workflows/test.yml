@@ -42,8 +42,7 @@ jobs:
     - name: Setup ASDF registry
       run: |
         asdf-add
-        clasp --non-interactive --eval "(ql:quickload :inravina-shim)"
     - name: Run Shim Tests
       run: |
-        lisp -i ${{ matrix.lisp }} -e "(asdf:test-system :inravina-shim)"
+        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-shim)" -e "(asdf:test-system :inravina-shim)"
 
