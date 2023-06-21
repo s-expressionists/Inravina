@@ -13,6 +13,10 @@ jobs:
       run:
         shell: bash -l {0}
     strategy:
+      matrix:
+        lisp:
+        - clasp
+        - cmucl
       fail-fast: false
     runs-on: ubuntu-latest
     container:
@@ -39,7 +43,7 @@ jobs:
       run: |
         asdf-add
         clasp --non-interactive --eval "(ql:quickload :inravina-shim)"
-    - name: Run Shim Tests (clasp)
+    - name: Run Shim Tests
       run: |
-        clasp --eval "(asdf:test-system :inravina-shim)"
+        lisp -i ${{ matrix.lisp }} -e "(asdf:test-system :inravina-shim)"
 
