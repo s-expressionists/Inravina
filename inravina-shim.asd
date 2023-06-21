@@ -26,7 +26,10 @@
                 :pathname "code/shim/test/"
                 :serial t
                 :components ((:file "packages")
-                             (:file "test")
-                             (:static-file "expected-failures.sexp")
-                             (:static-file "expected-failures-clasp.sexp")
-                             (:static-file "expected-failures-cmucl.sexp")))))
+                             (:file "test")))
+               (:module "expected-failures"
+                :pathname "code/shim/test/expected-failures"
+                :components ((:static-file "default.sexp")
+                             (:static-file "clasp.sexp")
+                             (:static-file "cmucl.sexp")
+                             (:static-file "ecl.sexp")))))
