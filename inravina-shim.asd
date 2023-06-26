@@ -30,6 +30,7 @@
                (:module "expected-failures"
                 :pathname "code/shim/test/expected-failures"
                 :components ((:static-file "default.sexp")
+                             (:static-file "abcl.sexp")
                              (:static-file "clasp.sexp")
                              (:static-file "cmucl.sexp")
                              (:static-file "ecl.sexp")))))
