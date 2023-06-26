@@ -5,6 +5,8 @@
 
 (inravina:define-interface (extrinsic-client))
 
+(initialize)
+
 (setf incless-extrinsic:*client* *client*)
 
 (defmethod incless:write-object ((client extrinsic-client) object stream)
