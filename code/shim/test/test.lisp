@@ -39,10 +39,12 @@
 (defun test (&rest args &key skip-sync &allow-other-keys)
   (let* ((system (asdf:find-system :inravina-shim/test))
          (expected-failures (asdf:component-pathname (asdf:find-component system '("expected-failures"
+                                                                                   #+abcl "abcl.sexp"
                                                                                    #+clasp "clasp.sexp"
                                                                                    #+cmucl "cmucl.sexp"
                                                                                    #+ecl "ecl.sexp"
-                                                                                   #-(or clasp cmucl ecl) "default.sexp"))))
+                                                                                   #-(or abcl clasp cmucl ecl)
+                                                                                   "default.sexp"))))
          (*default-pathname-defaults* (merge-pathnames (make-pathname :directory '(:relative "dependencies" "ansi-test"))
                                                        (asdf:component-pathname system))))
     (if skip-sync
