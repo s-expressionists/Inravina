@@ -699,6 +699,9 @@
       (call-next-method)
       stream))
 
+(defmethod make-pretty-stream (client (stream two-way-stream))
+  (make-pretty-stream client (two-way-stream-output-stream stream)))
+
 (defmethod make-pretty-stream (client (stream pretty-stream))
   (declare (ignore client))
   stream)
