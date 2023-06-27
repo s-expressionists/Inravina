@@ -32,12 +32,7 @@
 
 (defgeneric copy-pprint-dispatch (client table &optional read-only))
 
-(defgeneric pprint-dispatch (client table object)
-  (:method (client table object)
-    (declare (ignore client table object))
-    (values (lambda (stream object)
-              (print-object object stream))
-            nil)))
+(defgeneric pprint-dispatch (client table object))
 
 (defgeneric set-pprint-dispatch (client table type-specifier function &optional priority pattern arguments))
 
@@ -212,13 +207,13 @@
            ((client ,client-class) (pattern (eql :object-stream)) function rest)
          (lambda (stream object)
            (apply function object (inravina:make-pretty-stream ,client-var stream) rest)))
-       (defvar ,initial-pprint-dispatch-var)
-       (defvar ,standard-pprint-dispatch-var)
+       (defvar ,initial-pprint-dispatch-var nil)
+       (defvar ,standard-pprint-dispatch-var nil)
        (defvar ,print-pprint-dispatch-var)
        (defun ,(intern "COPY-PPRINT-DISPATCH" intrinsic-pkg) (&optional (table ,print-pprint-dispatch-var))
          #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
          (check-type table (or null inravina::dispatch-table))
-         (inravina:copy-pprint-dispatch ,client-var table))
+         (inravina:copy-pprint-dispatch ,client-var (or table ,initial-pprint-dispatch-var)))
        (defun ,(intern "SET-PPRINT-DISPATCH" intrinsic-pkg)
            (type-specifier function &optional (priority 0) (table ,print-pprint-dispatch-var))
          #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
@@ -276,7 +271,7 @@
          "Pops one element from the list being printed in the lexically current logical
  block, obeying *print-length* and *print-circle*."
          (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
-       (defun ,initialize-func ()
+       (defun ,initialize-func (&aux *print-pretty*)
          (find-unquote-symbols)
          (setf ,initial-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t)
                ,standard-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t)

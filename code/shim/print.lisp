@@ -21,9 +21,9 @@
     #+ccl
     (setf ccl::*standard-pprint-dispatch-table* *standard-pprint-dispatch*)
     #+sbcl
-    (setf sb-pretty::*standard-pprint-dispatch-table* *standard-pprint-dispatch*)
+    (setf sb-pretty::*standard-pprint-dispatch-table* nil)
     #+cmucl
-    (setf ;pretty-print::*initial-pprint-dispatch* *standard-pprint-dispatch*
+    (setf pretty-print::*initial-pprint-dispatch* nil
           kernel:*pretty-printer* (lambda (object stream)
                                     (multiple-value-bind (func presentp)
                                         (and (typep *print-pprint-dispatch* 'inravina::dispatch-table)

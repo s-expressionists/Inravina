@@ -6,9 +6,9 @@
    (test-function :accessor dispatch-entry-test-function
                   :initarg :test-function
                   :type function)
-   (function :accessor dispatch-entry-function
-             :initarg :function
-             :type function)
+   (function-designator :accessor dispatch-entry-function-designator
+              :initarg :function-designator
+              :type (or (and symbol (not null)) function))
    (pattern :accessor dispatch-entry-pattern
             :initarg :pattern
             :type (member :client-stream-object :client-object-stream :stream-object :object-stream))
@@ -16,8 +16,8 @@
               :initarg :arguments
               :type list)
    (dispatch-function :accessor dispatch-entry-dispatch-function
-                     :initarg :dispatch-function
-                     :type function)
+                      :initarg :dispatch-function
+                      :type function)
    (priority :accessor dispatch-entry-priority
              :initarg :priority
              :initform 0
@@ -353,6 +353,10 @@
         while presentp
         do (set-pprint-dispatch client new-table type-specifier function priority pattern arguments)))
 
+(defmethod pprint-dispatch (client table object)
+  (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
+          nil))
+
 (defmethod pprint-dispatch (client (table dispatch-table) object)
   (when (or (not (arrayp object))
             (and (arrayp object)
@@ -405,9 +409,7 @@
   (set-pprint-dispatch client table type-specifier nil)
   (let ((entry (make-instance 'dispatch-entry
                               :type-specifier type-specifier
-                              :function (if (symbolp function)
-                                            (fdefinition function)
-                                            function)
+                              :function-designator function
                               :test-function (make-test-function type-specifier)
                               :dispatch-function (make-dispatch-function client (or pattern :stream-object) function arguments)
                               :priority (or priority 0)
@@ -433,7 +435,7 @@
           (let ((entry (pop entries)))
             (values t
                     (dispatch-entry-type-specifier entry)
-                    (dispatch-entry-function entry)
+                    (dispatch-entry-function-designator entry)
                     (dispatch-entry-priority entry)
                     (dispatch-entry-pattern entry)
                     (dispatch-entry-arguments entry)))
