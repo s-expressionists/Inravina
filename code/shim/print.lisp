@@ -74,4 +74,22 @@
   (defun sb-pretty:output-pretty-object (stream fun object)
     (funcall fun stream object)))
 
+(defmethod ccl::write-internal-1 (stream object level list-kludge)
+  (declare (type fixnum level)
+           (type (or null fixnum) list-kludge))
+  (multiple-value-bind (func presentp)
+      (and *print-pretty*
+           (pprint-dispatch object))
+    (cond (presentp
+           (funcall func stream object))
+          ((not list-kludge)
+           (ccl::write-a-frob object stream level list-kludge))
+          ((null object))
+          (t
+           (write-char #\space stream)
+           (when (not (consp object))
+             (write-char #\. stream)
+             (write-char #\space stream))
+           (ccl::write-a-frob object stream level list-kludge)))))
+
 (initialize)
