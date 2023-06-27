@@ -74,6 +74,7 @@
   (defun sb-pretty:output-pretty-object (stream fun object)
     (funcall fun stream object)))
 
+#+ccl
 (defmethod ccl::write-internal-1 (stream object level list-kludge)
   (declare (type fixnum level)
            (type (or null fixnum) list-kludge))
