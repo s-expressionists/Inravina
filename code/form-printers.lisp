@@ -12,8 +12,9 @@
   #+lispworks
     (lispworks:function-lambda-list sym)
   #-(or ccl clisp clasp ecl lispworks sbcl)
-    (second (function-lambda-expression (or (macro-function sym)
-                                            (fdefinition sym)))))
+    (unless (special-operator-p sym)
+      (second (function-lambda-expression (or (macro-function sym)
+                                              (fdefinition sym))))))
 
 (defun parse-lambda-list (lambda-list)
   (loop with required = t
