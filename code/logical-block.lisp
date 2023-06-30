@@ -13,7 +13,7 @@
         ((and *print-circle*
               object
               (plusp count)
-              (incless:circle-check client object))
+              (incless:circle-check client object stream))
          (write-string ". " stream)
          (incless:write-object client object stream)
          nil)
