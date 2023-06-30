@@ -1,7 +1,7 @@
 (in-package #:inravina)
 
 (defclass instruction ()
-  ((parent :reader parent
+  ((parent :accessor parent
            :initarg :parent
            :type (or null block-start))
    (next :accessor next
@@ -31,7 +31,7 @@
           :initform nil)))
 
 (defclass section-start (instruction)
-  ((depth :reader depth
+  ((depth :accessor depth
           :initarg :depth
           :initform 0
           :type integer)
@@ -627,28 +627,17 @@
       (setf (head stream) instruction))
   (setf (tail stream) instruction))
 
-(defmethod pprint-newline (client (stream pretty-stream) kind)
-  (declare (ignore client))
+(declaim (inline do-pprint-newline))
+
+(defun do-pprint-newline (stream newline)
   (with-accessors ((sections sections))
                   stream
-    (let* ((parent (car (blocks stream)))
-           (depth (length (blocks stream)))
-           (newline (make-instance (ecase kind
-                                     (:fresh 'fresh-newline)
-                                     (:fresh-literal 'fresh-literal-newline)
-                                     (:mandatory 'mandatory-newline)
-                                     (:mandatory-literal 'mandatory-literal-newline)
-                                     (:miser 'miser-newline)
-                                     (:miser-literal 'miser-literal-newline)
-                                     (:linear 'linear-newline)
-                                     (:linear-literal 'linear-literal-newline)
-                                     (:fill 'fill-newline)
-                                     (:fill-literal 'fill-literal-newline))
-                                   :depth depth
-                                   :style (trivial-stream-column:stream-style stream)
-                                   :parent parent)))
-      (setf sections
-            (delete-if (lambda (s)
+    (let ((parent (car (blocks stream)))
+          (depth (length (blocks stream))))
+      (setf (style newline) (trivial-stream-column:stream-style stream)
+            (parent newline) parent
+            (depth newline) depth
+            sections (delete-if (lambda (s)
                          (when (or (eq (parent s) parent)
                                    (eq s parent)
                                    (and (typep s 'newline)
@@ -659,6 +648,46 @@
             (section newline) (car (sections stream)))
       (push newline sections)
       (push-instruction newline stream))))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fresh)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'fresh-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fresh-literal)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'fresh-literal-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :mandatory)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'mandatory-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :mandatory-literal)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'mandatory-literal-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'miser-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser-literal)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'miser-literal-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'linear-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear-literal)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'linear-literal-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fill)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'fill-newline)))
+
+(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fill-literal)))
+  (declare (ignore client))
+  (do-pprint-newline stream (make-instance 'fill-literal-newline)))
 
 (defmethod pprint-tab (client (stream pretty-stream) (kind (eql :line)) colnum colinc)
   (declare (ignore client))
