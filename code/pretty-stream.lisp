@@ -660,24 +660,54 @@
       (push newline sections)
       (push-instruction newline stream))))
 
-(defmethod pprint-tab (client (stream pretty-stream) kind colnum colinc)
+(defmethod pprint-tab (client (stream pretty-stream) (kind (eql :line)) colnum colinc)
   (declare (ignore client))
-  (push-instruction (make-instance (ecase kind
-                                     (:line 'line-tab)
-                                     (:line-relative 'line-relative-tab)
-                                     (:section 'section-tab)
-                                     (:section-relative 'section-relative-tab))
+  (push-instruction (make-instance 'line-tab
                                    :colnum colnum :colinc colinc
                                    :style (trivial-stream-column:stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
 
-(defmethod pprint-indent (client (stream pretty-stream) relative-to n)
+(defmethod pprint-tab (client (stream pretty-stream) (kind (eql :line-relative)) colnum colinc)
   (declare (ignore client))
-  (push-instruction (make-instance (ecase relative-to
-                                     (:block 'block-indent)
-                                     (:current 'current-indent))                                          
+  (push-instruction (make-instance 'line-relative-tab
+                                   :colnum colnum :colinc colinc
+                                   :style (trivial-stream-column:stream-style stream)
+                                   :section (car (sections stream))
+                                   :parent (car (blocks stream)))
+                    stream))
+
+(defmethod pprint-tab (client (stream pretty-stream) (kind (eql :section)) colnum colinc)
+  (declare (ignore client))
+  (push-instruction (make-instance 'section-tab
+                                   :colnum colnum :colinc colinc
+                                   :style (trivial-stream-column:stream-style stream)
+                                   :section (car (sections stream))
+                                   :parent (car (blocks stream)))
+                    stream))
+
+(defmethod pprint-tab (client (stream pretty-stream) (kind (eql :section-relative)) colnum colinc)
+  (declare (ignore client))
+  (push-instruction (make-instance 'section-relative-tab
+                                   :colnum colnum :colinc colinc
+                                   :style (trivial-stream-column:stream-style stream)
+                                   :section (car (sections stream))
+                                   :parent (car (blocks stream)))
+                    stream))
+
+(defmethod pprint-indent (client (stream pretty-stream) (relative-to (eql :block)) n)
+  (declare (ignore client))
+  (push-instruction (make-instance 'block-indent
+                                   :width n
+                                   :style (trivial-stream-column:stream-style stream)
+                                   :section (car (sections stream))
+                                   :parent (car (blocks stream)))
+                    stream))
+
+(defmethod pprint-indent (client (stream pretty-stream) (relative-to (eql :current)) n)
+  (declare (ignore client))
+  (push-instruction (make-instance 'current-indent
                                    :width n
                                    :style (trivial-stream-column:stream-style stream)
                                    :section (car (sections stream))
