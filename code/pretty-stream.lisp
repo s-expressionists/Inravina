@@ -38,7 +38,11 @@
    (section-end :accessor section-end
                 :initarg :section-end
                 :initform nil
-                :type (or null newline block-end))))
+                :type (or null newline block-end))
+   (simplep :accessor simplep
+            :initarg :simplep
+            :initform nil
+            :type boolean)))
 
 (defclass text (instruction)
   ((value :accessor value
@@ -75,7 +79,10 @@
     (prin1 (width obj) stream)))
 
 (defclass newline (section-start)
-  ())
+  ((break-before-p :accessor break-before-p
+                   :initarg :break-before-P
+                   :initform nil
+                   :type boolean)))
 
 (defclass fresh-newline (newline)
   ())
@@ -248,7 +255,7 @@
                    finally (terpri stream)
                    if (eq sub instruction)
                      do (write-char #\[ stream)
-                        (setf ch #\-)
+                        (setf ch (if (simplep instruction) #\- #\=))
                    else if (eq sub (section-end instruction))
                      do (write-char #\] stream)
                         (setf ch #\Space)
@@ -331,6 +338,10 @@
                 instruction (next instruction)))
          (otherwise
           (cond (last-maybe-break
+                 (unless (or (eq t section)
+                             (simplep section)
+                             (null (section-end section)))
+                   (setf (break-before-p (section-end section)) t))
                  (setf instruction last-maybe-break
                        (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
                        section last-maybe-break
@@ -531,6 +542,8 @@
               (not allow-break-p))
          t)
         ((and (not mode)
+              (or (not (break-before-p instruction))
+                  (not (section-end instruction)))
               (not (miser-p stream instruction)))
          :maybe-break)
         (t
@@ -642,7 +655,12 @@
                                    (eq s parent)
                                    (and (typep s 'newline)
                                         (> (depth s) depth)))
-                           (setf (section-end s) newline)
+                           (setf (section-end s) newline
+                                 (simplep s) (loop for i = (next s) then (next i)
+                                                   finally (return t)
+                                                   while (and i (not (eq i newline)))
+                                                   when (typep i 'newline)
+                                                     return nil))
                            t))
                        sections)
             (section newline) (car (sections stream)))
