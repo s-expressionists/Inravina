@@ -38,11 +38,7 @@
    (section-end :accessor section-end
                 :initarg :section-end
                 :initform nil
-                :type (or null newline block-end))
-   (simplep :accessor simplep
-            :initarg :simplep
-            :initform nil
-            :type boolean)))
+                :type (or null newline block-end))))
 
 (defclass text (instruction)
   ((value :accessor value
@@ -82,7 +78,10 @@
   ((break-before-p :accessor break-before-p
                    :initarg :break-before-P
                    :initform nil
-                   :type boolean)))
+                   :type boolean)
+   (newlines-after :accessor newlines-after
+                   :initform nil
+                   :type list)))
 
 (defclass fresh-newline (newline)
   ())
@@ -255,7 +254,7 @@
                    finally (terpri stream)
                    if (eq sub instruction)
                      do (write-char #\[ stream)
-                        (setf ch (if (simplep instruction) #\- #\=))
+                        (setf ch #\-)
                    else if (eq sub (section-end instruction))
                      do (write-char #\] stream)
                         (setf ch #\Space)
@@ -329,6 +328,8 @@
             (setf last-maybe-break instruction))
           (setf instruction (next instruction)))
          (:break
+          (loop for i in (newlines-after instruction)
+                do (setf (break-before-p i) t))
           (setf section (and (not (eq section instruction))
                              instruction)
                 last-maybe-break nil
@@ -338,10 +339,6 @@
                 instruction (next instruction)))
          (otherwise
           (cond (last-maybe-break
-                 (unless (or (eq t section)
-                             (simplep section)
-                             (null (section-end section)))
-                   (setf (break-before-p (section-end section)) t))
                  (setf instruction last-maybe-break
                        (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
                        section last-maybe-break
@@ -644,25 +641,24 @@
 
 (defun do-pprint-newline (stream newline)
   (with-accessors ((sections sections))
-                  stream
+      stream
     (let ((parent (car (blocks stream)))
           (depth (length (blocks stream))))
       (setf (style newline) (trivial-stream-column:stream-style stream)
             (parent newline) parent
             (depth newline) depth
             sections (delete-if (lambda (s)
-                         (when (or (eq (parent s) parent)
-                                   (eq s parent)
-                                   (and (typep s 'newline)
-                                        (> (depth s) depth)))
-                           (setf (section-end s) newline
-                                 (simplep s) (loop for i = (next s) then (next i)
-                                                   finally (return t)
-                                                   while (and i (not (eq i newline)))
-                                                   when (typep i 'newline)
-                                                     return nil))
-                           t))
-                       sections)
+                                  (when (or (eq (parent s) parent)
+                                            (eq s parent)
+                                            (and (typep s 'newline)
+                                                 (> (depth s) depth)))
+                                    (setf (section-end s) newline)
+                                    (loop for i = (next s) then (next i)
+                                          while (and i (not (eq i newline)))
+                                          when (typep i 'newline)
+                                            do (pushnew newline (newlines-after i)))
+                                    t))
+                                sections)
             (section newline) (car (sections stream)))
       (push newline sections)
       (push-instruction newline stream))))
