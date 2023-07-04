@@ -70,7 +70,10 @@
    (read-only :accessor dispatch-table-read-only-p
               :initarg :read-only
               :initform nil
-              :type boolean)))
+              :type boolean)
+   (default-dispatch-function :reader dispatch-table-default-dispatch-function
+                              :initarg :default-dispatch-function
+                              :type function)))
 
 (defmethod print-object ((entry dispatch-entry) stream)
   (print-unreadable-object (entry stream :type t)
@@ -318,7 +321,8 @@
 
 (defmethod copy-pprint-dispatch (client (table (eql nil)) &optional read-only)
   (declare (ignore table))
-  (let ((new-table (make-instance 'dispatch-table)))
+  (let ((new-table (make-instance 'dispatch-table
+                                  :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
           do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
     (loop for (package symbol priority name . rest) in +quasiquote-entries+
@@ -335,7 +339,8 @@
 
 (defmethod copy-pprint-dispatch (client (table (eql t)) &optional read-only)
   (declare (ignore table))
-  (let ((new-table (make-instance 'dispatch-table)))
+  (let ((new-table (make-instance 'dispatch-table
+                                  :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
           do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
     #+(or)(loop for (type priority name . rest) in +extra-dispatch-entries+
@@ -346,7 +351,8 @@
 
 (defmethod copy-pprint-dispatch (client table &optional read-only)
   (loop with iterator = (make-pprint-dispatch-iterator client table)
-        with new-table = (make-instance 'dispatch-table)
+        with new-table = (make-instance 'dispatch-table
+                                        :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))
         for (presentp type-specifier function priority pattern arguments) = (multiple-value-list (funcall iterator))
         finally (setf (dispatch-table-read-only-p new-table) read-only)
                 (return new-table)
@@ -371,15 +377,14 @@
                    (loop-finish)))
       (loop for candidate in (dispatch-table-non-cons-entries table)
             while (or (not entry)
-                      (<= (dispatch-entry-priority entry) (dispatch-entry-priority candidate)))
+                      (< (dispatch-entry-priority entry) (dispatch-entry-priority candidate)))
             when (funcall (dispatch-entry-test-function candidate) object)
               do (setf entry candidate)
                  (loop-finish))
       (when entry
         (return-from pprint-dispatch
                      (values (dispatch-entry-dispatch-function entry) t)))))
-  (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
-          nil))
+  (values (dispatch-table-default-dispatch-function table) nil))
 
 (defun check-table-read-only (table)
   (when (dispatch-table-read-only-p table)
