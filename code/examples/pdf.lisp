@@ -1,5 +1,4 @@
-(ql:quickload :cl-pdf)
-(ql:quickload :inravina/intrinsic)
+(in-package #:inravina-examples)
 
 (defclass pdf-stream (trivial-gray-streams:fundamental-character-output-stream)
   ((line :accessor line
@@ -22,16 +21,13 @@
 
 (defmethod trivial-stream-column:stream-measure-string ((stream pdf-stream) string &optional start end style)
   (declare (ignore stream style))
-  (print "d")
   (measure-string (subseq string (or start 0) end)))
 
 (defmethod trivial-stream-column:stream-measure-char ((stream pdf-stream) char &optional style)
   (declare (ignore stream style))
-  (print "c")
   (measure-char char))
 
 (defmethod trivial-gray-streams:stream-terpri ((stream pdf-stream))
-  (print "b")
   (pdf:move-text (* (- (indent stream)) (em-size))
                  (* pdf::*font-size* -1.2))
   (incf (line stream))
@@ -39,7 +35,6 @@
         (indent stream) 0))
 
 (defmethod trivial-gray-streams:stream-advance-to-column ((stream pdf-stream) column)
-  (print "a")
   (unless (zerop column)
     (pdf:move-text (* column (em-size))
                    0)
@@ -57,21 +52,17 @@
   string)
 
 (defmethod trivial-gray-streams:stream-line-column ((stream pdf-stream))
-  (print "e")
   (column stream))
 
-(pdf:with-document ()
-  (pdf:with-page ()
-    (pdf:with-outline-level ("Example" (pdf:register-page-reference))
-      (let ((helvetica (pdf:get-font "Helvetica"))
-            (*print-pretty* t))
-        (pdf:in-text-mode
-        (pdf:move-text 100 800)
-        (pdf:set-font helvetica 12.0)
-        (pdf:set-text-leading (* 1.2 12.0))
-        (pprint '(when (quux 'a)
-                     (loop for i in '(1 2 3)
-                           do (print i) (wibble i) collect i)
-                              (write-line "gronk"))
-                (make-instance 'pdf-stream))))))
-    (pdf:write-document #P"t.pdf"))
+(defun pprint-pdf (form path &key (font "Helvetica"))
+  (pdf:with-document ()
+    (pdf:with-page ()
+      (pdf:with-outline-level ("Example" (pdf:register-page-reference))
+        (let ((helvetica (pdf:get-font font))
+              (*print-pretty* t))
+          (pdf:in-text-mode
+           (pdf:move-text 100 800)
+           (pdf:set-font helvetica 12.0)
+           (pdf:set-text-leading (* 1.2 12.0))
+           (incless-extrinsic:pprint form (make-instance 'pdf-stream))))))
+    (pdf:write-document path)))
