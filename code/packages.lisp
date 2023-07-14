@@ -21,7 +21,7 @@
            #:copy-pprint-dispatch
            #:define-interface
            #:execute-pprint-logical-block
-           #:expand-pprint-logical-block
+           #:expand-logical-block
            #:find-unquote-symbols
            #:get-named-style
            #:make-dispatch-function
