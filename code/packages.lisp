@@ -20,7 +20,8 @@
            #:coerce-output-stream-designator
            #:copy-pprint-dispatch
            #:define-interface
-           #:expand-logical-block
+           #:execute-pprint-logical-block
+           #:expand-pprint-logical-block
            #:find-unquote-symbols
            #:get-named-style
            #:make-dispatch-function

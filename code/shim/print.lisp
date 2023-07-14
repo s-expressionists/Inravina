@@ -4,7 +4,12 @@
   #+cmucl (setf kernel:*pretty-printer* nil)
 
   (defclass shim-client (incless-native:native-client)
-    ()))
+    ())
+
+  (defparameter *client* (make-instance 'shim-client)))
+
+(defmethod incless:client-form ((client shim-client))
+  '*client*)
 
 (trivial-package-locks:with-unlocked-system-packages
   #+sbcl
@@ -12,7 +17,7 @@
                             (muffle-warning condition))))
     (declaim (type inravina::dispatch-table *print-pprint-dispatch*)))
 
-  (inravina:define-interface (shim-client t)
+  (inravina:define-interface (*client* shim-client t)
     ;;; The following hacks are all to make WITH-STANDARD-IO-SYNTAX work.
     #+(or clasp ecl)
     (setf (first (cdr si::+io-syntax-progv-list+)) *standard-pprint-dispatch*)

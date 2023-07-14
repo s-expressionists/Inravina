@@ -178,11 +178,8 @@
              (t
               (funcall ,body-fun))))))
 
-(defgeneric make-dispatch-function (client pattern function rest))
-
-(defmacro define-interface ((client-class &optional intrinsic) &body body)
-  (let* ((client-var (intern "*CLIENT*"))
-         (intrinsic-pkg (if intrinsic (find-package "COMMON-LISP") *package*))
+(defmacro define-interface ((client-var client-class &optional intrinsic) &body body)
+  (let* ((intrinsic-pkg (if intrinsic (find-package "COMMON-LISP") *package*))
          (initial-pprint-dispatch-var (intern "*INITIAL-PPRINT-DISPATCH*"))
          (standard-pprint-dispatch-var (intern "*STANDARD-PPRINT-DISPATCH*"))
          (print-pprint-dispatch-var (intern "*PRINT-PPRINT-DISPATCH*" intrinsic-pkg))
@@ -190,7 +187,6 @@
          (pprint-exit-if-list-exhausted-func (intern "PPRINT-EXIT-IF-LIST-EXHAUSTED" intrinsic-pkg))
          (initialize-func (intern "INITIALIZE")))
     `(progn
-       (defparameter ,client-var (make-instance ',client-class))
        (defmethod inravina:make-dispatch-function
            ((client ,client-class) (pattern (eql :client-stream-object)) function rest)
          (lambda (stream object)
@@ -277,3 +273,6 @@
                ,standard-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil t)
                ,print-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil))
          ,@body))))
+
+(defgeneric execute-pprint-logical-block (client stream object function
+                                          &key prefix per-line-prefix suffix))
