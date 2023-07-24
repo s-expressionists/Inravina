@@ -3,8 +3,8 @@
   :author "Tarn W. Burton"
   :license "MIT"
   :version "0.1"
-  :homepage "https://github.com/yitzchak/Inravina/"
-  :bug-tracker "https://github.com/yitzchak/Inravina/issues"
+  :homepage "https://github.com/s-expressionists/Inravina/"
+  :bug-tracker "https://github.com/s-expressionists/Inravina/issues"
   :depends-on (#:inravina)
   :components ((:module code
                 :serial t

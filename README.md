@@ -98,7 +98,7 @@ available in the McCLIM code in the examples directory.
 [ABCL]: https://armedbear.common-lisp.dev/
 [CLASP]: https://github.com/clasp-developers/clasp
 [ECL]: https://ecl.common-lisp.dev/
-[Incless]: https://github.com/yitzchak/Incless
+[Incless]: https://github.com/s-expressionists/Incless
 [McCLIM]: https://github.com/McCLIM/McCLIM
 [SBCL]: http://sbcl.org
 [SICL]: https://github.com/robert-strandh/SICL
