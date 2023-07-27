@@ -3,4 +3,5 @@
   (:export #:*client*
            #:*standard-pprint-dispatch*
            #:initialize
-           #:shim-client))
+           #:shim-client
+           #:pretty-stream-p))

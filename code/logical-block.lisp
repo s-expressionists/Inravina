@@ -23,6 +23,7 @@
                              prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
                              pprint-exit-if-list-exhausted pprint-pop
                              body)
+  (declare (ignore suffix-p))
   (when (and prefix-p per-line-prefix-p)
     (error 'program-error))
   (check-type stream-symbol symbol)

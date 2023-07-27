@@ -786,6 +786,10 @@
 (defmethod make-pretty-stream (client (stream sb-pretty:pretty-stream))
   (make-pretty-stream client (sb-pretty::pretty-stream-target stream)))
 
+(defmethod pretty-stream-p (client (stream pretty-stream))
+  (declare (ignore client))
+  t)
+
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
   (let ((block-start (make-instance 'block-start
                                     :section (car (sections stream))

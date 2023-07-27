@@ -4,7 +4,7 @@
   ())
 
 (defmethod inravina:copy-pprint-dispatch ((client native-client) table &optional read-only)
-  (declare (ignorable readonly))
+  (declare (ignorable read-only))
   (copy-pprint-dispatch table))
 
 (defmethod inravina:pprint-dispatch ((client native-client) table object)
@@ -21,7 +21,7 @@
   (pprint-linear stream object colon-p at-sign-p))
 
 (defmethod inravina:pprint-tabular ((client native-client) stream object &optional colon-p at-sign-p tabsize)
-  (pprint-tabular stream object colon-p at-sign-p))
+  (pprint-tabular stream object colon-p at-sign-p tabsize))
 
 (defmethod inravina:pprint-indent ((client native-client) stream relative-to n)
   (pprint-indent relative-to n stream))
@@ -32,12 +32,12 @@
 (defmethod inravina:pprint-tab ((client native-client) stream kind colnum colinc)
   (pprint-tab kind colnum colinc stream))
 
-(defmethod inravina:execute-pprint-logical-block ((client native-client) stream object function
-                                                  &key (prefix "")
-                                                       (per-line-prefix "" per-line-prefix-p)
-                                                       (suffix ""))
+(defmethod inravina:execute-logical-block ((client native-client) stream object function
+                                           &key (prefix "")
+                                                per-line-prefix-p
+                                                (suffix ""))
   (if per-line-prefix-p
-      (pprint-logical-block (stream object :per-line-prefix per-line-prefix :suffix suffix)
+      (pprint-logical-block (stream object :per-line-prefix prefix :suffix suffix)
         (funcall function stream
                  (lambda () (pprint-exit-if-list-exhausted))
                  (lambda () (pprint-pop))))
@@ -45,3 +45,14 @@
         (funcall function stream
                  (lambda () (pprint-exit-if-list-exhausted))
                  (lambda () (pprint-pop))))))
+
+(defmethod inravina:pretty-stream-p ((client native-client) (stream inravina:pretty-stream))
+  nil)
+
+#+abcl
+(defmethod inravina:pretty-stream-p ((client native-client) (stream xp::xp-structure))
+  t)
+
+#+sbcl
+(defmethod inravina:pretty-stream-p ((client native-client) (stream sb-pretty:pretty-stream))
+  t)

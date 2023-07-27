@@ -29,4 +29,5 @@
            #:pprint-pop
            #:pprint-tab
            #:pprint-tabular
+           #:pretty-stream-p
            #:set-pprint-dispatch))

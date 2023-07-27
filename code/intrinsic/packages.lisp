@@ -3,5 +3,5 @@
   (:export #:*client*
            #:*standard-pprint-dispatch*
            #:initialize
-           #:intrinsic-client))
-
+           #:intrinsic-client
+           #:pretty-stream-p))

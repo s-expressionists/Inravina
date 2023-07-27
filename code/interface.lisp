@@ -96,9 +96,9 @@
   (:method (client (stream (eql t)))
     (call-next-method client *terminal-io*)))
 
-(defgeneric pretty-stream-p (stream)
-  (:method (stream)
-    (declare (ignore stream))
+(defgeneric pretty-stream-p (client stream)
+  (:method (client stream)
+    (declare (ignore client stream))
     nil))
 
 (defgeneric break-position (client stream text))
@@ -206,6 +206,8 @@
        (defvar ,initial-pprint-dispatch-var nil)
        (defvar ,standard-pprint-dispatch-var nil)
        (defvar ,print-pprint-dispatch-var)
+       (defun ,(intern "PRETTY-STREAM-P") (stream)
+         (inravina:pretty-stream-p ,client-var stream))
        (defun ,(intern "COPY-PPRINT-DISPATCH" intrinsic-pkg) (&optional (table ,print-pprint-dispatch-var))
          #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
          (check-type table (or null inravina::dispatch-table))
@@ -274,5 +276,5 @@
                ,print-pprint-dispatch-var (inravina:copy-pprint-dispatch ,client-var nil))
          ,@body))))
 
-(defgeneric execute-pprint-logical-block (client stream object function
-                                          &key prefix per-line-prefix suffix))
+(defgeneric execute-logical-block (client stream object function
+                                   &key prefix per-line-prefix-p suffix))
