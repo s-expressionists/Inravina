@@ -46,13 +46,12 @@
                  (lambda () (pprint-exit-if-list-exhausted))
                  (lambda () (pprint-pop))))))
 
-(defmethod inravina:pretty-stream-p ((client native-client) (stream inravina:pretty-stream))
-  nil)
-
-#+abcl
-(defmethod inravina:pretty-stream-p ((client native-client) (stream xp::xp-structure))
-  t)
-
-#+sbcl
-(defmethod inravina:pretty-stream-p ((client native-client) (stream sb-pretty:pretty-stream))
-  t)
+(defmethod inravina:pretty-stream-p ((client native-client) stream)
+  (declare (ignorable stream))
+  #+abcl (xp::xp-structure-p stream)
+  #+ccl (or (ccl::xp-structure-p stream)
+            (typep stream 'ccl::xp-stream))
+  #+(or clasp ecl) (sys::pretty-stream-p stream)
+  #+cmucl (pretty-print:pretty-stream-p stream)
+  #+sbcl (sb-pretty:pretty-stream-p stream)
+  #-(or ccl clasp cmucl ecl sbcl) nil)
