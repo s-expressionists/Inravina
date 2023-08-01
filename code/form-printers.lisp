@@ -6,7 +6,7 @@
   #+clisp
     (system::arglist sym)
   #+(or clasp ecl)
-    (ext:function-lambda-list sym)
+    (with-standard-io-syntax (ext:function-lambda-list sym))
   #+sbcl
     (sb-introspect:function-lambda-list sym)
   #+lispworks

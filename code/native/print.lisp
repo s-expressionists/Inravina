@@ -54,4 +54,4 @@
   #+(or clasp ecl) (sys::pretty-stream-p stream)
   #+cmucl (pretty-print:pretty-stream-p stream)
   #+sbcl (sb-pretty:pretty-stream-p stream)
-  #-(or ccl clasp cmucl ecl sbcl) nil)
+  #-(or abcl ccl clasp cmucl ecl sbcl) nil)

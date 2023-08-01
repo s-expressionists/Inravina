@@ -13,7 +13,8 @@
            #:pprint-pop
            #:pprint-tab
            #:pprint-tabular
-           #:set-pprint-dispatch)
+           #:set-pprint-dispatch
+           #:with-standard-io-syntax)
   (:export #:*client*
            #:*print-pprint-dispatch*
            #:*standard-pprint-dispatch*
@@ -30,4 +31,5 @@
            #:pprint-tab
            #:pprint-tabular
            #:pretty-stream-p
-           #:set-pprint-dispatch))
+           #:set-pprint-dispatch
+           #:with-standard-io-syntax))
