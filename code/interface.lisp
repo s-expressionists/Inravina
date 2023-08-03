@@ -107,59 +107,13 @@
 
 (defgeneric normalize-text (client stream text))
 
-(defgeneric pprint-prog1 (client stream object &rest options &key &allow-other-keys))
-
-;(defgeneric pprint-defun (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-defmethod-with-qualifier (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-do (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-dolist (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-let (client stream object &rest options &key &allow-other-keys))
-
 (defgeneric pprint-bindings (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-eval-when (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-progn (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-progv (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-tagbody (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-function-call (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-argument-list (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric pprint-lambda-list (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-lambda (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-extended-loop (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-simple-loop (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-array (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-macro-char (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-quasiquote (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-cond (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-case (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-flet (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-with (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-call (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-apply (client stream object &rest options &key &allow-other-keys))
-
-(defgeneric pprint-defclass (client stream object &rest options &key &allow-other-keys))
 
 (defgeneric get-named-style (client stream name)
   (:method (client stream name)

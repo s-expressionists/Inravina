@@ -247,7 +247,7 @@
     #+sbcl
     (sb-impl::comma
      -20
-     pprint-quasiquote)
+     pprint-sbcl-quasiquote)
     ((cons (member symbol-macrolet))
      -20
      pprint-symbol-macrolet)
