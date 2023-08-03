@@ -5,8 +5,8 @@ Some issues I have noticed as I have been working on Inravina.
 ## Issues with the ANSI standard 
 
 1. There is no statement about what is in the "initial" or the
-  "standard" pretty printer dispatch table. The original AIM paper on
-  the XP printer makes several statements:
+   "standard" pretty printer dispatch table. The original AIM paper on
+   the XP printer makes several statements:
     1. This table is initialized with a number of entries that specify
        how to pretty print all the built-in Common Lisp macros and
        special forms.
