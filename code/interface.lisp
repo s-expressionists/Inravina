@@ -115,6 +115,8 @@
 
 (defgeneric pprint-lambda-list (client stream object &rest options &key &allow-other-keys))
 
+(defgeneric pprint-macro-char (client stream object &optional quasiquote-p unquote-p disp-char sub-char))
+
 (defgeneric get-named-style (client stream name)
   (:method (client stream name)
     (declare (ignore client stream name))
@@ -202,6 +204,9 @@
          (pprint-tab ,client-var (coerce-output-stream-designator stream)
                               kind colnum colinc)
          nil)
+       (defun ,(intern "PPRINT-MACRO-CHAR") (stream object &optional colon-p at-sign-p disp-char sub-char)
+         (pprint-macro-char ,client-var (coerce-output-stream-designator stream)
+                            object colon-p at-sign-p disp-char sub-char))
        (defun ,(intern "PPRINT-DISPATCH" intrinsic-pkg) (object &optional (table ,print-pprint-dispatch-var))
          #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
          (check-type table (or null dispatch-table))

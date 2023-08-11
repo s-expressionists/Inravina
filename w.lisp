@@ -1,0 +1,15 @@
+(with-standard-io-syntax
+  (let ((*print-pretty* t)
+        (*print-escape* nil)
+        (*print-readably* nil)
+        (*print-right-margin* 12)
+        (*print-length* nil)
+        (*print-miser-width* nil)
+        (*print-circle* nil))
+    (with-output-to-string (*standard-output*)
+      (inravina-extrinsic:pprint-logical-block (*standard-output*
+                                                nil)
+        (dolist (x '(a (a b) (a a a a a a a a) x (c d) (e f)))
+          (inravina-extrinsic:pprint-fill nil x)
+          (incless-extrinsic:write #\Space)
+          (inravina-extrinsic:pprint-newline :fill))))))

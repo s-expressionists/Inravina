@@ -146,13 +146,9 @@
                    multiple-value-setq))
      -20
      pprint-eval-when)
-    ((cons (member loop)
-           (cons cons))
-     -10
-     pprint-simple-loop)
     ((cons (member loop))
      -20
-     pprint-extended-loop)
+     pprint-loop)
     ((cons (member flet
                    labels
                    macrolet))
@@ -161,7 +157,7 @@
     ((cons (member function)
            (cons t null))
      -20
-     pprint-macro-char :prefix "#'")
+     pprint-macro-char nil nil #\# #\')
     ((cons (member and
                    declaim
                    declare
@@ -183,7 +179,7 @@
     ((cons (member quote)
            (cons t null))
      -20
-     pprint-macro-char :prefix "'")
+     pprint-macro-char nil nil #\')
     ((cons (member prog))
      -20
      pprint-prog)
@@ -222,28 +218,28 @@
                    #+sbcl sb-int:quasiquote)
            (cons t null))
      -20
-     pprint-quasiquote :prefix "`" :quote t)
+     pprint-macro-char t nil #\`)
     #+(or clisp ecl mezzano)
     ((cons (member #+clisp system::unquote
                    #+ecl si:unquote
                    #+mezzano mezzano.internals::bq-comma)
            (cons t null))
      -20
-     pprint-quasiquote :prefix "," :quote nil)
+     pprint-macro-char t t #\,)
     #+(or clisp ecl mezzano)
     ((cons (member #+clisp system::splice
                    #+ecl si:unquote-splice
                    #+mezzano mezzano.internals::bq-comma-atsign)
            (cons t null))
      -20
-     pprint-quasiquote :prefix ",@" :quote nil)
+     pprint-macro-char t t #\, #\@)
     #+(or clisp ecl mezzano)
     ((cons (member #+clisp system::nsplice
                    #+ecl si:unquote-nsplice
                    #+mezzano mezzano.internals::bq-comma-dot)
            (cons t null))
      -20
-     pprint-quasiquote :prefix ",." :quote nil)
+     pprint-macro-char t t #\, #\.)
     #+sbcl
     (sb-impl::comma
      -20
@@ -311,13 +307,13 @@
   #+clasp
   '(("ECLECTOR.READER" "QUASIQUOTE"
      -20
-     pprint-quasiquote :prefix "`" :quote t)
+     pprint-macro-char t nil #\`)
     ("ECLECTOR.READER" "UNQUOTE"
      -20
-     pprint-quasiquote :prefix "," :quote nil)
+     pprint-macro-char t t #\,)
     ("ECLECTOR.READER" "UNQUOTE-SPLICING"
      -20
-     pprint-quasiquote :prefix ",@" :quote nil)))
+     pprint-macro-char t t #\, #\@)))
 
 (defmethod copy-pprint-dispatch (client (table (eql nil)) &optional read-only)
   (declare (ignore table))

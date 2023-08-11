@@ -26,6 +26,7 @@
            #:pprint-indent
            #:pprint-linear
            #:pprint-logical-block
+           #:pprint-macro-char
            #:pprint-newline
            #:pprint-pop
            #:pprint-tab
