@@ -18,7 +18,7 @@ Some issues I have noticed as I have been working on Inravina.
     5. **Predefined pretty printing functions.** To support
        traditional Lisp pretty printing style, XP provides pretty
        printing functions for all of the Common Lisp macros and
-       standard forms. The user can change the way any griven kind of
+       standard forms. The user can change the way any given kind of
        list is printed by defining a new list pretty printing function
        for it. To facilitate the correct utilization of priorities.
        Figure 41 summarizes the contents of the standard print
