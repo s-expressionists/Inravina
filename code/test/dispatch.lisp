@@ -1,13 +1,13 @@
 (in-package #:inravina/test)
 
 (define-test d-1
-  (let ((table (make-instance 'inravina::dispatch-table)))
+  (let ((table (inravina:copy-pprint-dispatch *client* :empty)))
     (is-values (inravina:pprint-dispatch *client* table 0)
       ((lambda (x y) (not (equal x y))) nil)
       (equal nil))))
 
 (define-test d-2
-  (let ((table (make-instance 'inravina::dispatch-table)))
+  (let ((table (inravina:copy-pprint-dispatch *client* :empty)))
     (inravina:set-pprint-dispatch *client* table
                                   '(cons symbol)
                                   (lambda (s o)

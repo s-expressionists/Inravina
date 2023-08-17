@@ -45,6 +45,6 @@
   (print-unreadable-object (object stream :type type :identity identity)
     (funcall function object stream)))
 
-(defmethod incless:circle-check ((client test-client) object)
-  (declare (ignore client))
+(defmethod incless:circle-check ((client test-client) object stream)
+  (declare (ignore client stream))
   nil)

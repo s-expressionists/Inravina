@@ -42,7 +42,6 @@
            #:pprint-end-logical-block
            #:pprint-eval-when
            #:pprint-exit-if-list-exhausted
-           #:pprint-extended-loop
            #:pprint-fill
            #:pprint-fill-plist
            #:pprint-flet
@@ -54,13 +53,13 @@
            #:pprint-linear
            #:pprint-linear-plist
            #:pprint-logical-block
+           #:pprint-loop
            #:pprint-macro-char
            #:pprint-newline
            #:pprint-pop
            #:pprint-pop-p
            #:pprint-progn
            #:pprint-progv
-           #:pprint-simple-loop
            #:pprint-skip-p
            #:pprint-start-logical-block
            #:pprint-structure-object

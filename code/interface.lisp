@@ -107,7 +107,9 @@
 
 (defgeneric normalize-text (client stream text))
 
-(defgeneric pprint-bindings (client stream object &rest options &key &allow-other-keys))
+(defgeneric pprint-bindings (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-defun (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-function-call (client stream object &rest options &key &allow-other-keys))
 
@@ -188,6 +190,14 @@
        (defun ,(intern "PPRINT-TABULAR" intrinsic-pkg) (stream object &optional (colon-p t) at-sign-p (tabsize 16))
          (pprint-tabular ,client-var (coerce-output-stream-designator stream)
                                   object colon-p at-sign-p tabsize)
+         nil)
+       (defun ,(intern "PPRINT-BINDINGS") (stream object &optional (colon-p t) at-sign-p)
+         (pprint-bindings ,client-var (coerce-output-stream-designator stream)
+                                   object colon-p at-sign-p)
+         nil)
+       (defun ,(intern "PPRINT-DEFUN") (stream object &optional (colon-p t) at-sign-p)
+         (pprint-defun ,client-var (coerce-output-stream-designator stream)
+                                   object colon-p at-sign-p)
          nil)
        (defun ,(intern "PPRINT-INDENT" intrinsic-pkg) (relative-to n &optional stream)
          (check-type relative-to (member :block :current))

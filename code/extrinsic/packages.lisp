@@ -20,6 +20,8 @@
            #:*standard-pprint-dispatch*
            #:copy-pprint-dispatch
            #:intrinsic-client
+           #:pprint-bindings
+           #:pprint-defun
            #:pprint-dispatch
            #:pprint-exit-if-list-exhausted
            #:pprint-fill

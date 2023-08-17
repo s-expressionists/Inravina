@@ -5,14 +5,16 @@
       "((FU 1) (BAR 2))"
       (with-env (stream :right-margin 80)
         (inravina:pprint-bindings *client* stream
-                                  '((fu 1) (bar 2))))))
+                                  '((fu 1) (bar 2))
+                                  t))))
 (define-test pprint-bindings.2
   (is equal
       "((FU 1)
  (BAR 2))"
       (with-env (stream :right-margin 9)
         (inravina:pprint-bindings *client* stream
-                                  '((fu 1) (bar 2))))))
+                                  '((fu 1) (bar 2))
+                                  t))))
 (define-test pprint-bindings.3
   (is equal
       "((FU 1)
@@ -20,7 +22,8 @@
   2))"
       (with-env (stream :right-margin 8)
         (inravina:pprint-bindings *client* stream
-                                  '((fu 1) (bar 2))))))
+                                  '((fu 1) (bar 2))
+                                  t))))
 (define-test pprint-bindings.4
   (is equal
       "((FU
@@ -29,7 +32,8 @@
   2))"
       (with-env (stream :right-margin 6)
         (inravina:pprint-bindings *client* stream
-                                  '((fu 1) (bar 2))))))
+                                  '((fu 1) (bar 2))
+                                  t))))
 
 (define-test pprint-block.1
   (is equal
@@ -220,8 +224,7 @@
     (is equal
         "(X Y Z
  &KEY FU
-      (BAR
-       NIL
+      (BAR NIL
        BAR-P)
  &AUX A (B 4))"
         (with-env (stream :right-margin 20)
@@ -234,10 +237,10 @@
        BAR-P)
  &AUX A
       (B 4))"
-        (with-env (stream :right-margin 12)
+        (with-env (stream :right-margin 13)
           (inravina:pprint-lambda-list *client* stream form)))))
 
-(define-test pprint-extended-loop
+(define-test pprint-loop
   (let ((form '(loop named fu
                      with bar
                           and baz = 7
@@ -276,8 +279,7 @@
       FOR I FROM 1
           AND J BELOW 20
       FOR K IN Z
-      DOING (ZAP K)
-            (WIBBLE Z)
+      DOING (ZAP K) (WIBBLE Z)
       COLLECT Z INTO Q
       WHEN (ZEROP BAR)
         COLLECT BAR
@@ -285,11 +287,9 @@
                (ZIM BAR)
       ELSE WHEN (NEVER K)
         MAXIMIZE K
-      ELSE
-        MINIMIZE K
+      ELSE MINIMIZE K
       END
       WHEN (ZERO BAZ)
         DO (SOMETHING BAZ))"
-        (with-env (stream :right-margin 80)
-          (inravina:pprint-extended-loop *client* stream form)))))
-
+        (with-env (stream :right-margin 32)
+          (inravina:pprint-loop *client* stream form)))))

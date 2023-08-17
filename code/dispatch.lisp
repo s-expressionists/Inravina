@@ -23,39 +23,23 @@
              :initform 0
              :type real)))
 
-(defun cons-names (type-specifier)
+(defun cons-eql-specifier-p (type-specifier)
   (and (consp type-specifier)
        (eql 'cons (first type-specifier))
        (consp (cdr type-specifier))
        (consp (cadr type-specifier))
-       (member (caadr type-specifier) '(eql member))
-       (cdadr type-specifier)))
+       (member (caadr type-specifier) '(eql member))))
 
 (defun make-test-function (type-specifier)
-  (if (or (not (listp type-specifier))
-          (not (equal 'cons (car type-specifier))))
-      (lambda (object)
-        (typep object type-specifier))
-      (let* ((car-type (second type-specifier))
-             (cdr-type (third type-specifier))
-             (cons-type-p (and (consp car-type)
-                               (member (car car-type) '(eql member)))))
-        (cond ((and cons-type-p cdr-type)
-               (lambda (object)
-                 (typep object cdr-type)))
-              (cons-type-p
-               (lambda (object)
-                 (declare (ignore object))
-                 t))
-              (cdr-type
-               (lambda (object)
-                 (and (consp object)
-                      (typep (car object) car-type)
-                      (typep (cdr object) cdr-type))))
-              (t
-               (lambda (object)
-                 (and (consp object)
-                      (typep (car object) cdr-type))))))))
+  (cond ((not (cons-eql-specifier-p type-specifier))
+         (lambda (object)
+           (typep object type-specifier)))
+        ((or (null (cddr type-specifier))
+             (eq t (third type-specifier)))
+         (constantly t))
+        (t
+         (lambda (object)
+           (typep object (third type-specifier))))))
 
 (defclass dispatch-table ()
   ((entries :accessor dispatch-table-entries
@@ -130,7 +114,7 @@
                    deftype
                    defun))
      -20
-     pprint-defun)
+     pprint-defun t nil)
     ((cons (member do
                    do*))
      -20
@@ -315,7 +299,7 @@
      -20
      pprint-macro-char t t #\, #\@)))
 
-(defmethod copy-pprint-dispatch (client (table (eql nil)) &optional read-only)
+(defmethod copy-pprint-dispatch (client (table null) &optional read-only)
   (declare (ignore table))
   (let ((new-table (make-instance 'dispatch-table
                                   :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
@@ -329,6 +313,17 @@
             do (set-pprint-dispatch client new-table
                                     `(cons (member ,sym) (cons t null))
                                     (fdefinition name) priority :client-stream-object rest))
+    (when read-only
+      (setf (dispatch-table-read-only-p new-table) t))
+    new-table))
+
+(defmethod copy-pprint-dispatch (client (table (eql :empty)) &optional read-only)
+  (declare (ignore table))
+  (let ((new-table (make-instance 'dispatch-table
+                                  :default-dispatch-function (make-dispatch-function client
+                                                                                     :client-object-stream
+                                                                                     #'incless:print-object
+                                                                                     nil))))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
     new-table))
@@ -395,14 +390,15 @@
                                                :key #'dispatch-entry-type-specifier :test #'equal)
         (dispatch-table-non-cons-entries table) (delete type-specifier (dispatch-table-non-cons-entries table)
                                                         :key #'dispatch-entry-type-specifier :test #'equal))
-  (loop with cons-entries = (dispatch-table-cons-entries table)
-        for name in (cons-names type-specifier)
-        for entries = (delete type-specifier (gethash name cons-entries)
-                              :key #'dispatch-entry-type-specifier :test #'equal)
-        if entries
-          do (setf (gethash name cons-entries) entries)
-        else
-          do (remhash name cons-entries))
+  (when (cons-eql-specifier-p type-specifier)
+    (loop with cons-entries = (dispatch-table-cons-entries table)
+          for name in (cdadr type-specifier)
+          for entries = (delete type-specifier (gethash name cons-entries)
+                                :key #'dispatch-entry-type-specifier :test #'equal)
+          if entries
+            do (setf (gethash name cons-entries) entries)
+          else
+            do (remhash name cons-entries)))
   nil)
 
 (defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function &optional priority pattern arguments)
@@ -415,13 +411,12 @@
                               :dispatch-function (make-dispatch-function client (or pattern :stream-object) function arguments)
                               :priority (or priority 0)
                               :pattern (or pattern :stream-object)
-                              :arguments arguments))
-        (names (cons-names type-specifier)))
+                              :arguments arguments)))
     (setf (dispatch-table-entries table) (sort (cons entry (dispatch-table-entries table))
                                                #'> :key #'dispatch-entry-priority))
-    (if names
+    (if (cons-eql-specifier-p type-specifier)
         (loop with cons-entries = (dispatch-table-cons-entries table)
-              for name in names
+              for name in (cdadr type-specifier)
               do (setf (gethash name cons-entries) (sort (cons entry (gethash name cons-entries))
                                                          #'> :key #'dispatch-entry-priority)))
         (setf (dispatch-table-non-cons-entries table) (sort (cons entry (dispatch-table-non-cons-entries table))
@@ -441,5 +436,3 @@
                     (dispatch-entry-pattern entry)
                     (dispatch-entry-arguments entry)))
           (values nil nil nil nil nil nil)))))
-
-
