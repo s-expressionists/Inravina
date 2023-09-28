@@ -241,7 +241,6 @@
  block, obeying *print-length* and *print-circle*."
          (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
        (defun ,initialize-func (&aux *print-pretty*)
-         (find-unquote-symbols)
          (setf ,initial-pprint-dispatch-var (copy-pprint-dispatch ,client-var nil t)
                ,standard-pprint-dispatch-var (copy-pprint-dispatch ,client-var nil t)
                ,print-pprint-dispatch-var (copy-pprint-dispatch ,client-var nil))
