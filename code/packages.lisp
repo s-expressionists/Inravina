@@ -22,7 +22,6 @@
            #:define-interface
            #:execute-logical-block
            #:expand-logical-block
-           #:find-unquote-symbols
            #:get-named-style
            #:make-dispatch-function
            #:make-pretty-stream
