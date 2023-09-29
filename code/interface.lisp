@@ -89,6 +89,7 @@
   (:method (client stream object)
     (declare (ignore client))
     (and (listp object)
+         (not (quasiquote-form-p object))
          (not (and (getf *quasiquote* stream)
                    (unquote-form-p object))))))
 

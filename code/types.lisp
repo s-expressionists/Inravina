@@ -43,6 +43,17 @@
   (and (member kind '(:line-relative :section-relative))
        t))
 
+(deftype quasiquote-form ()
+  '(cons (eql #+clasp ext:quasiquote
+              #+clisp system::backquote
+              #+ecl si:quasiquote
+              #+mezzano mezzano.internals::backquote
+              #+sbcl sb-int:quasiquote)
+    (cons t null)))
+
+(defun quasiquote-form-p (form)
+  (typep form 'quasiquote-form))
+
 (deftype unquote-form ()
   '(cons (member #+clasp ext:unquote
                  #+clasp ext:unquote-splice
