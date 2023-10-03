@@ -497,14 +497,17 @@
     (pprint-lambda-list client stream (pprint-pop))))
 
 (defmethod pprint-macro-char (client stream object &optional quasiquote-p unquote-p disp-char sub-char)
-  (when disp-char
-    (write-char disp-char stream))
-  (when sub-char
-    (write-char sub-char stream))
-  (if quasiquote-p
-      (let ((*quasiquote* (list* stream (not unquote-p) *quasiquote*)))
-        (incless:write-object client (second object) stream))
-      (incless:write-object client (second object) stream)))
+  (cond ((and quasiquote-p unquote-p (not (getf *quasiquote* stream)))
+         (pprint-fill client stream object t))
+        (t
+         (when disp-char
+           (write-char disp-char stream))
+         (when sub-char
+           (write-char sub-char stream))
+         (if quasiquote-p
+             (let ((*quasiquote* (list* stream (not unquote-p) *quasiquote*)))
+               (incless:write-object client (second object) stream))
+             (incless:write-object client (second object) stream)))))
 
 #+sbcl
 (defun pprint-sbcl-quasiquote (client stream object)
