@@ -112,11 +112,17 @@
 
 (defgeneric pprint-defun (client stream object &optional colon-p at-sign-p))
 
-(defgeneric pprint-function-call (client stream object &rest options &key &allow-other-keys))
+(defgeneric pprint-defmethod (client stream object &optional colon-p at-sign-p))
 
-(defgeneric pprint-argument-list (client stream object &rest options &key &allow-other-keys))
+(defgeneric pprint-function-call (client stream object &optional colon-p at-sign-p argument-count))
 
-(defgeneric pprint-lambda-list (client stream object &rest options &key &allow-other-keys))
+(defgeneric pprint-argument-list (client stream object &optional colon-p at-sign-p argument-count))
+
+(defgeneric pprint-with (client stream object &optional colon-p at-sign-p argument-count))
+
+(defgeneric pprint-lambda-list (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-destructuring-bind (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-macro-char (client stream object &optional quasiquote-p unquote-p disp-char sub-char))
 
@@ -196,7 +202,7 @@
          (pprint-bindings ,client-var (coerce-output-stream-designator stream)
                                    object colon-p at-sign-p)
          nil)
-       (defun ,(intern "PPRINT-DEFUN") (stream object &optional (colon-p t) at-sign-p)
+       (defun ,(intern "PPRINT-DEFUN") (stream object &optional colon-p at-sign-p)
          (pprint-defun ,client-var (coerce-output-stream-designator stream)
                                    object colon-p at-sign-p)
          nil)
