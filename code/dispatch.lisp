@@ -103,7 +103,7 @@
      pprint-defmethod t nil)
     ((cons (member defpackage))
      -20
-     pprint-defpackage)
+     pprint-defpackage nil nil)
     ((cons (member define-compiler-macro
                    define-modify-macro
                    define-setf-expander
@@ -124,10 +124,6 @@
                    dotimes))
      -20
      pprint-dolist)
-    ((cons (member eval-when
-                   multiple-value-setq))
-     -20
-     pprint-eval-when)
     ((cons (member loop))
      -20
      pprint-loop)
@@ -266,7 +262,9 @@
     ((cons (member with-compilation-unit))
      -20
      pprint-with nil t 0)
-    ((cons (member with-open-stream
+    ((cons (member eval-when
+                   multiple-value-setq
+                   with-open-stream
                    with-package-iterator
                    with-simple-restart))
      -20
