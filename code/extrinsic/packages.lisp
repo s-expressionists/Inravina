@@ -18,6 +18,7 @@
   (:export #:*client*
            #:*print-pprint-dispatch*
            #:*standard-pprint-dispatch*
+           #:extrinsic-client
            #:copy-pprint-dispatch
            #:intrinsic-client
            #:pprint-bindings
