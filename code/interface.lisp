@@ -110,17 +110,29 @@
 
 (defgeneric pprint-bindings (client stream object &optional colon-p at-sign-p))
 
+(defgeneric pprint-case (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-cond (client stream object &optional colon-p at-sign-p))
+
 (defgeneric pprint-defun (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-defmethod (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-defpackage (client stream object &optional colon-p at-sign-p))
 
+(defgeneric pprint-do (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-dolist (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-flet (client stream object &optional colon-p at-sign-p))
+
 (defgeneric pprint-lambda (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-let (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-multiple-value-bind (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-prog (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-prog1 (client stream object &optional colon-p at-sign-p))
 
@@ -129,6 +141,8 @@
 (defgeneric pprint-progn (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-progv (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-tagbody (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-function-call (client stream object &optional colon-p at-sign-p argument-count))
 
