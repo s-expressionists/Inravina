@@ -1,0 +1,1 @@
+#+sbcl :nil-vectors-are-strings

@@ -108,11 +108,19 @@
 
 (defgeneric normalize-text (client stream text))
 
+(defgeneric pprint-array (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-apply (client stream object &optional colon-p at-sign-p))
+
 (defgeneric pprint-bindings (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-call (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-case (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-cond (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-defclass (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-defun (client stream object &optional colon-p at-sign-p))
 
@@ -130,6 +138,8 @@
 
 (defgeneric pprint-let (client stream object &optional colon-p at-sign-p))
 
+(defgeneric pprint-loop (client stream object &optional colon-p at-sign-p))
+
 (defgeneric pprint-multiple-value-bind (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-prog (client stream object &optional colon-p at-sign-p))
@@ -141,6 +151,8 @@
 (defgeneric pprint-progn (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-progv (client stream object &optional colon-p at-sign-p))
+
+(defgeneric pprint-symbol-macrolet (client stream object &optional colon-p at-sign-p))
 
 (defgeneric pprint-tagbody (client stream object &optional colon-p at-sign-p))
 
