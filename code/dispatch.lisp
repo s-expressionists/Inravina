@@ -100,10 +100,10 @@
      pprint-defclass)
     ((cons (member defmethod))
      -20
-     pprint-defmethod t nil)
+     pprint-defmethod)
     ((cons (member defpackage))
      -20
-     pprint-defpackage nil nil)
+     pprint-defpackage)
     ((cons (member define-compiler-macro
                    define-modify-macro
                    define-setf-expander
@@ -112,7 +112,7 @@
                    deftype
                    defun))
      -20
-     pprint-defun t nil)
+     pprint-defun)
     ((cons (member do
                    do*))
      -20
@@ -143,10 +143,10 @@
                    or
                    proclaim))
      -20
-     pprint-function-call nil)
+     pprint-function-call nil t)
     ((cons (member destructuring-bind))
      -20
-     pprint-destructuring-bind t nil)
+     pprint-destructuring-bind)
     ((cons (member lambda))
      -20
      pprint-lambda)
@@ -238,14 +238,14 @@
                    satisfies
                    special))
      -20
-     pprint-function-call t nil)
+     pprint-function-call nil t)
     ((cons (member psetf
                    psetq
                    set
                    setf
                    setq))
      -20
-     pprint-function-call t nil 0)
+     pprint-function-call nil t 0)
     ((cons (member tagbody))
      -20
      pprint-tagbody)
@@ -255,20 +255,20 @@
                    with-open-file
                    with-output-to-string))
      -20
-     pprint-with nil t 2)
+     pprint-with nil nil 2)
     ((cons (member pprint-logical-block))
      -20
-     pprint-with nil t 3)
+     pprint-with nil nil 3)
     ((cons (member with-compilation-unit))
      -20
-     pprint-with nil t 0)
+     pprint-with nil nil 0)
     ((cons (member eval-when
                    multiple-value-setq
                    with-open-stream
                    with-package-iterator
                    with-simple-restart))
      -20
-     pprint-with nil t)
+     pprint-with)
     ((and array
           (not string)
           (not bit-vector))
