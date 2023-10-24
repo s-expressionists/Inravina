@@ -33,7 +33,7 @@
            #:pprint-case
            #:pprint-cond
            #:pprint-defclass
-           #:pprint-defmethod-with-qualifier
+           #:pprint-defmethod
            #:pprint-defun
            #:pprint-dispatch
            #:pprint-do

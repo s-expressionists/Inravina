@@ -98,10 +98,9 @@
                    define-condition))
      -20
      pprint-defclass)
-    ((cons (member defmethod)
-           (cons t (cons symbol)))
-     -10
-     pprint-defmethod-with-qualifier)
+    ((cons (member defmethod))
+     -20
+     pprint-defmethod)
     ((cons (member defpackage))
      -20
      pprint-defpackage)
@@ -110,11 +109,10 @@
                    define-setf-expander
                    define-symbol-macro
                    defmacro
-                   defmethod
                    deftype
                    defun))
      -20
-     pprint-defun t nil)
+     pprint-defun)
     ((cons (member do
                    do*))
      -20
@@ -126,10 +124,6 @@
                    dotimes))
      -20
      pprint-dolist)
-    ((cons (member eval-when
-                   multiple-value-setq))
-     -20
-     pprint-eval-when)
     ((cons (member loop))
      -20
      pprint-loop)
@@ -149,7 +143,7 @@
                    or
                    proclaim))
      -20
-     pprint-function-call :newline :linear)
+     pprint-function-call nil t)
     ((cons (member destructuring-bind))
      -20
      pprint-destructuring-bind)
@@ -244,14 +238,14 @@
                    satisfies
                    special))
      -20
-     pprint-function-call)
+     pprint-function-call nil t)
     ((cons (member psetf
                    psetq
                    set
                    setf
                    setq))
      -20
-     pprint-function-call :argument-count 0)
+     pprint-function-call nil t 0)
     ((cons (member tagbody))
      -20
      pprint-tagbody)
@@ -261,14 +255,16 @@
                    with-open-file
                    with-output-to-string))
      -20
-     pprint-with :argument-count 2)
+     pprint-with nil nil 2)
     ((cons (member pprint-logical-block))
      -20
-     pprint-with :argument-count 3)
+     pprint-with nil nil 3)
     ((cons (member with-compilation-unit))
      -20
-     pprint-with :argument-count 0)
-    ((cons (member with-open-stream
+     pprint-with nil nil 0)
+    ((cons (member eval-when
+                   multiple-value-setq
+                   with-open-stream
                    with-package-iterator
                    with-simple-restart))
      -20
