@@ -23,7 +23,7 @@
 (defclass pretty-stream (inravina:pretty-stream)
   ())
 
-(defclass ansi-stream (trivial-gray-streams:fundamental-character-output-stream)
+(defclass ansi-stream (ngray:fundamental-character-output-stream)
   ((style :accessor style
           :initform (make-instance 'ansi-style)
           :type ansi-style)
@@ -32,45 +32,45 @@
 
 ;;; Gray Stream protocol support
 
-(defmethod trivial-gray-streams:stream-file-position ((stream ansi-stream))
+(defmethod ngray:stream-file-position ((stream ansi-stream))
   (file-position (target stream)))
 
-(defmethod trivial-gray-streams:stream-write-char ((stream ansi-stream) char)
+(defmethod ngray:stream-write-char ((stream ansi-stream) char)
   (write-char char (target stream)))
 
-(defmethod trivial-gray-streams:stream-write-string ((stream ansi-stream) string &optional start end)
+(defmethod ngray:stream-write-string ((stream ansi-stream) string &optional start end)
   (write-string string (target stream) :start (or start 0) :end end))
 
-(defmethod trivial-gray-streams:stream-finish-output ((stream ansi-stream))
+(defmethod ngray:stream-finish-output ((stream ansi-stream))
   (finish-output (target stream)))
 
-(defmethod trivial-gray-streams:stream-force-output ((stream ansi-stream))
+(defmethod ngray:stream-force-output ((stream ansi-stream))
   (force-output (target stream)))
 
-(defmethod trivial-gray-streams:stream-clear-output ((stream ansi-stream))
+(defmethod ngray:stream-clear-output ((stream ansi-stream))
   (clear-output (target stream)))
 
-(defmethod trivial-gray-streams:stream-terpri ((stream ansi-stream))
+(defmethod ngray:stream-terpri ((stream ansi-stream))
   (terpri (target stream)))
 
-(defmethod trivial-gray-streams:stream-fresh-line ((stream ansi-stream))
+(defmethod ngray:stream-fresh-line ((stream ansi-stream))
   (fresh-line (target stream)))
 
-(defmethod trivial-gray-streams:stream-line-column ((stream ansi-stream))
-  (trivial-stream-column:line-column (target stream)))
+(defmethod ngray:stream-line-column ((stream ansi-stream))
+  (ngray:stream-line-column (target stream)))
 
-(defmethod trivial-gray-streams:stream-advance-to-column ((stream ansi-stream) column)
-  (trivial-stream-column:advance-to-column column (target stream)))
+(defmethod ngray:stream-advance-to-column ((stream ansi-stream) column)
+  (ngray:stream-advance-to-column (target stream) column))
 
-;;; trivial-stream-column protocal support
+;;; style protocal support
 
-(defmethod trivial-stream-column:stream-style ((stream ansi-stream))
+(defmethod inravina:stream-style ((stream ansi-stream))
   (style stream))
 
 (defun write-ansi (value stream)
   (format stream "~C[~Am" #\Escape value))
 
-(defmethod (setf trivial-stream-column:stream-style) (new-style (stream ansi-stream))
+(defmethod (setf inravina:stream-style) (new-style (stream ansi-stream))
   (let ((foreground (foreground new-style))
         (background (background new-style))
         (font (font new-style))
@@ -110,13 +110,13 @@
                   target))
     (setf (style stream) new-style)))
 
-(defmethod trivial-stream-column:stream-copy-style ((stream ansi-stream) style &rest overrides &key &allow-other-keys)
+(defmethod inravina:stream-copy-style ((stream ansi-stream) style &rest overrides &key &allow-other-keys)
   (make-instance 'ansi-style
                  :foreground (getf overrides :foreground (foreground style))
                  :background (getf overrides :background (background style))
                  :font (getf overrides :font (font style))))
 
-(defmethod trivial-stream-column:stream-style ((stream ansi-stream))
+(defmethod inravina:stream-style ((stream ansi-stream))
   (style stream))
 
 (defparameter *styles*
@@ -125,5 +125,4 @@
         :constant-variable (make-instance 'ansi-style :foreground :cyan :font :bold)))
 
 (defmethod inravina:get-named-style (client (stream pretty-stream) name)
-  (trivial-stream-column:stream-copy-style stream (getf *styles* name)))
-
+  (inravina:stream-copy-style stream (getf *styles* name)))

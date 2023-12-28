@@ -172,6 +172,44 @@
 
 (defgeneric pprint-macro-char (client stream object &optional quasiquote-p unquote-p disp-char sub-char))
 
+(defgeneric stream-style (stream)
+  (:method (stream)
+    (declare (ignore stream))
+    nil))
+
+(defgeneric (setf stream-style) (new-style stream)
+  (:method (new-style stream)
+    (declare (ignore stream))
+    new-style))
+
+(defgeneric stream-copy-style (stream style &rest overrides &key &allow-other-keys)
+  (:method (stream style &rest overrides &key &allow-other-keys)
+    (declare (ignore stream style overrides))
+    nil))
+
+(defmacro with-style-overrides ((stream &rest overrides) &body body)
+  (let ((previous-var (gensym)))
+    `(let ((,previous-var (stream-style ,stream)))
+       (setf (stream-style ,stream) (stream-copy-style ,stream ,previous-var ,@overrides))
+       (unwind-protect (progn ,@body)
+         (setf (stream-style ,stream) ,previous-var)))))
+
+(defgeneric stream-scale-column (stream column old-style new-style)
+  (:method (stream column old-style new-style)
+    (declare (ignore stream old-style new-style))
+    column))
+
+(defgeneric stream-measure-char (stream char &optional style)
+  (:method (stream char &optional style)
+    (declare (ignore stream char style))
+    1))
+
+(defgeneric stream-measure-string (stream string &optional start end style)
+  (:method (stream string &optional start end style)
+    (declare (ignore stream style))
+    (- (or end (length string))
+       (or start 0))))
+
 (defgeneric get-named-style (client stream name)
   (:method (client stream name)
     (declare (ignore client stream name))
@@ -181,13 +219,13 @@
   (let ((previous-var (gensym))
         (new-var (gensym))
         (body-fun (gensym)))
-    `(let ((,previous-var (trivial-stream-column:stream-style ,stream))
+    `(let ((,previous-var (stream-style ,stream))
            (,new-var (get-named-style ,client ,stream ,name))
            (,body-fun (lambda () ,@body)))
        (cond (,new-var
-              (setf (trivial-stream-column:stream-style ,stream) ,new-var)
+              (setf (stream-style ,stream) ,new-var)
               (unwind-protect (funcall ,body-fun)
-                (setf (trivial-stream-column:stream-style ,stream) ,previous-var)))
+                (setf (stream-style ,stream) ,previous-var)))
              (t
               (funcall ,body-fun))))))
 

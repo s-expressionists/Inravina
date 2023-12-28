@@ -13,8 +13,6 @@
            #:pprint-tab
            #:pprint-tabular
            #:set-pprint-dispatch)
-  #+sicl
-  (:local-nicknames (:trivial-gray-streams :cyclosis))
   (:export #:*options*
            #:*print-pprint-dispatch*
            #:coerce-output-stream-designator
@@ -70,4 +68,9 @@
            #:pprint-with
            #:pretty-stream
            #:pretty-stream-p
-           #:set-pprint-dispatch))
+           #:set-pprint-dispatch
+           #:stream-copy-style
+           #:stream-measure-char
+           #:stream-measure-string
+           #:stream-scale-column
+           #:stream-style))

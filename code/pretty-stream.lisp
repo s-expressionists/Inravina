@@ -176,7 +176,7 @@
            :type string)))
 
 (defclass pretty-stream
-    (trivial-gray-streams:fundamental-character-output-stream)
+    (ngray:fundamental-character-output-stream)
   ((target :reader target
            :initarg :target)
    (client :reader client
@@ -268,7 +268,7 @@
 
 (defun line-length (stream)
   (or *print-right-margin*
-      (trivial-stream-column:line-length (target stream))
+      #+gray-streams-line-length (ngray:stream-line-length (target stream))
       100))
 
 (defun ancestor-p (instruction ancestor)
@@ -376,8 +376,9 @@
              (function
               (funcall fragment target))
              (real
-              (when (text-before-newline-p stream i)
-                (trivial-stream-column:advance-to-column fragment target)))
+              (when (and (text-before-newline-p stream i)
+                         (plusp fragment))
+                (ngray:stream-advance-to-column target fragment)))
              (string
               (write-string fragment target
                             :start 0
@@ -400,14 +401,14 @@
                            &aux (previous (previous instruction)))
   (declare (ignore client allow-break-p mode))
   (if previous
-      (setf (column instruction) (trivial-stream-column:scale-column (column previous)
-                                                                     (target stream)
-                                                                     :old-style (style previous)
-                                                                     :new-style (style instruction))
+      (setf (column instruction)
+            (stream-scale-column (target stream) (column previous)
+                                 (style previous) (style instruction))
             (line instruction) (line previous))
-      (setf (column instruction) (trivial-stream-column:scale-column (or (trivial-stream-column:line-column (target stream)) 0)
-                                                                     (target stream)
-                                                                     :new-style (style instruction))
+      (setf (column instruction)
+            (stream-scale-column (target stream)
+                                 (or (ngray:stream-line-column (target stream)) 0)
+                                 (style instruction) nil)
             (line instruction) 0))
   (setf (fragment-index instruction) (length (fragments stream))))
 
@@ -427,7 +428,7 @@
 (defun add-style-fragment (client stream mode instruction style)
   (declare (ignore client mode instruction))
   (vector-push-extend (lambda (stream)
-                        (trivial-stream-column:set-style style stream))
+                        (setf (stream-style stream) style))
                       (fragments stream))
   t)
 
@@ -436,8 +437,8 @@
   (or (null text)
       (zerop (length text))
       (let ((new-column (+ (column instruction)
-                           (trivial-stream-column:measure-string text (target stream)
-                                                                 :style (style instruction)))))
+                           (stream-measure-string (target stream) text
+                                                  (style instruction)))))
         (when (or mode
                   (>= (line-length stream) new-column))
           (setf (column instruction) new-column)
@@ -597,8 +598,8 @@
   (declare (ignore allow-break-p))
   (let* ((column (column instruction))
          (start-column (+ column
-                          (trivial-stream-column:measure-string (prefix instruction)
-                                                                (target stream))))
+                          (stream-measure-string (target stream)
+                                                 (prefix instruction))))
          (parent-prefix-fragments (when (parent instruction)
                                     (prefix-fragments (parent instruction))))
          (prefix (prefix instruction))
@@ -644,7 +645,7 @@
       stream
     (let ((parent (car (blocks stream)))
           (depth (length (blocks stream))))
-      (setf (style newline) (trivial-stream-column:stream-style stream)
+      (setf (style newline) (stream-style stream)
             (parent newline) parent
             (depth newline) depth
             sections (delete-if (lambda (s)
@@ -707,7 +708,7 @@
   (declare (ignore client))
   (push-instruction (make-instance 'line-tab
                                    :colnum colnum :colinc colinc
-                                   :style (trivial-stream-column:stream-style stream)
+                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -716,7 +717,7 @@
   (declare (ignore client))
   (push-instruction (make-instance 'line-relative-tab
                                    :colnum colnum :colinc colinc
-                                   :style (trivial-stream-column:stream-style stream)
+                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -725,7 +726,7 @@
   (declare (ignore client))
   (push-instruction (make-instance 'section-tab
                                    :colnum colnum :colinc colinc
-                                   :style (trivial-stream-column:stream-style stream)
+                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -734,7 +735,7 @@
   (declare (ignore client))
   (push-instruction (make-instance 'section-relative-tab
                                    :colnum colnum :colinc colinc
-                                   :style (trivial-stream-column:stream-style stream)
+                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -743,7 +744,7 @@
   (declare (ignore client))
   (push-instruction (make-instance 'block-indent
                                    :width n
-                                   :style (trivial-stream-column:stream-style stream)
+                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -752,7 +753,7 @@
   (declare (ignore client))
   (push-instruction (make-instance 'current-indent
                                    :width n
-                                   :style (trivial-stream-column:stream-style stream)
+                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -762,7 +763,7 @@
              current-tail
              (push-instruction (make-instance 'text
                                               :section (car (sections stream))
-                                              :style (trivial-stream-column:stream-style stream)
+                                              :style (stream-style stream)
                                               :parent (car (blocks stream)))
                                stream))))
 
@@ -793,7 +794,7 @@
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
   (let ((block-start (make-instance 'block-start
                                     :section (car (sections stream))
-                                    :style (trivial-stream-column:stream-style stream)
+                                    :style (stream-style stream)
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix-p per-line-prefix-p
                                     :depth (length (blocks stream))
@@ -805,7 +806,7 @@
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :section (car (sections stream))
-                                  :style (trivial-stream-column:stream-style stream)
+                                  :style (stream-style stream)
                                   :suffix (normalize-text client stream suffix)
                                   :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
@@ -818,14 +819,14 @@
         (current-tail
          (style current-tail))
         (t
-         (trivial-stream-column:style stream))))
+         (stream-style stream))))
 
 ;;; Gray Stream protocol support
 
-(defmethod trivial-gray-streams:stream-file-position ((stream pretty-stream))
+#+(or)(defmethod ngray:stream-file-position ((stream pretty-stream))
   (file-position (target stream)))
 
-(defmethod trivial-gray-streams:stream-write-char ((stream pretty-stream) char)
+(defmethod ngray:stream-write-char ((stream pretty-stream) char)
   (cond ((null (blocks stream))
          (write-char char (target stream)))
         ((char= char #\Newline)
@@ -834,7 +835,7 @@
          (vector-push-extend char (get-text-buffer stream))))
   char)
 
-(defmethod trivial-gray-streams:stream-write-string ((stream pretty-stream) string &optional start end)
+(defmethod ngray:stream-write-string ((stream pretty-stream) string &optional start end)
   (if (blocks stream)
       (flet ((append-text (start2 end2)
                (when (/= start2 end2)
@@ -861,75 +862,73 @@
       (write-string string (target stream) :start (or start 0) :end end))
   string)
 
-(defmethod trivial-gray-streams:stream-finish-output ((stream pretty-stream))
+(defmethod ngray:stream-finish-output ((stream pretty-stream))
   (unless (blocks stream)
     (finish-output (target stream))))
 
-(defmethod trivial-gray-streams:stream-force-output ((stream pretty-stream))
+(defmethod ngray:stream-force-output ((stream pretty-stream))
   (unless (blocks stream)
     (force-output (target stream))))
 
-(defmethod trivial-gray-streams:stream-clear-output ((stream pretty-stream))
+(defmethod ngray:stream-clear-output ((stream pretty-stream))
   (unless (blocks stream)
     (clear-output (target stream))))
 
-(defmethod trivial-gray-streams:stream-terpri ((stream pretty-stream))
+(defmethod ngray:stream-terpri ((stream pretty-stream))
   (if (blocks stream)
       (pprint-newline (client stream) stream :mandatory-literal)
       (terpri (target stream))))
 
-(defmethod trivial-gray-streams:stream-fresh-line ((stream pretty-stream))
+(defmethod ngray:stream-fresh-line ((stream pretty-stream))
   (if (blocks stream)
       (pprint-newline (client stream) stream :fresh-literal)
       (fresh-line (target stream))))
 
-(defmethod trivial-gray-streams:stream-line-column ((stream pretty-stream) &aux (current-tail (tail stream)))
+(defmethod ngray:stream-line-column ((stream pretty-stream) &aux (current-tail (tail stream)))
   (or (and current-tail
            (column current-tail))
       (and (blocks stream)
            (start-column (car (blocks stream))))
-      (trivial-stream-column:line-column (target stream))))
+      (ngray:stream-line-column (target stream))))
 
-(defmethod trivial-gray-streams:stream-advance-to-column ((stream pretty-stream) column)
+(defmethod ngray:stream-advance-to-column ((stream pretty-stream) column)
   (cond ((blocks stream)
          (push-instruction (make-instance 'advance
-                                          :style (trivial-stream-column:stream-style stream)
+                                          :style (stream-style stream)
                                           :section (car (sections stream))
                                           :value column
                                           :parent (car (blocks stream)))
                            stream)
          t)
-        ((trivial-stream-column:advance-to-column column (target stream)))))
+        ((ngray:stream-advance-to-column (target stream) column))))
 
-;;; trivial-stream-column protocal support
-
-(defmethod trivial-stream-column:stream-style ((stream pretty-stream) &aux (current-tail (tail stream)))
+(defmethod stream-style ((stream pretty-stream) &aux (current-tail (tail stream)))
   (if current-tail
       (style current-tail)
-      (trivial-stream-column:style (target stream))))
+      (stream-style (target stream))))
 
-(defmethod (setf trivial-stream-column:stream-style) (new-style (stream pretty-stream))
+(defmethod (setf stream-style) (new-style (stream pretty-stream))
   (if (blocks stream)
       (push-instruction (make-instance 'style
                                        :style new-style
                                        :section (car (sections stream))
                                        :parent (car (blocks stream)))
                         stream)
-      (trivial-stream-column:set-style new-style (target stream))))
+      (setf (stream-style (target stream)) new-style)))
 
-(defmethod trivial-stream-column:stream-copy-style ((stream pretty-stream) style &rest overrides &key &allow-other-keys)
-  (apply #'trivial-stream-column:copy-style
-         (frob-style stream style) (target stream) overrides))
+(defmethod stream-copy-style ((stream pretty-stream) style &rest overrides &key &allow-other-keys)
+  (apply #'stream-copy-style
+         (target stream) (frob-style stream style)  overrides))
 
-(defmethod trivial-stream-column:stream-scale-column ((stream pretty-stream) column old-style new-style)
-  (trivial-stream-column:scale-column column (target stream)
-                                      :old-style (frob-style stream old-style)
-                                      :new-style (frob-style stream new-style)))
+(defmethod stream-scale-column ((stream pretty-stream) column old-style new-style)
+  (stream-scale-column (target stream) column
+                       (frob-style stream old-style)
+                       (frob-style stream new-style)))
 
-(defmethod trivial-stream-column:stream-measure-char ((stream pretty-stream) char &optional style)
-  (trivial-stream-column:measure-char char stream :style (frob-style stream style)))
+(defmethod stream-measure-char ((stream pretty-stream) char &optional style)
+  (stream-measure-char (target stream) char (frob-style stream style)))
 
-(defmethod trivial-stream-column:stream-measure-string ((stream pretty-stream) char &optional start end style)
-  (trivial-stream-column:measure-string char stream
-                                        :start (or start 0) :end end
-                                        :style (frob-style stream style)))
+(defmethod stream-measure-string ((stream pretty-stream) char &optional start end style)
+  (stream-measure-string (target stream) char
+                         (or start 0) end
+                         (frob-style stream style)))
