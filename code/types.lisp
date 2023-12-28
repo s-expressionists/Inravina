@@ -44,11 +44,11 @@
        t))
 
 (deftype quasiquote-form ()
-  '(cons (eql #+clasp ext:quasiquote
-              #+clisp system::backquote
-              #+ecl si:quasiquote
-              #+mezzano mezzano.internals::backquote
-              #+sbcl sb-int:quasiquote)
+  '(cons (member #+clasp ext:quasiquote
+                 #+clisp system::backquote
+                 #+ecl si:quasiquote
+                 #+mezzano mezzano.internals::backquote
+                 #+sbcl sb-int:quasiquote)
     (cons t null)))
 
 (defun quasiquote-form-p (form)

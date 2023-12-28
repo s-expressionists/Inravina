@@ -1,4 +1,4 @@
-(asdf:defsystem #:inravina
+(asdf:defsystem "inravina"
   :description "A portable and extensible Common Lisp pretty printer."
   :author "Tarn W. Burton"
   :license "MIT"
@@ -6,9 +6,8 @@
   :homepage "https://github.com/s-expressionists/Inravina/"
   :bug-tracker "https://github.com/s-expressionists/Inravina/issues"
   :in-order-to ((asdf:test-op (asdf:test-op #:inravina/test)))
-  :depends-on ((:feature (:not :sicl) #:trivial-gray-streams)
-               #:incless
-               #:trivial-stream-column
+  :depends-on ("nontrivial-gray-streams"
+               "incless"
                (:feature :sbcl (:require #:sb-introspect)))
   :components ((:module code
                 :serial t
@@ -23,12 +22,13 @@
                              (:file "pretty-stream")
                              (:file "implementation")))))
 
-(asdf:defsystem #:inravina/test
+(asdf:defsystem "inravina/test"
   :description "Test suite for Inravina"
   :author "Tarn W. Burton"
   :license "MIT"
   :depends-on
-    (:alexandria :parachute)
+  ("alexandria"
+   "parachute")
   :perform (asdf:test-op (op c) (uiop:symbol-call :parachute :test :inravina/test))
   :components ((:module code
                 :components ((:module test

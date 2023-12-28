@@ -1,6 +1,6 @@
 (in-package #:inravina-examples)
 
-(defclass pdf-stream (trivial-gray-streams:fundamental-character-output-stream)
+(defclass pdf-stream (ngray:fundamental-character-output-stream)
   ((line :accessor line
          :initform 0)
    (column :accessor column
@@ -19,39 +19,39 @@
   (/ (pdf:get-char-width text pdf::*font* pdf::*font-size*)
      (em-size)))
 
-(defmethod trivial-stream-column:stream-measure-string ((stream pdf-stream) string &optional start end style)
+(defmethod inravina:stream-measure-string ((stream pdf-stream) string &optional start end style)
   (declare (ignore stream style))
   (measure-string (subseq string (or start 0) end)))
 
-(defmethod trivial-stream-column:stream-measure-char ((stream pdf-stream) char &optional style)
+(defmethod inravina:stream-measure-char ((stream pdf-stream) char &optional style)
   (declare (ignore stream style))
   (measure-char char))
 
-(defmethod trivial-gray-streams:stream-terpri ((stream pdf-stream))
+(defmethod ngray:stream-terpri ((stream pdf-stream))
   (pdf:move-text (* (- (indent stream)) (em-size))
                  (* pdf::*font-size* -1.2))
   (incf (line stream))
   (setf (column stream) 0
         (indent stream) 0))
 
-(defmethod trivial-gray-streams:stream-advance-to-column ((stream pdf-stream) column)
+(defmethod ngray:stream-advance-to-column ((stream pdf-stream) column)
   (unless (zerop column)
     (pdf:move-text (* column (em-size))
                    0)
     (setf (column stream) column
           (indent stream) column)))
 
-(defmethod trivial-gray-streams:stream-write-char ((stream pdf-stream) char)
+(defmethod ngray:stream-write-char ((stream pdf-stream) char)
   (pdf:draw-text (string char))
   (incf (column stream) (measure-char char))
   char)
 
-(defmethod trivial-gray-streams:stream-write-string ((stream pdf-stream) string &optional start end)
+(defmethod ngray:stream-write-string ((stream pdf-stream) string &optional start end)
   (pdf:draw-text (subseq string (or start 0) end))
   (incf (column stream) (measure-string (subseq string start end)))
   string)
 
-(defmethod trivial-gray-streams:stream-line-column ((stream pdf-stream))
+(defmethod ngray:stream-line-column ((stream pdf-stream))
   (column stream))
 
 (defun pprint-pdf (form path &key (font "Helvetica"))
