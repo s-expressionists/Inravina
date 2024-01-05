@@ -15,7 +15,7 @@ to include this as the stock pretty printer in [SICL][] eventually.
 
 In addition to a clone of this repository in a location that is
 discoverable by ASDF you will also need a clone of
-[trivial-stream-column][] and [Incless][].
+[nontrivial-gray-streams][] and [Incless][].
 
 # Usage
 
@@ -103,4 +103,4 @@ available in the McCLIM code in the examples directory.
 [SBCL]: http://sbcl.org
 [SICL]: https://github.com/robert-strandh/SICL
 [cl-pdf]: https://github.com/mbattyani/cl-pdf
-[trivial-stream-column]: https://github.com/yitzchak/trivial-stream-column
+[nontrivial-gray-streams]: https://github.com/yitzchak/nontrivial-gray-streams
