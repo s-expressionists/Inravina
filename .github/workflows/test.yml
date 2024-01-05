@@ -23,11 +23,11 @@ jobs:
     container:
       image: ghcr.io/yitzchak/archlinux-cl:latest
     steps:
-    - name: Checkout trivial-stream-column
+    - name: Checkout nontrivial-gray-streams
       uses: actions/checkout@v4
       with:
-        repository: yitzchak/trivial-stream-column
-        path: trivial-stream-column
+        repository: yitzchak/nontrivial-gray-streams
+        path: nontrivial-gray-streams
     - name: Checkout Incless
       uses: actions/checkout@v4
       with:
