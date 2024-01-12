@@ -284,7 +284,7 @@
   (prog ((section t)
          last-maybe-break
          status
-         mode
+         (mode :single-line)
          (client (client stream))
          (instruction (head stream)))
    repeat
@@ -294,64 +294,64 @@
                               (*debug-section* section))
                           (describe stream *debug-io*)
                           (finish-output *debug-io*)
-                          (format *debug-io* "section ~a, instruction ~a, mode = ~a, allow-break-p = ~a~%"
+                          (format *debug-io* "section ~a, instruction ~a, mode = ~s~%"
                                   section
-                                  instruction mode
-                                  (or (not section)
-                                      (and (typep section 'section-start)
-                                           (or (eq section instruction)
-                                               (eq (section-end section) instruction)))))))
-       (setf status (layout client stream mode instruction
-                            (or (not section)
-                                (and (typep section 'section-start)
-                                     (or (eq section instruction)
-                                         (eq (section-end section) instruction)))))
-             mode (and (eq :overflow mode) mode))
+                                  instruction mode)))
+       (setf status (layout client stream mode instruction))
        #+pprint-debug
        (when *pprint-debug*
-         (format *debug-io* "status = ~a, mode = ~a~%"
-                 status mode))
-       (case status
-         ((t :maybe-break)
-          (cond ((and (or (null section)
-                          (and (typep section 'section-start)
-                               (eq instruction (section-end section))))
-                      (typep instruction 'section-start))
-                 (setf section instruction))
-                ((or (eq section instruction)
-                     (and (typep section 'section-start)
-                          (eq instruction (section-end section))))
-                 (setf section nil)))
-          (when (and (eq status :maybe-break)
-                     (or (null last-maybe-break)
-                         (ancestor-p last-maybe-break (parent instruction))))
-            (setf last-maybe-break instruction))
-          (setf instruction (next instruction)))
-         (:break
-          (loop for i in (newlines-after instruction)
-                do (setf (break-before-p i) t))
-          (setf section (and (not (eq section instruction))
-                             instruction)
-                last-maybe-break nil
-                instruction (next instruction)))
-         (:overflow
-          (setf mode :overflow
-                instruction (next instruction)))
-         (otherwise
-          (cond (last-maybe-break
-                 (setf instruction last-maybe-break
-                       (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
-                       section last-maybe-break
-                       last-maybe-break nil
-                       mode t))
-                (section
-                 (setf instruction (if (eq t section)
-                                       (head stream)
-                                       (next section))
-                       section nil
-                       (fill-pointer (fragments stream)) (fragment-index instruction)))
-                (t
-                 (setf mode t)))))
+         (format *debug-io* "status = ~a~%"
+                 status))
+       (cond ((eq mode :overflow-lines)
+              (setf instruction (next instruction)))
+             ((member status '(:no-break :maybe-break))
+              (cond ((and (or (null section)
+                              (and (typep section 'section-start)
+                                   (eq instruction (section-end section))))
+                          (typep instruction 'section-start))
+                     (setf section instruction))
+                    ((or (eq section instruction)
+                         (and (typep section 'section-start)
+                              (eq instruction (section-end section))))
+                     (setf section nil)))
+              (when (and (eq status :maybe-break)
+                         (or (null last-maybe-break)
+                             (ancestor-p last-maybe-break (parent instruction))))
+                (setf last-maybe-break instruction))
+              (setf instruction (next instruction)
+                    mode (if (or (not section)
+                                 (and (typep section 'section-start)
+                                      (or (eq section instruction)
+                                          (eq (section-end section) instruction))))
+                             :multiline
+                             :single-line)))
+             ((eq status :break)
+              (loop for i in (newlines-after instruction)
+                    do (setf (break-before-p i) t))
+              (setf section (and (not (eq section instruction))
+                                 instruction)
+                    mode (if section :single-line :multiline)
+                    last-maybe-break nil
+                    instruction (next instruction)))
+             ((eq status :overflow-lines)
+              (setf mode :overflow-lines
+                    section nil
+                    instruction (next instruction)))
+             (last-maybe-break
+              (setf instruction last-maybe-break
+                    (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
+                    section last-maybe-break
+                    last-maybe-break nil
+                    mode :unconditional))
+             (section
+              (setf instruction (if (eq t section)
+                                    (head stream)
+                                    (next section))
+                    section nil
+                    mode :multiline
+                    (fill-pointer (fragments stream)) (fragment-index instruction)))
+             (t
+              (setf mode :unconditional)))
        (go repeat)))
   (setf (head stream) nil
         (tail stream) nil))
@@ -392,14 +392,14 @@
     (layout-instructions stream)
     (write-fragments stream)))
 
-(defgeneric layout (client stream mode instruction allow-break-p)
-  (:method (client stream (mode (eql :overflow)) instruction allow-break-p)
-    (declare (ignore client stream mode instruction allow-break-p))
-    t))
+(defgeneric layout (client stream mode instruction)
+  (:method (client stream (mode (eql :overflow-lines)) instruction)
+    (declare (ignore client stream mode instruction))
+    :no-break))
 
-(defmethod layout :before (client stream mode instruction allow-break-p
+(defmethod layout :before (client stream mode instruction
                            &aux (previous (previous instruction)))
-  (declare (ignore client allow-break-p mode))
+  (declare (ignore client mode))
   (if previous
       (setf (column instruction)
             (stream-scale-column (target stream) (column previous)
@@ -417,44 +417,42 @@
   (vector-push-extend #'terpri (fragments stream))
   (setf (column instruction) 0)
   (incf (line instruction))
-  t)
+  :no-break)
 
 (defun add-tab-fragment (client stream mode instruction column)
   (declare (ignore client mode))
   (vector-push-extend column (fragments stream))
   (setf (column instruction) column)
-  t)
+  :no-break)
 
 (defun add-style-fragment (client stream mode instruction style)
   (declare (ignore client mode instruction))
   (vector-push-extend (lambda (stream)
                         (setf (stream-style stream) style))
                       (fragments stream))
-  t)
+  :no-break)
 
 (defun add-text-fragment (client stream mode instruction text)
   (declare (ignore client))
-  (or (null text)
-      (zerop (length text))
+  (if (or (null text)
+          (zerop (length text)))
+      :no-break
       (let ((new-column (+ (column instruction)
                            (stream-measure-string (target stream) text
                                                   (style instruction)))))
-        (when (or mode
+        (when (or (member mode '(:unconditional :overflow-lines))
                   (>= (line-length stream) new-column))
           (setf (column instruction) new-column)
           (vector-push-extend text (fragments stream))
-          t))))
+          :no-break))))
 
-(defmethod layout (client stream mode (instruction advance) allow-break-p)
-  (declare (ignore allow-break-p))
+(defmethod layout (client stream mode (instruction advance))
   (add-tab-fragment client stream mode instruction (value instruction)))
 
-(defmethod layout (client stream mode (instruction text) allow-break-p)
-  (declare (ignore allow-break-p))
+(defmethod layout (client stream mode (instruction text))
   (add-text-fragment client stream mode instruction (value instruction)))
 
-(defmethod layout (client stream mode (instruction style) allow-break-p)
-  (declare (ignore allow-break-p))
+(defmethod layout (client stream mode (instruction style))
   (add-style-fragment client stream mode instruction (style instruction)))
 
 (defun compute-tab-size (column colnum colinc relativep)
@@ -474,9 +472,8 @@
         (t
          0)))
 
-(defmethod layout (client stream mode (instruction section-tab) allow-break-p
+(defmethod layout (client stream mode (instruction section-tab)
                    &aux (column (column instruction)))
-  (declare (ignore allow-break-p))
   (add-tab-fragment client stream mode instruction
                     (+ column
                        (compute-tab-size (- column
@@ -487,9 +484,8 @@
                                          (colinc instruction)
                                          (typep instruction 'relative-tab)))))
 
-(defmethod layout (client stream mode (instruction line-tab) allow-break-p
+(defmethod layout (client stream mode (instruction line-tab)
                    &aux (column (column instruction)))
-  (declare (ignore allow-break-p))
   (add-tab-fragment client stream mode instruction
                     (+ column
                        (compute-tab-size column
@@ -506,61 +502,44 @@
             (<= (- line-length line-column)
                 *print-miser-width*))))
 
-(defmethod layout (client stream mode (instruction mandatory-newline) allow-break-p)
-  (declare (ignore client stream mode))
-  (if allow-break-p
+(defmethod layout
+    (client stream (mode (eql :single-line)) (instruction mandatory-newline))
+  (declare (ignore client stream))
+  nil)
+
+(defmethod layout
+    (client stream (mode (eql :multiline)) (instruction miser-newline))
+  (declare (ignore client))
+  (if (miser-p stream instruction)
       (call-next-method)
-      nil))
+      :no-break))
 
-(defmethod layout (client stream mode (instruction miser-newline) allow-break-p
-                   &aux (miser-p (miser-p stream instruction)))
-  (declare (ignore client))
-  (cond ((and (not mode)
-              allow-break-p
-              miser-p)
-         nil)
-        ((and (not mode)
-              (or (not allow-break-p)
-                  (not miser-p)))
-         t)
-        (t
-         (call-next-method))))
-  
-(defmethod layout (client stream mode (instruction fresh-newline) allow-break-p)
+(defmethod layout
+    (client stream (mode (eql :multiline)) (instruction fresh-newline))
   (declare (ignore client stream))
-  (if (and (not mode)
-           (or (not allow-break-p)
-               (zerop (column instruction))))
-      t
+  (if (zerop (column instruction))
+      :no-break
       (call-next-method)))
 
-(defmethod layout (client stream mode (instruction fill-newline) allow-break-p)
+(defmethod layout (client stream (mode (eql :multiline)) (instruction fill-newline))
   (declare (ignore client))
-  (cond ((and (not mode)
-              (not allow-break-p))
-         t)
-        ((and (not mode)
-              (or (not (break-before-p instruction))
-                  (not (section-end instruction)))
-              (not (miser-p stream instruction)))
-         :maybe-break)
-        (t
-         (call-next-method))))
-
-(defmethod layout (client stream mode (instruction linear-newline) allow-break-p)
-  (declare (ignore client stream))
-  (if (and (not mode)
-           (not allow-break-p))
-      t
+  (if (and (or (not (break-before-p instruction))
+               (not (section-end instruction)))
+           (not (miser-p stream instruction)))
+      :maybe-break
       (call-next-method)))
 
-(defmethod layout (client stream mode (instruction newline) allow-break-p)
-  (declare (ignore allow-break-p))
+(defmethod layout
+    (client stream (mode (eql :single-line)) (instruction newline))
+  (declare (ignore client stream))
+  :no-break)
+
+(defmethod layout (client stream mode (instruction newline))
   (cond ((and (not *print-readably*)
               *print-lines*
               (>= (1+ (line instruction)) *print-lines*))
          (add-text-fragment client stream mode instruction "..")
-         :overflow)
+         :overflow-lines)
         (t
          (add-newline-fragment client stream mode instruction)
          (when (parent instruction)
@@ -575,27 +554,26 @@
                                       (indent (parent instruction)))))))
          :break)))
 
-(defmethod layout (client stream mode (instruction block-indent) allow-break-p)
-  (declare (ignore client stream allow-break-p mode))
+(defmethod layout (client stream mode (instruction block-indent))
+  (declare (ignore client stream mode))
   (setf (indent (parent instruction))
         (width instruction))
-  t)
+  :no-break)
 
-(defmethod layout (client stream mode (instruction current-indent) allow-break-p)
-  (declare (ignore client stream allow-break-p mode))
+(defmethod layout (client stream mode (instruction current-indent))
+  (declare (ignore client stream mode))
   (setf (indent (parent instruction))
         (+ (width instruction)
            (column instruction)
            (- (start-column (parent instruction)))))
-  t)
+  :no-break)
 
-(defmethod layout (client stream (mode (eql :overflow)) (instruction block-start) allow-break-p)
-  (declare (ignore client stream allow-break-p))
+(defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-start))
+  (declare (ignore client stream))
   (setf (suffix (block-end instruction)) "")
-  t)
+  :no-break)
 
-(defmethod layout (client stream mode (instruction block-start) allow-break-p)
-  (declare (ignore allow-break-p))
+(defmethod layout (client stream mode (instruction block-start))
   (let* ((column (column instruction))
          (start-column (+ column
                           (stream-measure-string (target stream)
@@ -623,12 +601,10 @@
     (add-text-fragment client stream mode instruction
                        (prefix instruction))))
 
-(defmethod layout (client stream (mode (eql :overflow)) (instruction block-end) allow-break-p)
-  (declare (ignore allow-break-p))
+(defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
   (add-text-fragment client stream mode instruction (suffix instruction)))
 
-(defmethod layout (client stream mode (instruction block-end) allow-break-p)
-  (declare (ignore allow-break-p))
+(defmethod layout (client stream mode (instruction block-end))
   (add-text-fragment client stream mode instruction (suffix instruction)))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
