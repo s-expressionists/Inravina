@@ -761,8 +761,8 @@
 
 (defun pprint-symbol (client stream object &rest options &key &allow-other-keys)
   (declare (ignore options))
-  (with-named-style (client stream
-                     (cond ((constant-variable-p object)
+  (with-style (client stream
+               :name (cond ((constant-variable-p object)
                             :constant-variable)
                            ((dynamic-variable-p object)
                             :dynamic-variable)

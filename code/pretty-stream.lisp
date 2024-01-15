@@ -884,17 +884,17 @@
       (stream-style (target stream))))
 
 (defmethod (setf stream-style) (new-style (stream pretty-stream))
-  (if (blocks stream)
-      (push-instruction (make-instance 'style
-                                       :style new-style
-                                       :section (car (sections stream))
-                                       :parent (car (blocks stream)))
-                        stream)
-      (setf (stream-style (target stream)) new-style)))
+  (when new-style
+    (if (blocks stream)
+        (push-instruction (make-instance 'style
+                                         :style new-style
+                                         :section (car (sections stream))
+                                         :parent (car (blocks stream)))
+                          stream)
+        (setf (stream-style (target stream)) new-style))))
 
-(defmethod stream-copy-style ((stream pretty-stream) style &rest overrides &key &allow-other-keys)
-  (apply #'stream-copy-style
-         (target stream) (frob-style stream style)  overrides))
+(defmethod make-style (client (stream pretty-stream) &rest initargs &key)
+  (apply #'make-style client (target stream) initargs))
 
 (defmethod stream-scale-column ((stream pretty-stream) column old-style new-style)
   (stream-scale-column (target stream) column

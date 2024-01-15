@@ -182,16 +182,17 @@
     (declare (ignore stream))
     new-style))
 
-(defgeneric stream-copy-style (stream style &rest overrides &key &allow-other-keys)
-  (:method (stream style &rest overrides &key &allow-other-keys)
-    (declare (ignore stream style overrides))
+(defgeneric make-style (client stream &rest initargs &key)
+  (:method (client stream &rest initargs &key)
+    (declare (ignore client stream initargs))
     nil))
 
-(defmacro with-style-overrides ((stream &rest overrides) &body body)
+(defmacro with-style ((client stream &rest initargs) &body body)
   (let ((previous-var (gensym)))
     `(let ((,previous-var (stream-style ,stream)))
-       (setf (stream-style ,stream) (stream-copy-style ,stream ,previous-var ,@overrides))
-       (unwind-protect (progn ,@body)
+       (setf (stream-style ,stream) (make-style ,client ,stream ,@initargs))
+       (unwind-protect
+            (progn ,@body)
          (setf (stream-style ,stream) ,previous-var)))))
 
 (defgeneric stream-scale-column (stream column old-style new-style)
@@ -209,25 +210,6 @@
     (declare (ignore stream style))
     (- (or end (length string))
        (or start 0))))
-
-(defgeneric get-named-style (client stream name)
-  (:method (client stream name)
-    (declare (ignore client stream name))
-    nil))
-
-(defmacro with-named-style ((client stream name) &body body)
-  (let ((previous-var (gensym))
-        (new-var (gensym))
-        (body-fun (gensym)))
-    `(let ((,previous-var (stream-style ,stream))
-           (,new-var (get-named-style ,client ,stream ,name))
-           (,body-fun (lambda () ,@body)))
-       (cond (,new-var
-              (setf (stream-style ,stream) ,new-var)
-              (unwind-protect (funcall ,body-fun)
-                (setf (stream-style ,stream) ,previous-var)))
-             (t
-              (funcall ,body-fun))))))
 
 (defmacro define-interface ((client-var client-class &optional intrinsic) &body body)
   (let* ((intrinsic-pkg (if intrinsic (find-package '#:common-lisp) *package*))

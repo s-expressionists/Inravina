@@ -70,6 +70,14 @@
 (defun write-ansi (value stream)
   (format stream "~C[~Am" #\Escape value))
 
+(defparameter *styles*
+  (list :number (make-instance 'ansi-style :foreground :yellow)
+        :dynamic-variable (make-instance 'ansi-style :foreground :cyan)
+        :constant-variable (make-instance 'ansi-style :foreground :cyan :font :bold)))
+
+(defmethod (setf inravina:stream-style) :around ((name keyword) (stream ansi-stream))
+  (call-next-method (getf *styles* name) stream))
+
 (defmethod (setf inravina:stream-style) (new-style (stream ansi-stream))
   (let ((foreground (foreground new-style))
         (background (background new-style))
@@ -110,19 +118,5 @@
                   target))
     (setf (style stream) new-style)))
 
-(defmethod inravina:stream-copy-style ((stream ansi-stream) style &rest overrides &key &allow-other-keys)
-  (make-instance 'ansi-style
-                 :foreground (getf overrides :foreground (foreground style))
-                 :background (getf overrides :background (background style))
-                 :font (getf overrides :font (font style))))
-
 (defmethod inravina:stream-style ((stream ansi-stream))
   (style stream))
-
-(defparameter *styles*
-  (list :number (make-instance 'ansi-style :foreground :yellow)
-        :dynamic-variable (make-instance 'ansi-style :foreground :cyan)
-        :constant-variable (make-instance 'ansi-style :foreground :cyan :font :bold)))
-
-(defmethod inravina:get-named-style (client (stream pretty-stream) name)
-  (inravina:stream-copy-style stream (getf *styles* name)))

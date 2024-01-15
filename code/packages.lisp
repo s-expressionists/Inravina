@@ -20,9 +20,9 @@
            #:define-interface
            #:execute-logical-block
            #:expand-logical-block
-           #:get-named-style
            #:make-dispatch-function
            #:make-pretty-stream
+           #:make-style
            #:pprint-apply
            #:pprint-argument-list
            #:pprint-array
@@ -69,7 +69,6 @@
            #:pretty-stream
            #:pretty-stream-p
            #:set-pprint-dispatch
-           #:stream-copy-style
            #:stream-measure-char
            #:stream-measure-string
            #:stream-scale-column
