@@ -75,8 +75,23 @@
         :dynamic-variable (make-instance 'ansi-style :foreground :cyan)
         :constant-variable (make-instance 'ansi-style :foreground :cyan :font :bold)))
 
-(defmethod (setf inravina:stream-style) :around ((name keyword) (stream ansi-stream))
-  (call-next-method (getf *styles* name) stream))
+(defmethod inravina:make-style
+    (client (stream ansi-stream) &rest initargs
+     &key (name nil namep) foreground background font)
+  (let ((named-style (when namep (getf *styles* name))))
+    (make-instance 'ansi-style
+                   :foreground (or foreground
+                                   (and named-style
+                                        (foreground named-style))
+                                   :default)
+                   :background (or background
+                                   (and named-style
+                                        (background named-style))
+                                   :default)
+                   :font (or font
+                             (and named-style
+                                  (font named-style))
+                             :default))))
 
 (defmethod (setf inravina:stream-style) (new-style (stream ansi-stream))
   (let ((foreground (foreground new-style))
