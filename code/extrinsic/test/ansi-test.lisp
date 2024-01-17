@@ -31,7 +31,7 @@
     "PPRINT"
     "SET-PPRINT-DISPATCH."))
 
-(defun ansi-test ()
+(defun ansi-test (&rest args)
   (let ((system (asdf:find-system :inravina-extrinsic/test)))
     (apply #'ansi-test-harness:ansi-test
            :directory (merge-pathnames
