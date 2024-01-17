@@ -43,5 +43,5 @@ jobs:
         asdf-add
     - name: Run Shim Tests
       run: |
-        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/test)" -e "(inravina-extrinsic/test:test :exit t)"
+        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/test)" -e "(inravina-extrinsic/test:ansi-test :exit t)"
 
