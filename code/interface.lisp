@@ -183,8 +183,8 @@
     new-style))
 
 (defgeneric make-style (client stream &rest initargs &key)
-  (:method (client stream &rest initargs &key)
-    (declare (ignore client stream initargs))
+  (:method (client stream &rest initargs &key name)
+    (declare (ignore client stream initargs name))
     nil))
 
 (defmacro with-style ((client stream &rest initargs) &body body)
