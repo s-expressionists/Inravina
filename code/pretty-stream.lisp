@@ -418,7 +418,7 @@
             (line instruction) 0))
   (setf (fragment-index instruction) (length (fragments stream))))
 
-(defun add-tab-fragment (stream mode instruction column)
+(defun add-advance-fragment (stream mode instruction column)
   (declare (ignore mode))
   (vector-push-extend column (fragments stream))
   (setf (column instruction) column)
@@ -438,7 +438,7 @@
           :no-break))))
 
 (defmethod layout (client stream mode (instruction advance))
-  (add-tab-fragment stream mode instruction (value instruction)))
+  (add-advance-fragment stream mode instruction (value instruction)))
 
 (defmethod layout (client stream mode (instruction text))
   (add-text-fragment stream mode instruction (value instruction)))
@@ -468,24 +468,24 @@
 
 (defmethod layout (client stream mode (instruction section-tab)
                    &aux (column (column instruction)))
-  (add-tab-fragment stream mode instruction
-                    (+ column
-                       (compute-tab-size (- column
-                                            (if (section instruction)
-                                                (column (section instruction))
-                                                0))
-                                         (colnum instruction)
-                                         (colinc instruction)
-                                         (typep instruction 'relative-tab)))))
+  (add-advance-fragment stream mode instruction
+                        (+ column
+                           (compute-tab-size (- column
+                                                (if (section instruction)
+                                                    (column (section instruction))
+                                                    0))
+                                             (colnum instruction)
+                                             (colinc instruction)
+                                             (typep instruction 'relative-tab)))))
 
 (defmethod layout (client stream mode (instruction line-tab)
                    &aux (column (column instruction)))
-  (add-tab-fragment stream mode instruction
-                    (+ column
-                       (compute-tab-size column
-                                         (colnum instruction)
-                                         (colinc instruction)
-                                         (typep instruction 'relative-tab)))))
+  (add-advance-fragment stream mode instruction
+                        (+ column
+                           (compute-tab-size column
+                                             (colnum instruction)
+                                             (colinc instruction)
+                                             (typep instruction 'relative-tab)))))
 
 (defun miser-p (stream instruction
                 &aux (line-length (line-length stream))
@@ -543,11 +543,11 @@
                       (vector-push-extend fragment (fragments stream)))
                 (prefix-fragments (parent instruction)))
            (unless (typep instruction 'literal-newline)
-             (add-tab-fragment stream mode instruction
-                               (if *print-miser-width*
-                                   (start-column (parent instruction))
-                                   (+ (start-column (parent instruction))
-                                      (indent (parent instruction)))))))
+             (add-advance-fragment stream mode instruction
+                                   (if *print-miser-width*
+                                       (start-column (parent instruction))
+                                       (+ (start-column (parent instruction))
+                                          (indent (parent instruction)))))))
          :break)))
 
 (defmethod layout (client stream mode (instruction block-indent))
@@ -847,12 +847,14 @@
 (defmethod ngray:stream-terpri ((stream pretty-stream))
   (if (blocks stream)
       (pprint-newline (client stream) stream :mandatory-literal)
-      (terpri (target stream))))
+      (terpri (target stream)))
+  nil)
 
 (defmethod ngray:stream-fresh-line ((stream pretty-stream))
   (if (blocks stream)
       (pprint-newline (client stream) stream :fresh-literal)
-      (fresh-line (target stream))))
+      (fresh-line (target stream)))
+  nil)
 
 (defmethod ngray:stream-line-column ((stream pretty-stream) &aux (current-tail (tail stream)))
   (or (and current-tail
@@ -871,6 +873,25 @@
                            stream)
          t)
         ((ngray:stream-advance-to-column (target stream) column))))
+
+#+gray-streams-line-length
+(defmethod ngray:stream-line-length ((stream pretty-stream))
+  (ngray:stream-line-length (target stream)))
+
+(defmethod ngray:stream-element-type ((stream pretty-stream))
+  (ngray:stream-element-type (target stream)))
+
+#+gray-streams-element-type/setf
+(defmethod (setf ngray:stream-element-type) (new-value (stream pretty-stream))
+  (setf (ngray:stream-element-type (target stream)) new-value))
+
+#+gray-streams-external-format
+(defmethod ngray:stream-external-format ((stream pretty-stream))
+  (ngray:stream-external-format (target stream)))
+
+#+gray-streams-external-format/setf
+(defmethod (setf ngray:stream-external-format) (new-value (stream pretty-stream))
+  (setf (ngray:stream-external-format (target stream)) new-value))
 
 (defmethod stream-style ((stream pretty-stream) &aux (current-tail (tail stream)))
   (if current-tail
