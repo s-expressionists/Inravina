@@ -1,5 +1,7 @@
 (in-package #:inravina)
 
+(declaim (inline do-pprint-newline line-length ancestor-p))
+
 (defclass instruction ()
   ((parent :accessor parent
            :initarg :parent
@@ -198,12 +200,16 @@
              :initform nil
              :type list)))
 
+#+pprint-debug
 (defparameter *debug-instruction* nil)
 
+#+pprint-debug
 (defparameter *debug-section* nil)
 
+#+pprint-debug
 (defparameter *pprint-debug* nil)
 
+#+pprint-debug
 (defmethod describe-object ((object pretty-stream) stream)
   (when *debug-instruction*
     (loop for instruction = (head object) then (next instruction)
@@ -412,28 +418,13 @@
             (line instruction) 0))
   (setf (fragment-index instruction) (length (fragments stream))))
 
-(defun add-newline-fragment (client stream mode instruction)
-  (declare (ignore client mode))
-  (vector-push-extend #'terpri (fragments stream))
-  (setf (column instruction) 0)
-  (incf (line instruction))
-  :no-break)
-
-(defun add-tab-fragment (client stream mode instruction column)
-  (declare (ignore client mode))
+(defun add-tab-fragment (stream mode instruction column)
+  (declare (ignore mode))
   (vector-push-extend column (fragments stream))
   (setf (column instruction) column)
   :no-break)
 
-(defun add-style-fragment (client stream mode instruction style)
-  (declare (ignore client mode instruction))
-  (vector-push-extend (lambda (stream)
-                        (setf (stream-style stream) style))
-                      (fragments stream))
-  :no-break)
-
-(defun add-text-fragment (client stream mode instruction text)
-  (declare (ignore client))
+(defun add-text-fragment (stream mode instruction text)
   (if (or (null text)
           (zerop (length text)))
       :no-break
@@ -447,13 +438,16 @@
           :no-break))))
 
 (defmethod layout (client stream mode (instruction advance))
-  (add-tab-fragment client stream mode instruction (value instruction)))
+  (add-tab-fragment stream mode instruction (value instruction)))
 
 (defmethod layout (client stream mode (instruction text))
-  (add-text-fragment client stream mode instruction (value instruction)))
+  (add-text-fragment stream mode instruction (value instruction)))
 
 (defmethod layout (client stream mode (instruction style))
-  (add-style-fragment client stream mode instruction (style instruction)))
+  (declare (ignore client mode))
+  (vector-push-extend (lambda (stream)
+                        (setf (stream-style stream) (style instruction)))
+                      (fragments stream)))
 
 (defun compute-tab-size (column colnum colinc relativep)
   (cond (relativep
@@ -474,7 +468,7 @@
 
 (defmethod layout (client stream mode (instruction section-tab)
                    &aux (column (column instruction)))
-  (add-tab-fragment client stream mode instruction
+  (add-tab-fragment stream mode instruction
                     (+ column
                        (compute-tab-size (- column
                                             (if (section instruction)
@@ -486,7 +480,7 @@
 
 (defmethod layout (client stream mode (instruction line-tab)
                    &aux (column (column instruction)))
-  (add-tab-fragment client stream mode instruction
+  (add-tab-fragment stream mode instruction
                     (+ column
                        (compute-tab-size column
                                          (colnum instruction)
@@ -538,16 +532,18 @@
   (cond ((and (not *print-readably*)
               *print-lines*
               (>= (1+ (line instruction)) *print-lines*))
-         (add-text-fragment client stream mode instruction "..")
+         (add-text-fragment stream :overflow-lines instruction "..")
          :overflow-lines)
         (t
-         (add-newline-fragment client stream mode instruction)
+         (vector-push-extend #'terpri (fragments stream))
+         (setf (column instruction) 0)
+         (incf (line instruction))
          (when (parent instruction)
            (map nil (lambda (fragment)
                       (vector-push-extend fragment (fragments stream)))
                 (prefix-fragments (parent instruction)))
            (unless (typep instruction 'literal-newline)
-             (add-tab-fragment client stream mode instruction
+             (add-tab-fragment stream mode instruction
                                (if *print-miser-width*
                                    (start-column (parent instruction))
                                    (+ (start-column (parent instruction))
@@ -598,14 +594,14 @@
           (per-line-prefix-p
            (setf (prefix-fragments instruction)
                  (vector column prefix))))
-    (add-text-fragment client stream mode instruction
+    (add-text-fragment stream mode instruction
                        (prefix instruction))))
 
 (defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
-  (add-text-fragment client stream mode instruction (suffix instruction)))
+  (add-text-fragment stream mode instruction (suffix instruction)))
 
 (defmethod layout (client stream mode (instruction block-end))
-  (add-text-fragment client stream mode instruction (suffix instruction)))
+  (add-text-fragment stream mode instruction (suffix instruction)))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
   (if current-tail
@@ -613,8 +609,6 @@
             (previous instruction) current-tail)
       (setf (head stream) instruction))
   (setf (tail stream) instruction))
-
-(declaim (inline do-pprint-newline))
 
 (defun do-pprint-newline (stream newline)
   (with-accessors ((sections sections))
