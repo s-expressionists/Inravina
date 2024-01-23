@@ -420,9 +420,14 @@
 
 (defun add-advance-fragment (stream mode instruction column)
   (declare (ignore mode))
-  (vector-push-extend column (fragments stream))
-  (setf (column instruction) column)
-  :no-break)
+  (with-accessors ((fragments fragments))
+      stream
+    (if (and (plusp (length fragments))
+             (typep (aref fragments (1- (length fragments))) 'real))
+        (setf (aref fragments (1- (length fragments))) column)
+        (vector-push-extend column (fragments stream)))
+    (setf (column instruction) column)
+    :no-break))
 
 (defun add-text-fragment (stream mode instruction text)
   (if (or (null text)
@@ -539,8 +544,9 @@
          (setf (column instruction) 0)
          (incf (line instruction))
          (when (parent instruction)
-           (map nil (lambda (fragment)
-                      (vector-push-extend fragment (fragments stream)))
+           (map nil
+                (lambda (fragment)
+                  (vector-push-extend fragment (fragments stream)))
                 (prefix-fragments (parent instruction)))
            (unless (typep instruction 'literal-newline)
              (add-advance-fragment stream mode instruction
@@ -570,32 +576,29 @@
   :no-break)
 
 (defmethod layout (client stream mode (instruction block-start))
-  (let* ((column (column instruction))
-         (start-column (+ column
-                          (stream-measure-string (target stream)
-                                                 (prefix instruction))))
-         (parent-prefix-fragments (when (parent instruction)
-                                    (prefix-fragments (parent instruction))))
-         (prefix (prefix instruction))
-         (per-line-prefix-p (per-line-prefix-p instruction)))
-    (setf (start-column instruction) start-column
-          (indent instruction) 0)
-    (cond (parent-prefix-fragments
-           (setf (prefix-fragments instruction)
-                 (make-array (length parent-prefix-fragments)
-                             :fill-pointer (length parent-prefix-fragments)
-                             :adjustable t
-                             :initial-contents parent-prefix-fragments))
-           (when column
-             (vector-push-extend column (prefix-fragments instruction)))
-           (when per-line-prefix-p
-             (vector-push-extend prefix
-                                 (prefix-fragments instruction))))
-          (per-line-prefix-p
-           (setf (prefix-fragments instruction)
-                 (vector column prefix))))
-    (add-text-fragment stream mode instruction
-                       (prefix instruction))))
+  (with-accessors ((column column)
+                   (prefix prefix)
+                   (indent indent)
+                   (parent parent)
+                   (prefix-fragments prefix-fragments)
+                   (start-column start-column)
+                   (per-line-prefix-p per-line-prefix-p))
+      instruction
+    (let ((parent-prefix-fragments (and parent
+                                        (prefix-fragments parent))))
+      (setf start-column (+ column
+                            (stream-measure-string (target stream)
+                                                   (prefix instruction)))
+            indent 0)
+      (when (or per-line-prefix-p parent-prefix-fragments)
+        (setf prefix-fragments
+              (nconc (copy-seq parent-prefix-fragments)
+                     (list column)
+                     (when (and per-line-prefix-p
+                                (not (zerop (length prefix))))
+                       (list prefix)))))
+      (add-text-fragment stream mode instruction
+                         (prefix instruction)))))
 
 (defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
   (add-text-fragment stream mode instruction (suffix instruction)))
