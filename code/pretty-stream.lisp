@@ -159,10 +159,6 @@
                       :type boolean)
    (prefix-fragments :accessor prefix-fragments
                      :initform nil)
-   (start-column :accessor start-column
-                 :initarg :start-column
-                 :initform 0    
-                 :type real)
    (indent :accessor indent
            :initarg :indent
            :initform nil    
@@ -553,8 +549,8 @@
            (unless (typep instruction 'literal-newline)
              (add-advance-fragment stream mode instruction
                                    (if *print-miser-width*
-                                       (start-column (parent instruction))
-                                       (+ (start-column (parent instruction))
+                                       (column (parent instruction))
+                                       (+ (column (parent instruction))
                                           (indent (parent instruction)))))))
          :break)))
 
@@ -569,7 +565,7 @@
   (setf (indent (parent instruction))
         (+ (width instruction)
            (column instruction)
-           (- (start-column (parent instruction)))))
+           (- (column (parent instruction)))))
   :no-break)
 
 (defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-start))
@@ -583,24 +579,21 @@
                    (indent indent)
                    (parent parent)
                    (prefix-fragments prefix-fragments)
-                   (start-column start-column)
                    (per-line-prefix-p per-line-prefix-p))
       instruction
-    (let ((parent-prefix-fragments (and parent
-                                        (prefix-fragments parent))))
-      (setf start-column (+ column
-                            (stream-measure-string (target stream)
-                                                   (prefix instruction)))
-            indent 0)
-      (when (or per-line-prefix-p parent-prefix-fragments)
-        (setf prefix-fragments
-              (nconc (copy-seq parent-prefix-fragments)
-                     (list column)
-                     (when (and per-line-prefix-p
-                                (not (zerop (length prefix))))
-                       (list prefix)))))
-      (add-text-fragment stream mode instruction
-                         (prefix instruction)))))
+    (let* ((orig-column column)
+           (result (add-text-fragment stream mode instruction prefix)))
+      (when result
+        (setf indent 0
+              prefix-fragments (copy-seq (and parent (prefix-fragments parent))))
+        (when (or prefix-fragments per-line-prefix-p)
+          (setf prefix-fragments
+                (nconc prefix-fragments
+                       (list orig-column)
+                       (when (and per-line-prefix-p
+                                  (not (zerop (length prefix))))
+                         (list prefix))))))
+      result)))
 
 (defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
   (add-text-fragment stream mode instruction (suffix instruction)))
@@ -865,7 +858,7 @@
   (or (and current-tail
            (column current-tail))
       (and (blocks stream)
-           (start-column (car (blocks stream))))
+           (column (car (blocks stream))))
       (ngray:stream-line-column (target stream))))
 
 (defmethod ngray:stream-advance-to-column ((stream pretty-stream) column)
