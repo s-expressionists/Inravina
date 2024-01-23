@@ -368,7 +368,7 @@
         for fragment = (aref fragments i)
         if (typep fragment 'string)
           return t
-        else if (eq #'terpri fragment)
+        else if (null fragment)
           return nil
         finally (return t)))
 
@@ -379,17 +379,19 @@
         for fragment across fragments
         for i from 0
         do (etypecase fragment
-             (function
-              (funcall fragment target))
-             (real
-              (when (and (text-before-newline-p stream i)
-                         (plusp fragment))
-                (ngray:stream-advance-to-column target fragment)))
              (string
               (write-string fragment target
                             :start 0
                             :end (unless (text-before-newline-p stream i)
-                                   (break-position client stream fragment)))))
+                                   (break-position client stream fragment))))
+             (null
+              (terpri target))
+             (real
+              (when (and (text-before-newline-p stream i)
+                         (plusp fragment))
+                (ngray:stream-advance-to-column target fragment)))
+             (function
+              (funcall fragment target)))
         finally (finish-output target)
                 (setf (fill-pointer fragments) 0)))
 
@@ -540,7 +542,7 @@
          (add-text-fragment stream :overflow-lines instruction "..")
          :overflow-lines)
         (t
-         (vector-push-extend #'terpri (fragments stream))
+         (vector-push-extend nil (fragments stream))
          (setf (column instruction) 0)
          (incf (line instruction))
          (when (parent instruction)
