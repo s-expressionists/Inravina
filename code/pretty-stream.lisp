@@ -55,7 +55,9 @@
           :type real)))
 
 (defclass style (instruction)
-  ())
+  ((value :accessor value
+          :initarg :value
+          :initform nil)))
 
 (defmethod print-object ((obj text) stream)
   (print-unreadable-object (obj stream :type t :identity t)
@@ -386,8 +388,10 @@
               (when (and (text-before-newline-p stream i)
                          (plusp fragment))
                 (ngray:stream-advance-to-column target fragment)))
-             (function
-              (funcall fragment target)))
+             (cons
+              (ecase (car fragment)
+                (:style
+                 (setf (stream-style target) (cdr fragment))))))
         finally (finish-output target)
                 (setf (fill-pointer fragments) 0)))
 
@@ -404,17 +408,19 @@
 (defmethod layout :before (client stream mode instruction
                            &aux (previous (previous instruction)))
   (declare (ignore client mode))
-  (if previous
-      (setf (column instruction)
-            (stream-scale-column (target stream) (column previous)
-                                 (style previous) (style instruction))
-            (line instruction) (line previous))
-      (setf (column instruction)
-            (stream-scale-column (target stream)
-                                 (or (ngray:stream-line-column (target stream)) 0)
-                                 (style instruction) nil)
-            (line instruction) 0))
-  (setf (fragment-index instruction) (length (fragments stream))))
+  (with-accessors ((column column)
+                   (line line)
+                   (style style)
+                   (fragment-index fragment-index))
+      instruction
+    (if previous
+        (setf column (column previous)
+              line (line previous)
+              style (style previous))
+        (setf column (or (ngray:stream-line-column (target stream)) 0)
+              line 0
+              style (stream-style (target stream))))
+    (setf fragment-index (length (fragments stream)))))
 
 (defun add-advance-fragment (stream mode instruction column)
   (declare (ignore mode))
@@ -448,9 +454,15 @@
 
 (defmethod layout (client stream mode (instruction style))
   (declare (ignore client mode))
-  (vector-push-extend (lambda (stream)
-                        (setf (stream-style stream) (style instruction)))
-                      (fragments stream)))
+  (with-accessors ((previous previous)
+                   (column column)
+                   (style style)
+                   (value value))
+      instruction
+    (setf column (stream-scale-column (target stream) column style value)
+          style value)
+    (vector-push-extend (cons :style style)
+                        (fragments stream))))
 
 (defun compute-tab-size (column colnum colinc relativep)
   (cond (relativep
@@ -676,7 +688,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'line-tab
                                    :colnum colnum :colinc colinc
-                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -685,7 +696,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'line-relative-tab
                                    :colnum colnum :colinc colinc
-                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -694,7 +704,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'section-tab
                                    :colnum colnum :colinc colinc
-                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -703,7 +712,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'section-relative-tab
                                    :colnum colnum :colinc colinc
-                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -712,7 +720,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'block-indent
                                    :width n
-                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -721,7 +728,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'current-indent
                                    :width n
-                                   :style (stream-style stream)
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
@@ -731,7 +737,6 @@
              current-tail
              (push-instruction (make-instance 'text
                                               :section (car (sections stream))
-                                              :style (stream-style stream)
                                               :parent (car (blocks stream)))
                                stream))))
 
@@ -762,7 +767,6 @@
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
   (let ((block-start (make-instance 'block-start
                                     :section (car (sections stream))
-                                    :style (stream-style stream)
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix-p per-line-prefix-p
                                     :depth (length (blocks stream))
@@ -774,7 +778,6 @@
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :section (car (sections stream))
-                                  :style (stream-style stream)
                                   :suffix (normalize-text client stream suffix)
                                   :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
@@ -803,7 +806,8 @@
          (vector-push-extend char (get-text-buffer stream))))
   char)
 
-(defmethod ngray:stream-write-string ((stream pretty-stream) string &optional start end)
+(defmethod ngray:stream-write-string
+    ((stream pretty-stream) string &optional start end)
   (if (blocks stream)
       (flet ((append-text (start2 end2)
                (when (/= start2 end2)
@@ -813,22 +817,36 @@
                    (when (< (array-total-size buffer) end1)
                      (adjust-array buffer (+ 32 end1)))
                    (setf (fill-pointer buffer) end1)
-                   (replace buffer string :start1 start1 :end1 end1 :start2 start2 :end2 end2)))))
+                   (replace buffer string
+                            :start1 start1 :end1 end1
+                            :start2 start2 :end2 end2)))))
         (prog (pos)
           (unless start
             (setf start 0))
           (unless end
             (setf end (length string)))
          next
-          (setf pos (position #\newline string :start start :end end))z
+           (setf pos (position #\newline string
+                               :start start :end end))
           (when pos
             (append-text start pos)
             (pprint-newline (client stream) stream :mandatory-literal)
             (setf start (1+ pos))
             (go next))
           (append-text start end)))
-      (write-string string (target stream) :start (or start 0) :end end))
+      (write-string string (target stream)
+                    :start (or start 0) :end end))
   string)
+
+#+gray-streams-sequence
+(defmethod ngray:stream-write-sequence
+    #+gray-streams-sequence/optional
+    ((stream pretty-stream) sequence &optional start end)
+    #+gray-streams-sequence/required
+    ((stream pretty-stream) sequence start end)
+    #+gray-streams-sequence/key
+    (sequence (stream pretty-stream) &key start end)
+  (ngray:stream-write-string stream sequence start end))
 
 (defmethod ngray:stream-finish-output ((stream pretty-stream))
   (unless (blocks stream)
@@ -864,7 +882,6 @@
 (defmethod ngray:stream-advance-to-column ((stream pretty-stream) column)
   (cond ((blocks stream)
          (push-instruction (make-instance 'advance
-                                          :style (stream-style stream)
                                           :section (car (sections stream))
                                           :value column
                                           :parent (car (blocks stream)))
@@ -900,7 +917,7 @@
   (when new-style
     (if (blocks stream)
         (push-instruction (make-instance 'style
-                                         :style new-style
+                                         :value new-style
                                          :section (car (sections stream))
                                          :parent (car (blocks stream)))
                           stream)
