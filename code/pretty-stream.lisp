@@ -165,6 +165,13 @@
            :initarg :indent
            :initform nil    
            :type (or null real))
+   (miser-width :reader miser-width
+                :initarg :miser-width
+                :initform nil
+                :type (or null real))
+   (miser-style :accessor miser-style-p
+                :initform nil
+                :type boolean)
    (block-end :accessor block-end
               :initarg :block-end
               :initform nil    
@@ -502,15 +509,6 @@
                                              (colinc instruction)
                                              (typep instruction 'relative-tab)))))
 
-(defun miser-p (stream instruction
-                &aux (line-length (line-length stream))
-                     (line-column (column (parent instruction))))
-  (and *print-miser-width*
-       (and line-length
-            line-column
-            (<= (- line-length line-column)
-                *print-miser-width*))))
-
 (defmethod layout
     (client stream (mode (eql :single-line)) (instruction mandatory-newline))
   (declare (ignore client stream))
@@ -519,7 +517,7 @@
 (defmethod layout
     (client stream (mode (eql :multiline)) (instruction miser-newline))
   (declare (ignore client))
-  (if (miser-p stream instruction)
+  (if (miser-style-p (parent instruction))
       (call-next-method)
       :no-break))
 
@@ -534,7 +532,7 @@
   (declare (ignore client))
   (if (and (or (not (break-before-p instruction))
                (not (section-end instruction)))
-           (not (miser-p stream instruction)))
+           (not (miser-style-p (parent instruction))))
       :maybe-break
       (call-next-method)))
 
@@ -560,7 +558,7 @@
                 (prefix-fragments (parent instruction)))
            (unless (typep instruction 'literal-newline)
              (add-advance-fragment stream mode instruction
-                                   (if *print-miser-width*
+                                   (if (miser-style-p (parent instruction))
                                        (column (parent instruction))
                                        (+ (column (parent instruction))
                                           (indent (parent instruction)))))))
@@ -590,11 +588,19 @@
                    (prefix prefix)
                    (indent indent)
                    (parent parent)
+                   (miser-width miser-width)
+                   (miser-style-p miser-style-p)
                    (prefix-fragments prefix-fragments)
                    (per-line-prefix-p per-line-prefix-p))
       instruction
-    (let* ((orig-column column)
+    (let* ((line-length (line-length stream))
+           (orig-column column)
            (result (add-text-fragment stream mode instruction prefix)))
+      (setf miser-style-p (and miser-width
+                               line-length
+                               column
+                               (<= (- line-length column)
+                                   miser-width)))
       (when result
         (setf indent 0
               prefix-fragments (copy-seq (and parent (prefix-fragments parent))))
@@ -662,11 +668,13 @@
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'miser-newline)))
+  (when (miser-width (car (blocks stream)))
+    (do-pprint-newline stream (make-instance 'miser-newline))))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser-literal)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'miser-literal-newline)))
+  (when (miser-width (car (blocks stream)))
+    (do-pprint-newline stream (make-instance 'miser-literal-newline))))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear)))
   (declare (ignore client))
@@ -769,6 +777,7 @@
                                     :section (car (sections stream))
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix-p per-line-prefix-p
+                                    :miser-width *print-miser-width*
                                     :depth (length (blocks stream))
                                     :parent (car (blocks stream)))))
     (push block-start (blocks stream))
