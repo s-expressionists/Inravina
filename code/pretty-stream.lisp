@@ -165,6 +165,10 @@
            :initarg :indent
            :initform nil    
            :type (or null real))
+   (line-width :accessor line-width
+               :initarg :line-width
+               :initform nil
+               :type (or null real))
    (miser-width :reader miser-width
                 :initarg :miser-width
                 :initform nil
@@ -176,6 +180,9 @@
               :initarg :block-end
               :initform nil    
               :type (or null block-end))))
+
+(defmethod line-width (instruction)
+  (line-width (parent instruction)))
 
 (defclass block-end (instruction)
   ((suffix :accessor suffix
@@ -199,7 +206,7 @@
          :initform nil
          :type (or null instruction))
    (blocks :accessor blocks
-           :initform nil    
+           :initform nil
            :type list)
    (sections :accessor sections
              :initform nil
@@ -315,7 +322,8 @@
                  status))
        (cond ((eq mode :overflow-lines)
               (setf instruction (next instruction)))
-             ((member status '(:no-break :maybe-break))
+             ((or (eq status :no-break)
+                  (eq status :maybe-break))
               (cond ((and (or (null section)
                               (and (typep section 'section-start)
                                    (eq instruction (section-end section))))
@@ -330,7 +338,7 @@
                              (ancestor-p last-maybe-break (parent instruction))))
                 (setf last-maybe-break instruction))
               (setf instruction (next instruction)
-                    mode (if (or (not section)
+                    mode (if (or (null section)
                                  (and (typep section 'section-start)
                                       (or (eq section instruction)
                                           (eq (section-end section) instruction))))
@@ -448,7 +456,7 @@
                            (stream-measure-string (target stream) text
                                                   (style instruction)))))
         (when (or (member mode '(:unconditional :overflow-lines))
-                  (>= (line-length stream) new-column))
+                  (>= (line-width instruction) new-column))
           (setf (column instruction) new-column)
           (vector-push-extend text (fragments stream))
           :no-break))))
@@ -588,18 +596,18 @@
                    (prefix prefix)
                    (indent indent)
                    (parent parent)
+                   (line-width line-width)
                    (miser-width miser-width)
                    (miser-style-p miser-style-p)
                    (prefix-fragments prefix-fragments)
                    (per-line-prefix-p per-line-prefix-p))
       instruction
-    (let* ((line-length (line-length stream))
-           (orig-column column)
+    (let* ((orig-column column)
            (result (add-text-fragment stream mode instruction prefix)))
       (setf miser-style-p (and miser-width
-                               line-length
+                               line-width
                                column
-                               (<= (- line-length column)
+                               (<= (- line-width column)
                                    miser-width)))
       (when result
         (setf indent 0
@@ -778,6 +786,7 @@
                                     :prefix (normalize-text client stream prefix)
                                     :per-line-prefix-p per-line-prefix-p
                                     :miser-width *print-miser-width*
+                                    :line-width (line-length stream)
                                     :depth (length (blocks stream))
                                     :parent (car (blocks stream)))))
     (push block-start (blocks stream))
