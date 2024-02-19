@@ -20,6 +20,10 @@
    (fragment-index :accessor fragment-index
                    :initarg :fragment-index
                    :type integer)
+   (indent :accessor indent
+           :initarg :indent
+           :initform nil
+           :type (or null real))
    (line :accessor line
          :initarg :line
          :initform nil
@@ -161,10 +165,6 @@
                       :type boolean)
    (prefix-fragments :accessor prefix-fragments
                      :initform nil)
-   (indent :accessor indent
-           :initarg :indent
-           :initform nil    
-           :type (or null real))
    (line-width :accessor line-width
                :initarg :line-width
                :initform nil
@@ -425,14 +425,17 @@
   (declare (ignore client mode))
   (with-accessors ((column column)
                    (line line)
+                   (indent indent)
                    (style style)
                    (fragment-index fragment-index))
       instruction
     (if previous
         (setf column (column previous)
+              indent (indent previous)
               line (line previous)
               style (style previous))
         (setf column (or (ngray:stream-line-column (target stream)) 0)
+              indent 0
               line 0
               style (stream-style (target stream))))
     (setf fragment-index (length (fragments stream)))))
@@ -569,18 +572,17 @@
                                    (if (miser-style-p (parent instruction))
                                        (column (parent instruction))
                                        (+ (column (parent instruction))
-                                          (indent (parent instruction)))))))
+                                          (indent instruction))))))
          :break)))
 
 (defmethod layout (client stream mode (instruction block-indent))
   (declare (ignore client stream mode))
-  (setf (indent (parent instruction))
-        (width instruction))
+  (setf (indent instruction) (width instruction))
   :no-break)
 
 (defmethod layout (client stream mode (instruction current-indent))
   (declare (ignore client stream mode))
-  (setf (indent (parent instruction))
+  (setf (indent instruction)
         (+ (width instruction)
            (column instruction)
            (- (column (parent instruction)))))
@@ -625,6 +627,9 @@
   (add-text-fragment stream mode instruction (suffix instruction)))
 
 (defmethod layout (client stream mode (instruction block-end))
+  (setf (indent instruction) (if (previous (parent instruction))
+                                 (indent (previous (parent instruction)))
+                                 0))
   (add-text-fragment stream mode instruction (suffix instruction)))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))

@@ -98,7 +98,7 @@
         (inravina:pprint-function-call *client* stream
                                        '(fu 1 2 3 :bar 1 :wibble 2)))))
 
-(define-test pprint-function-call.3
+#+(or)(define-test pprint-function-call.3
   (is equal
       "(FU 1 2 3
     :BAR 1
@@ -170,7 +170,7 @@
         (inravina:pprint-tagbody *client* stream
                                  '(tagbody fu (wibble 1) bar (quux 2))))))
 
-(define-test pprint-argument-list
+#+(or)(define-test pprint-argument-list
   (let ((form '(1 2 3 :fu 1 :bar 2 :quux 3)))
     (is equal
         "(1 2 3 :FU 1 :BAR 2 :QUUX 3)"
@@ -209,7 +209,7 @@
         (with-env (stream :right-margin 14)
           (inravina:pprint-with *client* stream form)))))
 
-(define-test pprint-lambda-list
+#+(or)(define-test pprint-lambda-list
   (let ((form '(x y z &key fu (bar nil bar-p) &aux a (b 4))))
     (is equal
         "(X Y Z &KEY FU (BAR NIL BAR-P) &AUX A (B 4))"

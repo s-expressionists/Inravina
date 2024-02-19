@@ -36,6 +36,7 @@
                               :components ((:file "packages")
                                            (:file "utilities")
                                            (:file "dispatch")
+                                           (:file "pprint-indent")
                                            (:file "pprint-tab")
                                            (:file "list-printers")
                                            (:file "form-printers")))))))
