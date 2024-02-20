@@ -407,13 +407,13 @@
               (ecase (car fragment)
                 (:style
                  (setf (stream-style target) (cdr fragment))))))
-        finally (finish-output target)
-                (setf (fill-pointer fragments) 0)))
+        finally (setf (fill-pointer fragments) 0)))
 
 (defun process-instructions (stream)
   (unless (blocks stream)
     (layout-instructions stream)
-    (write-fragments stream)))
+    (write-fragments stream)
+    (finish-output (target stream))))
 
 (defgeneric layout (client stream mode instruction)
   (:method (client stream (mode (eql :overflow-lines)) instruction)
@@ -560,6 +560,7 @@
          :overflow-lines)
         (t
          (vector-push-extend nil (fragments stream))
+         (write-fragments stream)
          (setf (column instruction) 0)
          (incf (line instruction))
          (when (parent instruction)
