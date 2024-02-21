@@ -196,9 +196,10 @@
    (client :reader client
            :initarg :client)
    (fragments :reader fragments
-              :initform (make-array 256 :adjustable t
+              :initform (make-array 32
+                                    :adjustable t
                                     :fill-pointer 0
-                                    :element-type '(or function string real)))
+                                    :element-type '(or null cons string real)))
    (head :accessor head
          :initform nil
          :type (or null instruction))
@@ -393,16 +394,10 @@
         for i from 0
         do (etypecase fragment
              (string
-              (write-string fragment target
-                            :start 0
-                            :end (unless (text-before-newline-p stream i)
-                                   (break-position client stream fragment))))
-             (null
-              (terpri target))
+              (write-string fragment target))
+             (null)
              (real
-              (when (and (text-before-newline-p stream i)
-                         (plusp fragment))
-                (ngray:stream-advance-to-column target fragment)))
+              (ngray:stream-advance-to-column target fragment))
              (cons
               (ecase (car fragment)
                 (:style
@@ -559,8 +554,25 @@
          (add-text-fragment stream :overflow-lines instruction "..")
          :overflow-lines)
         (t
-         (vector-push-extend nil (fragments stream))
+         (loop with fragments = (fragments stream)
+               for index from (1- (length fragments)) downto 0
+               for fragment = (aref fragments index)
+               do (typecase fragment
+                    (number
+                     (setf (aref fragments index) nil))
+                    (string
+                     (let ((pos (break-position client stream fragment)))
+                       (cond ((zerop pos)
+                              (setf (aref fragments index) nil))
+                             ((= pos (length fragment))
+                              (loop-finish))
+                             (t
+                              (setf (aref fragments index)
+                                    (subseq fragment 0 pos)
+                                    #+(or)(make-array pos :displaced-to fragment :element-type (array-element-type fragment)))
+                              (loop-finish)))))))
          (write-fragments stream)
+         (terpri (target stream))
          (setf (column instruction) 0)
          (incf (line instruction))
          (when (parent instruction)
