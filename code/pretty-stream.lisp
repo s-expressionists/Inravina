@@ -655,16 +655,19 @@
       stream
     (let ((parent (car (blocks stream)))
           (depth (length (blocks stream))))
-      (prog ((head sections) s last)
+      ;; Terminate open sections. The section stack is FILO. Therefore
+      ;; the first sections will be unterminated newlines in the same
+      ;; block. Next will be unterminated block-start. Finally will be
+      ;; newlines at a larger depth.
+      (prog ((head sections) section)
        repeat
          (when head
-           (setf s (car head))
-           (when (or (eq (parent s) parent)
-                     (eq s parent)
-                     (and (typep s 'newline)
-                          (> (depth s) depth)))
-             (setf (section-end s) newline
-                   last (next s)
+           (setf section (car head))
+           (when (or (eq section parent)
+                     (and (typep section 'newline)
+                          (or (eq (parent section) parent)
+                              (> (depth section) depth))))
+             (setf (section-end section) newline
                    sections (cdr head)))
            (setf head (cdr head))
            (go repeat)))
