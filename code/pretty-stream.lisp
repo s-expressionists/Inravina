@@ -86,10 +86,7 @@
   ((break-before-p :accessor break-before-p
                    :initarg :break-before-P
                    :initform nil
-                   :type boolean)
-   (newlines-after :accessor newlines-after
-                   :initform nil
-                   :type list)))
+                   :type boolean)))
 
 (defclass fresh-newline (newline)
   ())
@@ -346,8 +343,9 @@
                              :multiline
                              :single-line)))
              ((eq status :break)
-              (loop for i in (newlines-after instruction)
-                    do (setf (break-before-p i) t))
+              (when (and (section instruction)
+                         (section-end (section instruction)))
+                (setf (break-before-p (section-end (section instruction))) t))
               (setf section (and (not (eq section instruction))
                                  instruction)
                     mode (if section :single-line :multiline)
@@ -537,8 +535,7 @@
 
 (defmethod layout (client stream (mode (eql :multiline)) (instruction fill-newline))
   (declare (ignore client))
-  (if (and (or (not (break-before-p instruction))
-               (not (section-end instruction)))
+  (if (and (not (break-before-p instruction))
            (not (miser-style-p (parent instruction))))
       :maybe-break
       (call-next-method)))
@@ -670,13 +667,7 @@
                    last (next s)
                    sections (cdr head)))
            (setf head (cdr head))
-           (go repeat))
-       final
-         (when (and last (not (eq last newline)))
-           (when (typep last 'newline)
-             (pushnew newline (newlines-after last)))
-           (setf last (next last))
-           (go final)))
+           (go repeat)))
       (setf (style newline) (stream-style stream)
             (parent newline) parent
             (depth newline) depth
