@@ -395,7 +395,8 @@
               (write-string fragment target))
              (null)
              (real
-              (ngray:stream-advance-to-column target fragment))
+              (unless (minusp fragment)
+                (ngray:stream-advance-to-column target fragment)))
              (cons
               (ecase (car fragment)
                 (:style
@@ -583,7 +584,7 @@
                                    (if (miser-style-p (parent instruction))
                                        (column (parent instruction))
                                        (+ (column (parent instruction))
-                                          (max 0 (indent instruction)))))))
+                                          (indent instruction))))))
          :break)))
 
 (defmethod layout (client stream mode (instruction block-indent))
