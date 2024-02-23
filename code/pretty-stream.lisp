@@ -583,7 +583,7 @@
                                    (if (miser-style-p (parent instruction))
                                        (column (parent instruction))
                                        (+ (column (parent instruction))
-                                          (indent instruction))))))
+                                          (max 0 (indent instruction)))))))
          :break)))
 
 (defmethod layout (client stream mode (instruction block-indent))
