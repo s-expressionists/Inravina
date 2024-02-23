@@ -658,7 +658,7 @@
       stream
     (let ((parent (car (blocks stream)))
           (depth (length (blocks stream))))
-      (prog ((head sections) s)
+      (prog ((head sections) s last)
        repeat
          (when head
            (setf s (car head))
@@ -666,14 +666,17 @@
                      (eq s parent)
                      (and (typep s 'newline)
                           (> (depth s) depth)))
-             (setf (section-end s) newline)
-             (loop for i = (next s) then (next i)
-                   while (and i (not (eq i newline)))
-                   when (typep i 'newline)
-                     do (pushnew newline (newlines-after i)))
-             (setf sections (cdr head)))
+             (setf (section-end s) newline
+                   last (next s)
+                   sections (cdr head)))
            (setf head (cdr head))
-           (go repeat)))
+           (go repeat))
+       final
+         (when (and last (not (eq last newline)))
+           (when (typep last 'newline)
+             (pushnew newline (newlines-after last)))
+           (setf last (next last))
+           (go final)))
       (setf (style newline) (stream-style stream)
             (parent newline) parent
             (depth newline) depth
