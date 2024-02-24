@@ -297,6 +297,11 @@
 (defun layout-instructions (stream)
   #+pprint-debug (when *pprint-debug*
                    (describe stream *debug-io*))
+  (loop for i = (head stream) then (next i)
+        while i
+        when (and (typep (section i) 'block-start)
+                  (null (section-end (section i))))
+          do (setf (section i) (section (section i))))
   (prog ((section t)
          last-maybe-break
          status
@@ -325,7 +330,9 @@
               (cond ((and (or (null section)
                               (and (typep section 'section-start)
                                    (eq instruction (section-end section))))
-                          (typep instruction 'section-start))
+                          (or (typep instruction 'newline)
+                              (and (typep instruction 'block-start)
+                                   (section-end instruction))))
                      (setf section instruction))
                     ((or (eq section instruction)
                          (and (typep section 'section-start)
@@ -499,9 +506,8 @@
   (add-advance-fragment stream mode instruction
                         (+ column
                            (compute-tab-size (- column
-                                                (if (section instruction)
-                                                    (column (section instruction))
-                                                    0))
+                                                (column (or (section instruction)
+                                                            (head stream))))
                                              (colnum instruction)
                                              (colinc instruction)
                                              (typep instruction 'relative-tab)))))
