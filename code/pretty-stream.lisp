@@ -192,6 +192,8 @@
            :initarg :target)
    (client :reader client
            :initarg :client)
+   (depth :accessor depth
+          :initform 0)
    (fragments :reader fragments
               :initform (make-array 32
                                     :adjustable t
@@ -661,7 +663,7 @@
   (with-accessors ((sections sections))
       stream
     (let ((parent (car (blocks stream)))
-          (depth (length (blocks stream))))
+          (depth (depth stream)))
       ;; Terminate open sections. The section stack is FILO. Therefore
       ;; the first sections will be unterminated newlines in the same
       ;; block. Next will be unterminated block-start. Finally will be
@@ -670,7 +672,8 @@
        repeat
          (when head
            (setf section (car head))
-           (when (or (eq section parent)
+           (when (or (and (typep section 'block-start)
+                          (eq section parent))
                      (and (typep section 'newline)
                           (or (eq (parent section) parent)
                               (> (depth section) depth))))
@@ -814,8 +817,9 @@
                                     :per-line-prefix-p per-line-prefix-p
                                     :miser-width *print-miser-width*
                                     :line-width (line-length stream)
-                                    :depth (length (blocks stream))
+                                    :depth (depth stream)
                                     :parent (car (blocks stream)))))
+    (incf (depth stream))
     (push block-start (blocks stream))
     (push block-start (sections stream))
     (push-instruction block-start stream)))
@@ -827,6 +831,7 @@
                                   :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
     (pop (blocks stream))
+    (decf (depth stream))
     (push-instruction block-end stream)
     (process-instructions stream)))
 
