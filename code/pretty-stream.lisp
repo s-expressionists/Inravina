@@ -17,9 +17,6 @@
    (section :accessor section
             :initarg :section
             :type (or null section-start))
-   (fragment-index :accessor fragment-index
-                   :initarg :fragment-index
-                   :type integer)
    (indent :accessor indent
            :initarg :indent
            :initform nil
@@ -309,9 +306,12 @@
          status
          (mode :single-line)
          (client (client stream))
-         (instruction (head stream)))
+         (instruction (head stream))
+         (%fragments-length 0))
    repeat
      (when instruction
+       (unless (or last-maybe-break section)
+         (setf %fragments-length (length (fragments stream))))
        #+pprint-debug (when *pprint-debug*
                         (let ((*debug-instruction* instruction)
                               (*debug-section* section))
@@ -335,7 +335,8 @@
                           (or (typep instruction 'newline)
                               (and (typep instruction 'block-start)
                                    (section-end instruction))))
-                     (setf section instruction))
+                     (setf section instruction
+                           %fragments-length (length (fragments stream))))
                     ((or (eq section instruction)
                          (and (typep section 'section-start)
                               (eq instruction (section-end section))))
@@ -359,24 +360,27 @@
                                  instruction)
                     mode (if section :single-line :multiline)
                     last-maybe-break nil
-                    instruction (next instruction)))
+                    instruction (next instruction))
+              (when section
+                (setf %fragments-length (length (fragments stream)))))
              ((eq status :overflow-lines)
               (setf mode :overflow-lines
                     section nil
                     instruction (next instruction)))
              (last-maybe-break
               (setf instruction last-maybe-break
-                    (fill-pointer (fragments stream)) (fragment-index last-maybe-break)
+                    (fill-pointer (fragments stream)) %fragments-length
                     section last-maybe-break
                     last-maybe-break nil
-                    mode :unconditional))
+                    mode :unconditional
+                    %fragments-length (length (fragments stream))))
              (section
               (setf instruction (if (eq t section)
                                     (head stream)
                                     (next section))
                     section nil
                     mode :multiline
-                    (fill-pointer (fragments stream)) (fragment-index instruction)))
+                    (fill-pointer (fragments stream)) %fragments-length))
              (t
               (setf mode :unconditional)))
        (go repeat)))
@@ -430,8 +434,7 @@
   (with-accessors ((column column)
                    (line line)
                    (indent indent)
-                   (style style)
-                   (fragment-index fragment-index))
+                   (style style))
       instruction
     (if previous
         (setf column (column previous)
@@ -441,8 +444,7 @@
         (setf column (or (ngray:stream-line-column (target stream)) 0)
               indent 0
               line 0
-              style (stream-style (target stream))))
-    (setf fragment-index (length (fragments stream)))))
+              style (stream-style (target stream))))))
 
 (defun add-advance-fragment (stream mode instruction column)
   (declare (ignore mode))
