@@ -17,10 +17,6 @@
    (section :accessor section
             :initarg :section
             :type (or null section-start))
-   (indent :accessor indent
-           :initarg :indent
-           :initform nil
-           :type (or null real))
    (line :accessor line
          :initarg :line
          :initform nil
@@ -159,6 +155,10 @@
                       :type boolean)
    (prefix-fragments :accessor prefix-fragments
                      :initform nil)
+   (indent :accessor indent
+           :initarg :indent
+           :initform nil
+           :type (or null real))
    (line-width :accessor line-width
                :initarg :line-width
                :initform nil
@@ -174,6 +174,12 @@
               :initarg :block-end
               :initform nil    
               :type (or null block-end))))
+
+(defmethod indent ((instance instruction))
+  (indent (parent instance)))
+
+(defmethod (setf indent) (new-value (instance instruction))
+  (setf (indent (parent instance)) new-value))
 
 (defmethod line-width (instruction)
   (line-width (parent instruction)))
@@ -307,11 +313,13 @@
          (mode :single-line)
          (client (client stream))
          (instruction (head stream))
-         (%fragments-length 0))
+         (%fragments-length 0)
+         (%indent 0))
    repeat
      (when instruction
        (unless (or last-maybe-break section)
-         (setf %fragments-length (length (fragments stream))))
+         (setf %fragments-length (length (fragments stream))
+               %indent (indent instruction)))
        #+pprint-debug (when *pprint-debug*
                         (let ((*debug-instruction* instruction)
                               (*debug-section* section))
@@ -336,7 +344,8 @@
                               (and (typep instruction 'block-start)
                                    (section-end instruction))))
                      (setf section instruction
-                           %fragments-length (length (fragments stream))))
+                           %fragments-length (length (fragments stream))
+                           %indent (indent instruction)))
                     ((or (eq section instruction)
                          (and (typep section 'section-start)
                               (eq instruction (section-end section))))
@@ -362,7 +371,8 @@
                     last-maybe-break nil
                     instruction (next instruction))
               (when section
-                (setf %fragments-length (length (fragments stream)))))
+                (setf %fragments-length (length (fragments stream))
+                      %indent (indent instruction))))
              ((eq status :overflow-lines)
               (setf mode :overflow-lines
                     section nil
@@ -370,17 +380,18 @@
              (last-maybe-break
               (setf instruction last-maybe-break
                     (fill-pointer (fragments stream)) %fragments-length
+                    (indent instruction) %indent
                     section last-maybe-break
                     last-maybe-break nil
-                    mode :unconditional
-                    %fragments-length (length (fragments stream))))
+                    mode :unconditional))
              (section
               (setf instruction (if (eq t section)
                                     (head stream)
                                     (next section))
                     section nil
                     mode :multiline
-                    (fill-pointer (fragments stream)) %fragments-length))
+                    (fill-pointer (fragments stream)) %fragments-length
+                    (indent instruction) %indent))
              (t
               (setf mode :unconditional)))
        (go repeat)))
@@ -433,16 +444,13 @@
   (declare (ignore client mode))
   (with-accessors ((column column)
                    (line line)
-                   (indent indent)
                    (style style))
       instruction
     (if previous
         (setf column (column previous)
-              indent (indent previous)
               line (line previous)
               style (style previous))
         (setf column (or (ngray:stream-line-column (target stream)) 0)
-              indent 0
               line 0
               style (stream-style (target stream))))))
 
@@ -649,9 +657,6 @@
   (add-text-fragment stream mode instruction (suffix instruction)))
 
 (defmethod layout (client stream mode (instruction block-end))
-  (setf (indent instruction) (if (previous (parent instruction))
-                                 (indent (previous (parent instruction)))
-                                 0))
   (add-text-fragment stream mode instruction (suffix instruction)))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
