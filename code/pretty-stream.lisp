@@ -17,10 +17,6 @@
    (section :accessor section
             :initarg :section
             :type (or null section-start))
-   (line :accessor line
-         :initarg :line
-         :initform nil
-         :type (or null integer))
    (column :accessor column
            :initarg :column
            :initform nil
@@ -202,6 +198,10 @@
                                     :adjustable t
                                     :fill-pointer 0
                                     :element-type '(or null cons string real)))
+   (line :accessor line
+         :initarg :line
+         :initform nil
+         :type (or null integer))
    (head :accessor head
          :initform nil
          :type (or null instruction))
@@ -315,6 +315,7 @@
          (instruction (head stream))
          (%fragments-length 0)
          (%indent 0))
+     (setf (line stream) 0)
    repeat
      (when instruction
        (unless (or last-maybe-break section)
@@ -443,15 +444,12 @@
                            &aux (previous (previous instruction)))
   (declare (ignore client mode))
   (with-accessors ((column column)
-                   (line line)
                    (style style))
       instruction
     (if previous
         (setf column (column previous)
-              line (line previous)
               style (style previous))
         (setf column (or (ngray:stream-line-column (target stream)) 0)
-              line 0
               style (stream-style (target stream))))))
 
 (defun add-advance-fragment (stream mode instruction column)
@@ -567,7 +565,7 @@
 (defmethod layout (client stream mode (instruction newline))
   (cond ((and (not *print-readably*)
               *print-lines*
-              (>= (1+ (line instruction)) *print-lines*))
+              (>= (1+ (line stream)) *print-lines*))
          (add-text-fragment stream :overflow-lines instruction "..")
          :overflow-lines)
         (t
@@ -591,7 +589,7 @@
          (write-fragments stream)
          (terpri (target stream))
          (setf (column instruction) 0)
-         (incf (line instruction))
+         (incf (line stream))
          (when (parent instruction)
            (map nil
                 (lambda (fragment)
