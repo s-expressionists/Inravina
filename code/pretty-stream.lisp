@@ -326,11 +326,6 @@
            (style stream) %style)
    repeat
      (when instruction
-       (unless (or last-maybe-break section)
-         (setf %fragments-length (length (fragments stream))
-               %indent (indent instruction)
-               %column (column stream)
-               %style (style stream)))
        #+pprint-debug (when *pprint-debug*
                         (let ((*debug-instruction* instruction)
                               (*debug-section* section))
