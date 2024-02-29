@@ -10,10 +10,6 @@
          :initarg :next
          :initform nil
          :type (or null instruction))
-   (previous :accessor previous
-             :initarg :previous
-             :initform nil
-             :type (or null instruction))
    (section :accessor section
             :initarg :section
             :type (or null section-start))))
@@ -469,6 +465,7 @@
     :no-break))
 
 (defun add-text-fragment (stream mode instruction text)
+  (declare (ignore instruction))
   (if (or (null text)
           (zerop (length text)))
       :no-break
@@ -489,8 +486,7 @@
 
 (defmethod layout (client stream mode (instruction style))
   (declare (ignore client mode))
-  (with-accessors ((previous previous)
-                   (value value))
+  (with-accessors ((value value))
       instruction
     (setf (column stream) (stream-scale-column (target stream) (column stream) (style stream) value)
           (style stream) value)
@@ -548,7 +544,7 @@
 
 (defmethod layout
     (client stream (mode (eql :multiline)) (instruction fresh-newline))
-  (declare (ignore client stream))
+  (declare (ignore client))
   (if (zerop (column stream))
       :no-break
       (call-next-method)))
@@ -662,8 +658,7 @@
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
   (if current-tail
-      (setf (next current-tail) instruction
-            (previous instruction) current-tail)
+      (setf (next current-tail) instruction)
       (setf (head stream) instruction))
   (setf (tail stream) instruction))
 
