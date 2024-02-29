@@ -16,17 +16,17 @@
              :type (or null instruction))
    (section :accessor section
             :initarg :section
-            :type (or null section-start))
-   (column :accessor column
-           :initarg :column
-           :initform nil
-           :type (or null real))))
+            :type (or null section-start))))
 
 (defclass section-start (instruction)
   ((depth :accessor depth
           :initarg :depth
           :initform 0
           :type integer)
+   (column :accessor column
+           :initarg :column
+           :initform nil
+           :type (or null real))
    (section-end :accessor section-end
                 :initarg :section-end
                 :initform nil
@@ -199,6 +199,10 @@
          :initarg :line
          :initform nil
          :type (or null integer))
+   (column :accessor column
+           :initarg :column
+           :initform nil
+           :type (or null real))
    (style :accessor style
           :initarg :style
           :initform nil)
@@ -315,14 +319,17 @@
          (instruction (head stream))
          (%fragments-length 0)
          (%indent 0)
+         (%column (or (ngray:stream-line-column (target stream)) 0))
          (%style (stream-style (target stream))))
      (setf (line stream) 0
+           (column stream) %column
            (style stream) %style)
    repeat
      (when instruction
        (unless (or last-maybe-break section)
          (setf %fragments-length (length (fragments stream))
                %indent (indent instruction)
+               %column (column stream)
                %style (style stream)))
        #+pprint-debug (when *pprint-debug*
                         (let ((*debug-instruction* instruction)
@@ -350,6 +357,7 @@
                      (setf section instruction
                            %fragments-length (length (fragments stream))
                            %indent (indent instruction)
+                           %column (column stream)
                            %style (style stream)))
                     ((or (eq section instruction)
                          (and (typep section 'section-start)
@@ -378,6 +386,7 @@
               (when section
                 (setf %fragments-length (length (fragments stream))
                       %indent (indent instruction)
+                      %column (column stream)
                       %style (style stream))))
              ((eq status :overflow-lines)
               (setf mode :overflow-lines
@@ -387,6 +396,7 @@
               (setf instruction last-maybe-break
                     (fill-pointer (fragments stream)) %fragments-length
                     (indent instruction) %indent
+                    (column stream) %column
                     (style stream) %style
                     section last-maybe-break
                     last-maybe-break nil
@@ -398,8 +408,9 @@
                     section nil
                     mode :multiline
                     (fill-pointer (fragments stream)) %fragments-length
-                    (indent instruction) %indent)
-                    (style stream) %style)
+                    (indent instruction) %indent
+                    (column stream) %column
+                    (style stream) %style))
              (t
               (setf mode :unconditional)))
        (go repeat)))
@@ -447,14 +458,9 @@
     (declare (ignore client stream mode instruction))
     :no-break))
 
-(defmethod layout :before (client stream mode instruction
-                           &aux (previous (previous instruction)))
+(defmethod layout :before (client stream mode (instruction section-start))
   (declare (ignore client mode))
-  (with-accessors ((column column))
-      instruction
-    (if previous
-        (setf column (column previous))
-        (setf column (or (ngray:stream-line-column (target stream)) 0)))))
+  (setf (column instruction) (column stream)))
 
 (defun add-advance-fragment (stream mode instruction column)
   (declare (ignore mode))
@@ -464,19 +470,19 @@
              (typep (aref fragments (1- (length fragments))) 'real))
         (setf (aref fragments (1- (length fragments))) column)
         (vector-push-extend column (fragments stream)))
-    (setf (column instruction) column)
+    (setf (column stream) column)
     :no-break))
 
 (defun add-text-fragment (stream mode instruction text)
   (if (or (null text)
           (zerop (length text)))
       :no-break
-      (let ((new-column (+ (column instruction)
+      (let ((new-column (+ (column stream)
                            (stream-measure-string (target stream) text
                                                   (style stream)))))
         (when (or (member mode '(:unconditional :overflow-lines))
                   (>= (line-width instruction) new-column))
-          (setf (column instruction) new-column)
+          (setf (column stream) new-column)
           (vector-push-extend text (fragments stream))
           :no-break))))
 
@@ -489,10 +495,9 @@
 (defmethod layout (client stream mode (instruction style))
   (declare (ignore client mode))
   (with-accessors ((previous previous)
-                   (column column)
                    (value value))
       instruction
-    (setf column (stream-scale-column (target stream) column (style stream) value)
+    (setf (column stream) (stream-scale-column (target stream) (column stream) (style stream) value)
           (style stream) value)
     (vector-push-extend (cons :style (style stream))
                         (fragments stream))))
@@ -515,7 +520,7 @@
          0)))
 
 (defmethod layout (client stream mode (instruction section-tab)
-                   &aux (column (column instruction)))
+                   &aux (column (column stream)))
   (add-advance-fragment stream mode instruction
                         (+ column
                            (compute-tab-size (- column
@@ -526,7 +531,7 @@
                                              (typep instruction 'relative-tab)))))
 
 (defmethod layout (client stream mode (instruction line-tab)
-                   &aux (column (column instruction)))
+                   &aux (column (column stream)))
   (add-advance-fragment stream mode instruction
                         (+ column
                            (compute-tab-size column
@@ -549,7 +554,7 @@
 (defmethod layout
     (client stream (mode (eql :multiline)) (instruction fresh-newline))
   (declare (ignore client stream))
-  (if (zerop (column instruction))
+  (if (zerop (column stream))
       :no-break
       (call-next-method)))
 
@@ -591,7 +596,8 @@
                               (loop-finish)))))))
          (write-fragments stream)
          (terpri (target stream))
-         (setf (column instruction) 0)
+         (setf (column stream) (column (parent instruction))
+               (column instruction) (column (parent instruction)))
          (incf (line stream))
          (when (parent instruction)
            (map nil
@@ -615,7 +621,7 @@
   (declare (ignore client stream mode))
   (setf (indent instruction)
         (+ (width instruction)
-           (column instruction)
+           (column stream)
            (- (column (parent instruction)))))
   :no-break)
 
@@ -635,23 +641,22 @@
                    (prefix-fragments prefix-fragments)
                    (per-line-prefix-p per-line-prefix-p))
       instruction
-    (let* ((orig-column column)
-           (result (add-text-fragment stream mode instruction prefix)))
-      (setf miser-style-p (and miser-width
-                               line-width
-                               column
-                               (<= (- line-width column)
-                                   miser-width)))
+    (let ((result (add-text-fragment stream mode instruction prefix)))
       (when result
-        (setf indent 0
+        (setf miser-style-p (and miser-width
+                                 line-width
+                                 (column stream)
+                                 (<= (- line-width (column stream))
+                                     miser-width))
+              indent 0
               prefix-fragments (copy-seq (and parent (prefix-fragments parent))))
         (when (or prefix-fragments per-line-prefix-p)
           (setf prefix-fragments
                 (nconc prefix-fragments
-                       (list orig-column)
                        (when (and per-line-prefix-p
                                   (not (zerop (length prefix))))
-                         (list prefix))))))
+                         (list prefix)))))
+        (setf column (column stream)))
       result)))
 
 (defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
