@@ -408,16 +408,6 @@
   (setf (head stream) nil
         (tail stream) nil))
         
-(defun text-before-newline-p (stream index)
-  (loop with fragments = (fragments stream)
-        for i from (1+ index) below (length fragments)
-        for fragment = (aref fragments i)
-        if (typep fragment 'string)
-          return t
-        else if (null fragment)
-          return nil
-        finally (return t)))
-
 (defun write-fragments (stream)
   (loop with client = (client stream)
         with target = (target stream)
@@ -431,10 +421,8 @@
              (real
               (unless (minusp fragment)
                 (ngray:stream-advance-to-column target fragment)))
-             (cons
-              (ecase (car fragment)
-                (:style
-                 (setf (stream-style target) (cdr fragment))))))
+             (function
+              (funcall fragment target)))
         finally (setf (fill-pointer fragments) 0)))
 
 (defun process-instructions (stream)
@@ -454,18 +442,17 @@
   (setf (column instruction) (column stream)))
 
 (defun add-advance-fragment (stream mode instruction column)
-  (declare (ignore mode))
+  (declare (ignore mode instruction))
   (with-accessors ((fragments fragments))
       stream
     (if (and (plusp (length fragments))
              (typep (aref fragments (1- (length fragments))) 'real))
         (setf (aref fragments (1- (length fragments))) column)
-        (vector-push-extend column (fragments stream)))
+        (vector-push-extend column fragments))
     (setf (column stream) column)
     :no-break))
 
 (defun add-text-fragment (stream mode instruction text)
-  (declare (ignore instruction))
   (if (or (null text)
           (zerop (length text)))
       :no-break
@@ -488,9 +475,11 @@
   (declare (ignore client mode))
   (with-accessors ((value value))
       instruction
-    (setf (column stream) (stream-scale-column (target stream) (column stream) (style stream) value)
+    (setf (column stream) (stream-scale-column (target stream) (column stream)
+                                               (style stream) value)
           (style stream) value)
-    (vector-push-extend (cons :style (style stream))
+    (vector-push-extend (lambda (stream)
+                          (setf (stream-style stream) value))
                         (fragments stream))))
 
 (defun compute-tab-size (column colnum colinc relativep)
@@ -609,7 +598,7 @@
   :no-break)
 
 (defmethod layout (client stream mode (instruction current-indent))
-  (declare (ignore client stream mode))
+  (declare (ignore client mode))
   (setf (indent instruction)
         (+ (width instruction)
            (column stream)
@@ -622,33 +611,33 @@
   :no-break)
 
 (defmethod layout (client stream mode (instruction block-start))
-  (with-accessors ((column column)
-                   (prefix prefix)
-                   (indent indent)
-                   (parent parent)
-                   (line-width line-width)
-                   (miser-width miser-width)
-                   (miser-style-p miser-style-p)
-                   (prefix-fragments prefix-fragments)
-                   (per-line-prefix-p per-line-prefix-p))
-      instruction
-    (let ((result (add-text-fragment stream mode instruction prefix)))
-      (when result
-        (setf miser-style-p (and miser-width
-                                 line-width
-                                 (column stream)
-                                 (<= (- line-width (column stream))
-                                     miser-width))
-              indent 0
-              prefix-fragments (copy-seq (and parent (prefix-fragments parent))))
-        (when (or prefix-fragments per-line-prefix-p)
+  (with-accessors ((column column))
+      stream
+    (with-accessors ((block-column column)
+                     (prefix prefix)
+                     (indent indent)
+                     (parent parent)
+                     (line-width line-width)
+                     (miser-width miser-width)
+                     (miser-style-p miser-style-p)
+                     (prefix-fragments prefix-fragments)
+                     (per-line-prefix-p per-line-prefix-p))
+        instruction
+      (let ((result (add-text-fragment stream mode instruction prefix)))
+        (when result
+          (setf miser-style-p (and miser-width
+                                   line-width
+                                   column
+                                   (<= (- line-width column)
+                                       miser-width))
+                indent 0)
           (setf prefix-fragments
-                (nconc prefix-fragments
-                       (when (and per-line-prefix-p
-                                  (not (zerop (length prefix))))
-                         (list prefix)))))
-        (setf column (column stream)))
-      result)))
+                (append (and parent (prefix-fragments parent))
+                        (when (and per-line-prefix-p
+                                   (not (zerop (length prefix))))
+                          (list prefix))))
+          (setf block-column column))
+        result))))
 
 (defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
   (add-text-fragment stream mode instruction (suffix instruction)))
@@ -925,10 +914,8 @@
   nil)
 
 (defmethod ngray:stream-line-column ((stream pretty-stream) &aux (current-tail (tail stream)))
-  (or (and current-tail
-           (column current-tail))
-      (and (blocks stream)
-           (column (car (blocks stream))))
+  (if (blocks stream)
+      (column stream)
       (ngray:stream-line-column (target stream))))
 
 (defmethod ngray:stream-advance-to-column ((stream pretty-stream) column)
@@ -943,7 +930,9 @@
 
 #+gray-streams-line-length
 (defmethod ngray:stream-line-length ((stream pretty-stream))
-  (ngray:stream-line-length (target stream)))
+  (if (blocks stream)
+      (line-width (blocks stream))
+      (ngray:stream-line-length (target stream))))
 
 (defmethod ngray:stream-element-type ((stream pretty-stream))
   (ngray:stream-element-type (target stream)))
@@ -961,8 +950,8 @@
   (setf (ngray:stream-external-format (target stream)) new-value))
 
 (defmethod stream-style ((stream pretty-stream) &aux (current-tail (tail stream)))
-  (if current-tail
-      (style current-tail)
+  (if (blocks stream)
+      (style stream)
       (stream-style (target stream))))
 
 (defmethod (setf stream-style) (new-style (stream pretty-stream))
