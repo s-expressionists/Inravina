@@ -15,9 +15,10 @@ jobs:
     strategy:
       matrix:
         lisp:
+        - abcl
         - clasp
         - cmucl
-        - abcl
+        - sbcl
       fail-fast: false
     runs-on: ubuntu-latest
     container:
@@ -41,7 +42,10 @@ jobs:
       run: |
         make-rc
         asdf-add
-    - name: Run Shim Tests
+    - name: Run Regression Tests
+      run: |
+        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina/test)" -e "(asdf:test-system :inravina)" -q
+    - name: Run ANSI Tests
       run: |
         lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/test)" -e "(inravina-extrinsic/test:ansi-test :exit t)"
 

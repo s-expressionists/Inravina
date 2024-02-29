@@ -26,9 +26,9 @@
   :description "Test suite for Inravina"
   :author "Tarn W. Burton"
   :license "MIT"
-  :depends-on
-  ("alexandria"
-   "parachute")
+  :depends-on ("alexandria"
+               "inravina"
+               "parachute")
   :perform (asdf:test-op (op c) (uiop:symbol-call :parachute :test :inravina/test))
   :components ((:module code
                 :components ((:module test

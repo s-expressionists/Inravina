@@ -19,13 +19,14 @@ ZB
 ZC[D
 Z  E
 ZF]"
-      (inravina:pprint-logical-block (*client stream  nil :per-line-prefix "Z")
-        (write-string "A " stream)
-        (inravina:pprint-newline *client stream :mandatory)
-        (write-string "B
+      (with-env (stream)
+        (inravina:pprint-logical-block (*client* stream  nil :per-line-prefix "Z")
+          (write-string "A " stream)
+          (inravina:pprint-newline *client* stream :mandatory)
+          (write-string "B
 C" stream)
-        (inravina:pprint-logical-block (*client stream nil :prefix "[" :suffix "]")
-          (write-string "D " stream)
-          (inravina:pprint-newline *client stream :mandatory)
-          (write-string "E
-F" stream)))))
+          (inravina:pprint-logical-block (*client* stream nil :prefix "[" :suffix "]")
+            (write-string "D " stream)
+            (inravina:pprint-newline *client* stream :mandatory)
+            (write-string "E
+F" stream))))))
