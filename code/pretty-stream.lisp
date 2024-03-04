@@ -190,7 +190,7 @@
               :initform (make-array 32
                                     :adjustable t
                                     :fill-pointer 0
-                                    :element-type '(or null cons string real)))
+                                    :element-type '(or null style string real)))
    (line :accessor line
          :initarg :line
          :initform nil
@@ -421,8 +421,8 @@
              (real
               (unless (minusp fragment)
                 (ngray:stream-advance-to-column target fragment)))
-             (function
-              (funcall fragment target)))
+             (style
+              (setf (stream-style stream) (value fragment))))
         finally (setf (fill-pointer fragments) 0)))
 
 (defun process-instructions (stream)
@@ -478,9 +478,7 @@
     (setf (column stream) (stream-scale-column (target stream) (column stream)
                                                (style stream) value)
           (style stream) value)
-    (vector-push-extend (lambda (stream)
-                          (setf (stream-style stream) value))
-                        (fragments stream))))
+    (vector-push-extend instruction (fragments stream))))
 
 (defun compute-tab-size (column colnum colinc relativep)
   (cond (relativep
@@ -913,7 +911,7 @@
       (fresh-line (target stream)))
   nil)
 
-(defmethod ngray:stream-line-column ((stream pretty-stream) &aux (current-tail (tail stream)))
+(defmethod ngray:stream-line-column ((stream pretty-stream))
   (if (blocks stream)
       (column stream)
       (ngray:stream-line-column (target stream))))
@@ -949,7 +947,7 @@
 (defmethod (setf ngray:stream-external-format) (new-value (stream pretty-stream))
   (setf (ngray:stream-external-format (target stream)) new-value))
 
-(defmethod stream-style ((stream pretty-stream) &aux (current-tail (tail stream)))
+(defmethod stream-style ((stream pretty-stream))
   (if (blocks stream)
       (style stream)
       (stream-style (target stream))))
