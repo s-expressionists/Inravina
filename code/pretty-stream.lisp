@@ -417,6 +417,8 @@
         do (etypecase fragment
              (string
               (write-string fragment target))
+             (cons
+              (write-string (car fragment) target :end (cdr fragment)))
              (null)
              (real
               (unless (minusp fragment)
@@ -569,8 +571,7 @@
                               (loop-finish))
                              (t
                               (setf (aref fragments index)
-                                    (subseq fragment 0 pos)
-                                    #+(or)(make-array pos :displaced-to fragment :element-type (array-element-type fragment)))
+                                    (cons fragment pos))
                               (loop-finish)))))))
          (write-fragments stream)
          (terpri (target stream))
