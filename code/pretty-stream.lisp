@@ -1,6 +1,6 @@
 (in-package #:inravina)
 
-(declaim (inline do-pprint-newline line-length ancestor-p))
+(declaim (inline line-length ancestor-p))
 
 (defclass instruction ()
   ((parent :accessor parent
@@ -650,75 +650,77 @@
       (setf (head stream) instruction))
   (setf (tail stream) instruction))
 
-(defun do-pprint-newline (stream newline)
-  (with-accessors ((sections sections))
-      stream
-    (let ((parent (car (blocks stream)))
-          (depth (depth stream)))
-      ;; Terminate open sections. The section stack is FILO. Therefore
-      ;; the first sections will be unterminated newlines in the same
-      ;; block. Next will be unterminated block-start. Finally will be
-      ;; newlines at a larger depth.
-      (prog ((head sections) section)
-       repeat
-         (when head
-           (setf section (car head))
-           (when (or (and (typep section 'block-start)
-                          (eq section parent))
-                     (and (typep section 'newline)
-                          (or (eq (parent section) parent)
-                              (> (depth section) depth))))
-             (setf (section-end section) newline
-                   sections (cdr head)))
-           (setf head (cdr head))
-           (go repeat)))
-      (setf (parent newline) parent
-            (depth newline) depth
-            (section newline) (car (sections stream)))
-      (push newline sections)
-      (push-instruction newline stream))))
+(defmacro do-pprint-newline (stream newline-class)
+  `(with-accessors ((blocks blocks)
+                    (depth depth)
+                    (sections sections))
+       ,stream
+     (let* ((parent (car blocks))
+            (newline (make-instance ',newline-class
+                                    :parent parent
+                                    :depth depth)))
+       ;; Terminate open sections. The section stack is FILO. Therefore
+       ;; the first sections will be unterminated newlines in the same
+       ;; block. Next will be unterminated block-start. Finally will be
+       ;; newlines at a larger depth.
+       (prog ((head sections) section)
+        repeat
+          (when head
+            (setf section (car head))
+            (when (or (and (typep section 'block-start)
+                           (eq section parent))
+                      (and (typep section 'newline)
+                           (or (eq (parent section) parent)
+                               (> (depth section) depth))))
+              (setf (section-end section) newline
+                    sections (cdr head)))
+            (setf head (cdr head))
+            (go repeat)))
+       (setf (section newline) (car sections))
+       (push newline sections)
+       (push-instruction newline ,stream))))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fresh)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'fresh-newline)))
+  (do-pprint-newline stream fresh-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fresh-literal)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'fresh-literal-newline)))
+  (do-pprint-newline stream fresh-literal-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :mandatory)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'mandatory-newline)))
+  (do-pprint-newline stream mandatory-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :mandatory-literal)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'mandatory-literal-newline)))
+  (do-pprint-newline stream mandatory-literal-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser)))
   (declare (ignore client))
   (when (miser-width (car (blocks stream)))
-    (do-pprint-newline stream (make-instance 'miser-newline))))
+    (do-pprint-newline stream miser-newline)))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser-literal)))
   (declare (ignore client))
   (when (miser-width (car (blocks stream)))
-    (do-pprint-newline stream (make-instance 'miser-literal-newline))))
+    (do-pprint-newline stream miser-literal-newline)))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'linear-newline)))
+  (do-pprint-newline stream linear-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear-literal)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'linear-literal-newline)))
+  (do-pprint-newline stream linear-literal-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fill)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'fill-newline)))
+  (do-pprint-newline stream fill-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fill-literal)))
   (declare (ignore client))
-  (do-pprint-newline stream (make-instance 'fill-literal-newline)))
+  (do-pprint-newline stream fill-literal-newline))
 
 (defmethod pprint-tab (client (stream pretty-stream) (kind (eql :line)) colnum colinc)
   (declare (ignore client))
@@ -838,14 +840,18 @@
   (file-position (target stream)))
 
 (defmethod ngray:stream-write-char ((stream pretty-stream) char)
-  (cond ((null (blocks stream))
-         (write-char char (target stream)))
-        ((char= char #\Newline)
-         (pprint-newline (client stream) stream :mandatory-literal))
-        (t
-         (vector-push-extend char (get-text-buffer stream))))
+  (if (blocks stream)
+      (vector-push-extend char (get-text-buffer stream))
+      (write-char char (target stream)))
   char)
 
+(defmethod ngray:stream-write-char ((stream pretty-stream) (char (eql #\Newline)))
+  (if (blocks stream)
+      (do-pprint-newline stream mandatory-literal-newline)
+      (terpri (target stream)))
+  char)
+
+#|
 (defmethod ngray:stream-write-string
     ((stream pretty-stream) string &optional start end)
   (if (blocks stream)
@@ -870,7 +876,7 @@
                                :start start :end end))
           (when pos
             (append-text start pos)
-            (pprint-newline (client stream) stream :mandatory-literal)
+            (do-pprint-newline stream mandatory-literal-newline)
             (setf start (1+ pos))
             (go next))
           (append-text start end)))
@@ -887,6 +893,7 @@
     #+gray-streams-sequence/key
     (sequence (stream pretty-stream) &key start end)
   (ngray:stream-write-string stream sequence start end))
+|#
 
 (defmethod ngray:stream-finish-output ((stream pretty-stream))
   (unless (blocks stream)
@@ -902,13 +909,13 @@
 
 (defmethod ngray:stream-terpri ((stream pretty-stream))
   (if (blocks stream)
-      (pprint-newline (client stream) stream :mandatory-literal)
+      (do-pprint-newline stream mandatory-literal-newline)
       (terpri (target stream)))
   nil)
 
 (defmethod ngray:stream-fresh-line ((stream pretty-stream))
   (if (blocks stream)
-      (pprint-newline (client stream) stream :fresh-literal)
+      (do-pprint-newline stream fresh-literal-newline)
       (fresh-line (target stream)))
   nil)
 
@@ -930,7 +937,7 @@
 #+gray-streams-line-length
 (defmethod ngray:stream-line-length ((stream pretty-stream))
   (if (blocks stream)
-      (line-width (blocks stream))
+      (line-width (car (blocks stream)))
       (ngray:stream-line-length (target stream))))
 
 (defmethod ngray:stream-element-type ((stream pretty-stream))
