@@ -139,22 +139,13 @@
     (prin1 (colinc obj) stream)))
 
 (defclass block-start (section-start)
-  ((prefix :reader prefix
-           :initarg :prefix    
-           :type string)
-   (per-line-prefix-p :reader per-line-prefix-p
-                      :initarg :per-line-prefix-p
-                      :type boolean)
-   (prefix-fragments :accessor prefix-fragments
-                     :initform nil)
+  ((per-line-prefix :reader per-line-prefix
+                    :initarg :per-line-prefix
+                    :type (or null string))
    (indent :accessor indent
            :initarg :indent
            :initform nil
            :type (or null real))
-   (line-width :accessor line-width
-               :initarg :line-width
-               :initform nil
-               :type (or null real))
    (miser-width :reader miser-width
                 :initarg :miser-width
                 :initform nil
@@ -172,9 +163,6 @@
 
 (defmethod (setf indent) (new-value (instance instruction))
   (setf (indent (parent instance)) new-value))
-
-(defmethod line-width (instruction)
-  (line-width (parent instruction)))
 
 (defclass block-end (instruction)
   ((suffix :accessor suffix
@@ -198,6 +186,9 @@
          :initarg :line
          :initform nil
          :type (or null integer))
+   (line-width :accessor line-width
+               :initform nil
+         :type (or null real))
    (column :accessor column
            :initarg :column
            :initform nil
@@ -320,7 +311,8 @@
          (%indent 0)
          (%column (or (ngray:stream-line-column (target stream)) 0))
          (%style (stream-style (target stream))))
-     (setf (line stream) 0
+     (setf (line-width stream) (line-length stream)
+           (line stream) 0
            (column stream) %column
            (style stream) %style)
    repeat
@@ -466,7 +458,7 @@
                            (stream-measure-string (target stream) text
                                                   (style stream)))))
         (when (or (member mode '(:unconditional :overflow-lines))
-                  (>= (line-width instruction) new-column))
+                  (>= (line-width stream) new-column))
           (setf (column stream) new-column)
           (vector-push-extend text (fragments stream))
           :no-break))))
@@ -558,7 +550,7 @@
   (cond ((and (not *print-readably*)
               *print-lines*
               (>= (1+ (line stream)) *print-lines*))
-         (add-text-fragment stream :overflow-lines instruction "..")
+         (add-text-fragment stream :overflow-lines instruction " ..")
          :overflow-lines)
         (t
          (loop with fragments = (fragments stream)
@@ -583,10 +575,8 @@
                (column instruction) (column (parent instruction)))
          (incf (line stream))
          (when (parent instruction)
-           (map nil
-                (lambda (fragment)
-                  (vector-push-extend fragment (fragments stream)))
-                (prefix-fragments (parent instruction)))
+           (when (per-line-prefix (parent instruction))
+             (vector-push-extend (per-line-prefix (parent instruction)) (fragments stream)))
            (unless (typep instruction 'literal-newline)
              (add-advance-fragment stream mode instruction
                                    (if (miser-style-p (parent instruction))
@@ -614,17 +604,16 @@
   :no-break)
 
 (defmethod layout (client stream mode (instruction block-start))
-  (with-accessors ((column column))
+  (with-accessors ((column column)
+                   (line-width line-width))
       stream
     (with-accessors ((block-column column)
                      (prefix prefix)
                      (indent indent)
                      (parent parent)
-                     (line-width line-width)
                      (miser-width miser-width)
                      (miser-style-p miser-style-p)
-                     (prefix-fragments prefix-fragments)
-                     (per-line-prefix-p per-line-prefix-p))
+                     (prefix-fragments prefix-fragments))
         instruction
       (setf miser-style-p (and miser-width
                                line-width
@@ -632,10 +621,6 @@
                                (<= (- line-width column)
                                    miser-width))
             indent 0
-            prefix-fragments (append (and parent (prefix-fragments parent))
-                                     (when (and per-line-prefix-p
-                                                (not (zerop (length prefix))))
-                                       (list prefix)))
             block-column column)
       :no-break)))
 
@@ -807,14 +792,26 @@
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
   (write-string prefix stream)
-  (let ((block-start (make-instance 'block-start
-                                    :section (car (sections stream))
-                                    :prefix (normalize-text client stream prefix)
-                                    :per-line-prefix-p per-line-prefix-p
-                                    :miser-width *print-miser-width*
-                                    :line-width (line-length stream)
-                                    :depth (depth stream)
-                                    :parent (car (blocks stream)))))
+  (let* ((parent (car (blocks stream)))
+         (block-start (make-instance 'block-start
+                                     :section (car (sections stream))
+                                     :per-line-prefix (cond ((and per-line-prefix-p
+                                                                  parent
+                                                                  (per-line-prefix parent))
+                                                             (with-output-to-string (s)
+                                                               (write-string (per-line-prefix parent) s)
+                                                               (loop for ch across prefix
+                                                                     when (eql ch #\Newline)
+                                                                       do (write-string (per-line-prefix parent) s)
+                                                                     do (write-char ch s))))
+                                                            (per-line-prefix-p
+                                                             prefix)
+                                                            ((and parent
+                                                                  (per-line-prefix parent))
+                                                             (per-line-prefix parent)))
+                                     :miser-width *print-miser-width*
+                                     :depth (depth stream)
+                                     :parent parent)))
     (incf (depth stream))
     (push block-start (blocks stream))
     (push block-start (sections stream))
@@ -826,13 +823,13 @@
                                   ;:suffix (normalize-text client stream suffix)
                                   :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
-    (write-string suffix stream)
     (when (typep (tail stream) 'text)
       (setf (suffix block-end) (tail stream)
             (mutablep (tail stream)) nil))
     (pop (blocks stream))
     (decf (depth stream))
     (push-instruction block-end stream)
+    (write-string suffix stream)
     (process-instructions stream)))
 
 (defun frob-style (stream style &aux (current-tail (tail stream)))
@@ -945,7 +942,7 @@
 #+gray-streams-line-length
 (defmethod ngray:stream-line-length ((stream pretty-stream))
   (if (head stream)
-      (line-width (car (blocks stream)))
+      (line-width stream)
       (ngray:stream-line-length (target stream))))
 
 (defmethod ngray:stream-element-type ((stream pretty-stream))
