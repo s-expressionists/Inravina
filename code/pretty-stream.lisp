@@ -32,7 +32,10 @@
   ((value :accessor value
           :initarg :value
           :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'character) 
-          :type string)))
+          :type string)
+   (mutable :accessor mutablep
+            :initform t
+            :type boolean)))
 
 (defclass advance (instruction)
   ((value :accessor value
@@ -176,7 +179,7 @@
 (defclass block-end (instruction)
   ((suffix :accessor suffix
            :initarg :suffix    
-           :type string)))
+           :type (or null text))))
 
 (defclass pretty-stream
     (ngray:fundamental-character-output-stream)
@@ -409,6 +412,7 @@
         (tail stream) nil))
         
 (defun write-fragments (stream)
+  ;(print (fragments stream) sb-sys:*stdout*)
   (loop with client = (client stream)
         with target = (target stream)
         with fragments = (fragments stream)
@@ -622,27 +626,25 @@
                      (prefix-fragments prefix-fragments)
                      (per-line-prefix-p per-line-prefix-p))
         instruction
-      (let ((result (add-text-fragment stream mode instruction prefix)))
-        (when result
-          (setf miser-style-p (and miser-width
-                                   line-width
-                                   column
-                                   (<= (- line-width column)
-                                       miser-width))
-                indent 0)
-          (setf prefix-fragments
-                (append (and parent (prefix-fragments parent))
-                        (when (and per-line-prefix-p
-                                   (not (zerop (length prefix))))
-                          (list prefix))))
-          (setf block-column column))
-        result))))
+      (setf miser-style-p (and miser-width
+                               line-width
+                               column
+                               (<= (- line-width column)
+                                   miser-width))
+            indent 0
+            prefix-fragments (append (and parent (prefix-fragments parent))
+                                     (when (and per-line-prefix-p
+                                                (not (zerop (length prefix))))
+                                       (list prefix)))
+            block-column column)
+      :no-break)))
 
-(defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
+#+(or)(defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
   (add-text-fragment stream mode instruction (suffix instruction)))
 
 (defmethod layout (client stream mode (instruction block-end))
-  (add-text-fragment stream mode instruction (suffix instruction)))
+  :no-break
+  #+(or)(add-text-fragment stream mode instruction (suffix instruction)))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
   (if current-tail
@@ -771,7 +773,8 @@
                     stream))
 
 (defun get-text-buffer (stream &aux (current-tail (tail stream)))
-  (value (if (typep current-tail 'text)
+  (value (if (and (typep current-tail 'text)
+                  (mutablep current-tail))
              current-tail
              (push-instruction (make-instance 'text
                                               :section (car (sections stream))
@@ -803,6 +806,7 @@
   t)
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
+  (write-string prefix stream)
   (let ((block-start (make-instance 'block-start
                                     :section (car (sections stream))
                                     :prefix (normalize-text client stream prefix)
@@ -819,9 +823,13 @@
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :section (car (sections stream))
-                                  :suffix (normalize-text client stream suffix)
+                                  ;:suffix (normalize-text client stream suffix)
                                   :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
+    (write-string suffix stream)
+    (when (typep (tail stream) 'text)
+      (setf (suffix block-end) (tail stream)
+            (mutablep (tail stream)) nil))
     (pop (blocks stream))
     (decf (depth stream))
     (push-instruction block-end stream)
@@ -840,13 +848,13 @@
   (file-position (target stream)))
 
 (defmethod ngray:stream-write-char ((stream pretty-stream) char)
-  (if (blocks stream)
+  (if (head stream)
       (vector-push-extend char (get-text-buffer stream))
       (write-char char (target stream)))
   char)
 
 (defmethod ngray:stream-write-char ((stream pretty-stream) (char (eql #\Newline)))
-  (if (blocks stream)
+  (if (head stream)
       (do-pprint-newline stream mandatory-literal-newline)
       (terpri (target stream)))
   char)
@@ -896,36 +904,36 @@
 |#
 
 (defmethod ngray:stream-finish-output ((stream pretty-stream))
-  (unless (blocks stream)
+  (unless (head stream)
     (finish-output (target stream))))
 
 (defmethod ngray:stream-force-output ((stream pretty-stream))
-  (unless (blocks stream)
+  (unless (head stream)
     (force-output (target stream))))
 
 (defmethod ngray:stream-clear-output ((stream pretty-stream))
-  (unless (blocks stream)
+  (unless (head stream)
     (clear-output (target stream))))
 
 (defmethod ngray:stream-terpri ((stream pretty-stream))
-  (if (blocks stream)
+  (if (head stream)
       (do-pprint-newline stream mandatory-literal-newline)
       (terpri (target stream)))
   nil)
 
 (defmethod ngray:stream-fresh-line ((stream pretty-stream))
-  (if (blocks stream)
+  (if (head stream)
       (do-pprint-newline stream fresh-literal-newline)
       (fresh-line (target stream)))
   nil)
 
 (defmethod ngray:stream-line-column ((stream pretty-stream))
-  (if (blocks stream)
+  (if (head stream)
       (column stream)
       (ngray:stream-line-column (target stream))))
 
 (defmethod ngray:stream-advance-to-column ((stream pretty-stream) column)
-  (cond ((blocks stream)
+  (cond ((head stream)
          (push-instruction (make-instance 'advance
                                           :section (car (sections stream))
                                           :value column
@@ -936,7 +944,7 @@
 
 #+gray-streams-line-length
 (defmethod ngray:stream-line-length ((stream pretty-stream))
-  (if (blocks stream)
+  (if (head stream)
       (line-width (car (blocks stream)))
       (ngray:stream-line-length (target stream))))
 
@@ -956,13 +964,13 @@
   (setf (ngray:stream-external-format (target stream)) new-value))
 
 (defmethod stream-style ((stream pretty-stream))
-  (if (blocks stream)
+  (if (head stream)
       (style stream)
       (stream-style (target stream))))
 
 (defmethod (setf stream-style) (new-style (stream pretty-stream))
   (when new-style
-    (if (blocks stream)
+    (if (head stream)
         (push-instruction (make-instance 'style
                                          :value new-style
                                          :section (car (sections stream))
