@@ -32,10 +32,7 @@
   ((value :accessor value
           :initarg :value
           :initform (make-array 32 :adjustable t :fill-pointer 0 :element-type 'character) 
-          :type string)
-   (mutable :accessor mutablep
-            :initform t
-            :type boolean)))
+          :type string)))
 
 (defclass advance (instruction)
   ((value :accessor value
@@ -139,7 +136,11 @@
     (prin1 (colinc obj) stream)))
 
 (defclass block-start (section-start)
-  ((per-line-prefix :reader per-line-prefix
+  ((prefix :reader prefix
+           :initarg :prefix
+           :initform nil
+           :type list)
+   (per-line-prefix :reader per-line-prefix
                     :initarg :per-line-prefix
                     :initform nil
                     :type list)
@@ -167,8 +168,9 @@
 
 (defclass block-end (instruction)
   ((suffix :accessor suffix
+           :initform nil
            :initarg :suffix    
-           :type (or null text))))
+           :type list)))
 
 (defclass pretty-stream
     (ngray:fundamental-character-output-stream)
@@ -554,6 +556,10 @@
               *print-lines*
               (>= (1+ (line stream)) *print-lines*))
          (add-text-fragment stream :overflow-lines instruction " ..")
+         (let ((last (last (suffix (block-end (parent instruction))))))
+           (setf (suffix (block-end (parent instruction))) (and last
+                                                                (typep (car last) 'string)
+                                                                last)))
          :overflow-lines)
         (t
          (loop with fragments = (fragments stream)
@@ -580,7 +586,13 @@
          (if (parent instruction)
              (let ((result (layout client stream mode (per-line-prefix (parent instruction)))))
                (case result
-                 ((nil :overflow-lines)
+                 ((nil)
+                  result)
+                 (:overflow-lines
+                  (let ((last (last (suffix (block-end (parent instruction))))))
+                    (setf (suffix (block-end (parent instruction))) (and last
+                                                                         (typep (car last) 'string)
+                                                                         last)))
                   result)
                  (otherwise
                   (unless (typep instruction 'literal-newline)
@@ -602,11 +614,11 @@
         else if (and (not *print-readably*)
                      *print-lines*
                      (>= (1+ (line stream)) *print-lines*))
-               do (add-text-fragment client stream :overflow-lines " ..")
+               do (add-text-fragment stream :overflow-lines nil " ..")
                   (return-from layout :overflow-lines)
         else
           do (write-fragments stream)
-             (terpri (target-string))
+             (terpri (target stream))
              (setf (column stream) 0
                    result :break)
              (incf (line stream))))
@@ -626,7 +638,7 @@
 
 (defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-start))
   (declare (ignore client stream))
-  (setf (suffix (block-end instruction)) "")
+  (setf (suffix (block-end instruction)) nil)
   :no-break)
 
 (defmethod layout (client stream mode (instruction block-start))
@@ -635,27 +647,30 @@
       stream
     (with-accessors ((block-column column)
                      (prefix prefix)
+                     (block-end block-end)
                      (indent indent)
                      (parent parent)
                      (miser-width miser-width)
-                     (miser-style-p miser-style-p)
-                     (prefix-fragments prefix-fragments))
+                     (miser-style-p miser-style-p))
         instruction
-      (setf miser-style-p (and miser-width
-                               line-width
-                               column
-                               (<= (- line-width column)
-                                   miser-width))
-            indent 0
-            block-column column)
-      :no-break)))
+      (let ((result (layout client stream mode (prefix instruction))))
+        (when result
+          (setf miser-style-p (and miser-width
+                                   line-width
+                                   column
+                                   (<= (- line-width column)
+                                       miser-width))
+                indent 0
+                block-column column))
+        (when (eq result :overflow-lines)
+          (setf (suffix block-end) nil))
+        result))))
 
-#+(or)(defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
-  (add-text-fragment stream mode instruction (suffix instruction)))
+(defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
+  (layout client stream :unconditional (suffix instruction)))
 
 (defmethod layout (client stream mode (instruction block-end))
-  :no-break
-  #+(or)(add-text-fragment stream mode instruction (suffix instruction)))
+  (layout client stream mode (suffix instruction)))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
   (if current-tail
@@ -784,8 +799,7 @@
                     stream))
 
 (defun get-text-buffer (stream &aux (current-tail (tail stream)))
-  (value (if (and (typep current-tail 'text)
-                  (mutablep current-tail))
+  (value (if (typep current-tail 'text)
              current-tail
              (push-instruction (make-instance 'text
                                               :section (car (sections stream))
@@ -832,10 +846,12 @@
           do (loop-finish)))
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
-  (write-string prefix stream)
   (let* ((parent (car (blocks stream)))
          (block-start (make-instance 'block-start
                                      :section (car (sections stream))
+                                     :prefix (parse-fix prefix
+                                                        (and parent
+                                                             (per-line-prefix parent)))
                                      :per-line-prefix (cond (per-line-prefix-p
                                                              (parse-fix prefix
                                                                         (and parent
@@ -854,16 +870,15 @@
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :section (car (sections stream))
-                                  ;:suffix (normalize-text client stream suffix)
+                                  :suffix (parse-fix suffix
+                                                     (and (car (blocks stream))
+                                                          (per-line-prefix (car (blocks stream)))))
                                   :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
-    (when (typep (tail stream) 'text)
-      (setf (suffix block-end) (tail stream)
-            (mutablep (tail stream)) nil))
     (pop (blocks stream))
     (decf (depth stream))
     (push-instruction block-end stream)
-    (write-string suffix stream)
+    ;(write-string suffix stream)
     (process-instructions stream)))
 
 (defun frob-style (stream style &aux (current-tail (tail stream)))

@@ -65,7 +65,7 @@ F" stream))))))
 
 (define-test pprint-logical-block.4
   (is equal
-      "za ..
+      "za
 z(wibble ..)"
       (with-env (stream :lines 2)
         (inravina:pprint-logical-block (*client* stream nil :per-line-prefix "z")
@@ -78,8 +78,7 @@ z(wibble ..)"
 (define-test pprint-logical-block.5
   (is equal
       "[a
-(wibble
- bar)]"
+(wibble ..)]"
       (with-env (stream :lines 2)
         (inravina:pprint-logical-block (*client* stream nil :prefix "[" :suffix "]")
           (inravina:pprint-logical-block (*client* stream nil :prefix "a
