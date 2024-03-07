@@ -562,22 +562,23 @@
                                                                 last)))
          :overflow-lines)
         (t
-         (loop with fragments = (fragments stream)
-               for index from (1- (length fragments)) downto 0
-               for fragment = (aref fragments index)
-               do (typecase fragment
-                    (number
-                     (setf (aref fragments index) nil))
-                    (string
-                     (let ((pos (break-position client stream fragment)))
-                       (cond ((zerop pos)
-                              (setf (aref fragments index) nil))
-                             ((= pos (length fragment))
-                              (loop-finish))
-                             (t
-                              (setf (aref fragments index)
-                                    (cons fragment pos))
-                              (loop-finish)))))))
+         (unless (typep instruction 'literal-newline)
+           (loop with fragments = (fragments stream)
+                 for index from (1- (length fragments)) downto 0
+                 for fragment = (aref fragments index)
+                 do (typecase fragment
+                      (number
+                       (setf (aref fragments index) nil))
+                      (string
+                       (let ((pos (break-position client stream fragment)))
+                         (cond ((zerop pos)
+                                (setf (aref fragments index) nil))
+                               ((= pos (length fragment))
+                                (loop-finish))
+                               (t
+                                (setf (aref fragments index)
+                                      (cons fragment pos))
+                                (loop-finish))))))))
          (write-fragments stream)
          (terpri (target stream))
          (setf (column stream) 0
