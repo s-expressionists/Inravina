@@ -806,29 +806,33 @@
   (declare (ignore client))
   t)
 
+(defun parse-fix (text per-line-prefix &optional newlinep)
+  (loop with start = 0
+        for pos = (position #\newline text :start start)
+        when (and newlinep (zerop start))
+          append per-line-prefix
+        unless pos
+          collect (subseq text start)
+          and do (loop-finish)
+        collect (subseq text start pos)
+        collect nil
+        append per-line-prefix
+        do (setf start (1+ pos))
+        when (eql start (length text))
+          do (loop-finish)))
+
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
   (write-string prefix stream)
   (let* ((parent (car (blocks stream)))
          (block-start (make-instance 'block-start
                                      :section (car (sections stream))
-                                     :per-line-prefix (let ((parent-per-line-prefix (and parent
-                                                                                         (per-line-prefix parent))))
-                                                        (if per-line-prefix-p
-                                                            (loop with start = 0
-                                                                  for pos = (position #\newline prefix :start start)
-                                                                  when (zerop start)
-                                                                    append parent-per-line-prefix
-                                                                  if pos
-                                                                    collect (subseq prefix start pos)
-                                                                    and collect nil
-                                                                    and append parent-per-line-prefix
-                                                                  else
-                                                                    collect (subseq prefix start)
-                                                                    and do (loop-finish)
-                                                                  do (setf start (1+ pos))
-                                                                  when (eql start (length prefix))
-                                                                    do (loop-finish))
-                                                            parent-per-line-prefix))
+                                     :per-line-prefix (cond (per-line-prefix-p
+                                                             (parse-fix prefix
+                                                                        (and parent
+                                                                             (per-line-prefix parent))
+                                                                        t))
+                                                            (parent
+                                                             (per-line-prefix parent)))
                                      :miser-width *print-miser-width*
                                      :depth (depth stream)
                                      :parent parent)))
