@@ -141,7 +141,8 @@
 (defclass block-start (section-start)
   ((per-line-prefix :reader per-line-prefix
                     :initarg :per-line-prefix
-                    :type (or null string))
+                    :initform nil
+                    :type list)
    (indent :accessor indent
            :initarg :indent
            :initform nil
@@ -456,6 +457,7 @@
       :no-break
       (let ((new-column (+ (column stream)
                            (stream-measure-string (target stream) text
+                                                  0 nil
                                                   (style stream)))))
         (when (or (member mode '(:unconditional :overflow-lines))
                   (>= (line-width stream) new-column))
@@ -575,8 +577,22 @@
                (column instruction) (column (parent instruction)))
          (incf (line stream))
          (when (parent instruction)
-           (when (per-line-prefix (parent instruction))
-             (vector-push-extend (per-line-prefix (parent instruction)) (fragments stream)))
+           (loop for fragment in (per-line-prefix (parent instruction))
+                 if (stringp fragment)
+                   do (write-string fragment (target stream))
+                      (setf (column stream) (stream-measure-string (target stream)
+                                                                   fragment
+                                                                   0 nil
+                                                                   (style stream)))
+                 else if (and (not *print-readably*)
+                              *print-lines*
+                              (>= (1+ (line stream)) *print-lines*))
+                        do (write-string " .." (target stream))
+                           (return-from layout :overflow-lines)
+                 else
+                   do (terpri (target-string))
+                      (setf (column stream) 0)
+                      (incf (line stream)))
            (unless (typep instruction 'literal-newline)
              (add-advance-fragment stream mode instruction
                                    (if (miser-style-p (parent instruction))
@@ -795,20 +811,24 @@
   (let* ((parent (car (blocks stream)))
          (block-start (make-instance 'block-start
                                      :section (car (sections stream))
-                                     :per-line-prefix (cond ((and per-line-prefix-p
-                                                                  parent
-                                                                  (per-line-prefix parent))
-                                                             (with-output-to-string (s)
-                                                               (write-string (per-line-prefix parent) s)
-                                                               (loop for ch across prefix
-                                                                     when (eql ch #\Newline)
-                                                                       do (write-string (per-line-prefix parent) s)
-                                                                     do (write-char ch s))))
-                                                            (per-line-prefix-p
-                                                             prefix)
-                                                            ((and parent
-                                                                  (per-line-prefix parent))
-                                                             (per-line-prefix parent)))
+                                     :per-line-prefix (let ((parent-per-line-prefix (and parent
+                                                                                         (per-line-prefix parent))))
+                                                        (if per-line-prefix-p
+                                                            (loop with start = 0
+                                                                  for pos = (position #\newline prefix :start start)
+                                                                  when (zerop start)
+                                                                    append parent-per-line-prefix
+                                                                  if pos
+                                                                    collect (subseq prefix start pos)
+                                                                    and collect nil
+                                                                    and append parent-per-line-prefix
+                                                                  else
+                                                                    collect (subseq prefix start)
+                                                                    and do (loop-finish)
+                                                                  do (setf start (1+ pos))
+                                                                  when (eql start (length prefix))
+                                                                    do (loop-finish))
+                                                            parent-per-line-prefix))
                                      :miser-width *print-miser-width*
                                      :depth (depth stream)
                                      :parent parent)))
