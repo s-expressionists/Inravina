@@ -140,10 +140,10 @@
            :initarg :prefix
            :initform nil
            :type list)
-   (per-line-prefix :reader per-line-prefix
-                    :initarg :per-line-prefix
-                    :initform nil
-                    :type list)
+   (newline :accessor newline
+            :initarg :newline
+            :initform nil
+            :type list)
    (indent :accessor indent
            :initarg :indent
            :initform nil
@@ -579,31 +579,25 @@
                                 (setf (aref fragments index)
                                       (cons fragment pos))
                                 (loop-finish))))))))
-         (write-fragments stream)
-         (terpri (target stream))
-         (setf (column stream) 0
-               (column instruction) (column (parent instruction)))
-         (incf (line stream))
-         (if (parent instruction)
-             (let ((result (layout client stream mode (per-line-prefix (parent instruction)))))
-               (case result
-                 ((nil)
-                  result)
-                 (:overflow-lines
-                  (let ((last (last (suffix (block-end (parent instruction))))))
-                    (setf (suffix (block-end (parent instruction))) (and last
-                                                                         (typep (car last) 'string)
-                                                                         last)))
-                  result)
-                 (otherwise
-                  (unless (typep instruction 'literal-newline)
-                    (add-advance-fragment stream mode instruction
-                                          (if (miser-style-p (parent instruction))
-                                              (column (parent instruction))
-                                              (+ (column (parent instruction))
-                                                 (indent instruction)))))
-                  :break)))
-             :break))))
+         (setf (column instruction) (column (parent instruction)))
+         (let ((result (layout client stream mode (newline (parent instruction)))))
+           (case result
+             ((nil)
+              result)
+             (:overflow-lines
+              (let ((last (last (suffix (block-end (parent instruction))))))
+                (setf (suffix (block-end (parent instruction))) (and last
+                                                                     (typep (car last) 'string)
+                                                                     last)))
+              result)
+             (otherwise
+              (unless (typep instruction 'literal-newline)
+                (add-advance-fragment stream mode instruction
+                                      (if (miser-style-p (parent instruction))
+                                          (column (parent instruction))
+                                          (+ (column (parent instruction))
+                                             (indent instruction)))))
+              :break))))))
 
 (defmethod layout (client stream mode (fragments list))
   (loop with result = :no-break
@@ -831,38 +825,33 @@
   (declare (ignore client))
   t)
 
-(defun parse-fix (text per-line-prefix &optional newlinep)
+(defun parse-fix (text newline)
   (loop with start = 0
         for pos = (position #\newline text :start start)
-        when (and newlinep (zerop start))
-          append per-line-prefix
         unless pos
           collect (subseq text start)
           and do (loop-finish)
         collect (subseq text start pos)
-        collect nil
-        append per-line-prefix
+        append newline
         do (setf start (1+ pos))
         when (eql start (length text))
           do (loop-finish)))
 
 (defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
   (let* ((parent (car (blocks stream)))
+         (parent-newline (if parent
+                             (newline parent)
+                             (list nil)))
          (block-start (make-instance 'block-start
                                      :section (car (sections stream))
-                                     :prefix (parse-fix prefix
-                                                        (and parent
-                                                             (per-line-prefix parent)))
-                                     :per-line-prefix (cond (per-line-prefix-p
-                                                             (parse-fix prefix
-                                                                        (and parent
-                                                                             (per-line-prefix parent))
-                                                                        t))
-                                                            (parent
-                                                             (per-line-prefix parent)))
+                                     :prefix (parse-fix prefix parent-newline)
                                      :miser-width *print-miser-width*
                                      :depth (depth stream)
                                      :parent parent)))
+    (setf (newline block-start)
+          (if per-line-prefix-p
+              (append parent-newline (prefix block-start))
+              parent-newline))
     (incf (depth stream))
     (push block-start (blocks stream))
     (push block-start (sections stream))
@@ -873,7 +862,7 @@
                                   :section (car (sections stream))
                                   :suffix (parse-fix suffix
                                                      (and (car (blocks stream))
-                                                          (per-line-prefix (car (blocks stream)))))
+                                                          (newline (car (blocks stream)))))
                                   :parent (car (blocks stream)))))
     (setf (block-end (car (blocks stream))) block-end)
     (pop (blocks stream))
