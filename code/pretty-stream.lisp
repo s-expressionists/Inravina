@@ -452,6 +452,7 @@
     :no-break))
 
 (defun add-text-fragment (stream mode instruction text)
+  (declare (ignore instruction))
   (if (or (null text)
           (zerop (length text)))
       :no-break
@@ -573,33 +574,42 @@
                               (loop-finish)))))))
          (write-fragments stream)
          (terpri (target stream))
-         (setf (column stream) (column (parent instruction))
+         (setf (column stream) 0
                (column instruction) (column (parent instruction)))
          (incf (line stream))
-         (when (parent instruction)
-           (loop for fragment in (per-line-prefix (parent instruction))
-                 if (stringp fragment)
-                   do (write-string fragment (target stream))
-                      (setf (column stream) (stream-measure-string (target stream)
-                                                                   fragment
-                                                                   0 nil
-                                                                   (style stream)))
-                 else if (and (not *print-readably*)
-                              *print-lines*
-                              (>= (1+ (line stream)) *print-lines*))
-                        do (write-string " .." (target stream))
-                           (return-from layout :overflow-lines)
-                 else
-                   do (terpri (target-string))
-                      (setf (column stream) 0)
-                      (incf (line stream)))
-           (unless (typep instruction 'literal-newline)
-             (add-advance-fragment stream mode instruction
-                                   (if (miser-style-p (parent instruction))
-                                       (column (parent instruction))
-                                       (+ (column (parent instruction))
-                                          (indent instruction))))))
-         :break)))
+         (if (parent instruction)
+             (let ((result (layout client stream mode (per-line-prefix (parent instruction)))))
+               (case result
+                 ((nil :overflow-lines)
+                  result)
+                 (otherwise
+                  (unless (typep instruction 'literal-newline)
+                    (add-advance-fragment stream mode instruction
+                                          (if (miser-style-p (parent instruction))
+                                              (column (parent instruction))
+                                              (+ (column (parent instruction))
+                                                 (indent instruction)))))
+                  :break)))
+             :break))))
+
+(defmethod layout (client stream mode (fragments list))
+  (loop with result = :no-break
+        for fragment in fragments
+        finally (return-from layout result)
+        if (stringp fragment)
+          do (unless (add-text-fragment stream mode nil fragment)
+               (return-from layout nil))
+        else if (and (not *print-readably*)
+                     *print-lines*
+                     (>= (1+ (line stream)) *print-lines*))
+               do (add-text-fragment client stream :overflow-lines " ..")
+                  (return-from layout :overflow-lines)
+        else
+          do (write-fragments stream)
+             (terpri (target-string))
+             (setf (column stream) 0
+                   result :break)
+             (incf (line stream))))
 
 (defmethod layout (client stream mode (instruction block-indent))
   (declare (ignore client stream mode))
