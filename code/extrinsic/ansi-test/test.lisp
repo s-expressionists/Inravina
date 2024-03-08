@@ -1,4 +1,4 @@
-(in-package #:inravina-extrinsic/test)
+(in-package #:inravina-extrinsic/ansi-test)
 
 (defvar *extrinsic-symbols*
   '(incless-extrinsic:pprint
@@ -31,8 +31,8 @@
     "PPRINT"
     "SET-PPRINT-DISPATCH."))
 
-(defun ansi-test (&rest args)
-  (let ((system (asdf:find-system :inravina-extrinsic/test)))
+(defun test (&rest args)
+  (let ((system (asdf:find-system :inravina-extrinsic/ansi-test)))
     (apply #'ansi-test-harness:ansi-test
            :directory (merge-pathnames
                        (make-pathname :directory '(:relative

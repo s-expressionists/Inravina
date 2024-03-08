@@ -829,7 +829,9 @@
   (loop with start = 0
         for pos = (position #\newline text :start start)
         unless pos
-          collect (subseq text start)
+          collect (if (zerop start)
+                      text
+                      (subseq text start))
           and do (loop-finish)
         collect (subseq text start pos)
         append newline

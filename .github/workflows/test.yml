@@ -42,10 +42,10 @@ jobs:
       run: |
         make-rc
         asdf-add
-    - name: Run Regression Tests
+    - name: Run Unit Tests
       run: |
-        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina/test)" -e "(defparameter cl-user::*exit-on-test-failures* t)" -e "(asdf:test-system :inravina)"
+        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/unit-test)" -e "(defparameter cl-user::*exit-on-test-failures* t)" -e "(asdf:test-system :inravina)"
     - name: Run ANSI Tests
       run: |
-        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/test)" -e "(inravina-extrinsic/test:ansi-test :exit t)"
+        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/ansi-test)" -e "(inravina-extrinsic/ansi-test:test :exit t)"
 
