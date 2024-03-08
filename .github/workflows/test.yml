@@ -44,7 +44,7 @@ jobs:
         asdf-add
     - name: Run Unit Tests
       run: |
-        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/unit-test)" -e "(defparameter cl-user::*exit-on-test-failures* t)" -e "(asdf:test-system :inravina)"
+        lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/unit-test)" -e "(defparameter cl-user::*exit-on-test-failures* t)" -e "(asdf:test-system :inravina-extrinsic/unit-test)"
     - name: Run ANSI Tests
       run: |
         lisp -i ${{ matrix.lisp }} -e "(ql:quickload :inravina-extrinsic/ansi-test)" -e "(inravina-extrinsic/ansi-test:test :exit t)"
