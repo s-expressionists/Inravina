@@ -1,8 +1,7 @@
 (in-package #:inravina)
 
 (deftype newline-kind ()
-  `(member :fill :linear :mandatory :miser :fresh
-           :fill-literal :linear-literal :mandatory-literal :miser-literal :fresh-literal))
+  `(member :fill :linear :mandatory :miser))
 
 (defun fill-kind-p (kind)
   (and (member kind '(:fill :fill-literal))

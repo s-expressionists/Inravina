@@ -85,22 +85,19 @@
 (defclass miser-newline (newline)
   ())
 
-(defclass literal-newline (newline)
+(defclass conditional-newline (newline)
   ())
 
-(defclass fresh-literal-newline (literal-newline fresh-newline)
+(defclass mandatory-conditional-newline (conditional-newline mandatory-newline)
   ())
 
-(defclass mandatory-literal-newline (literal-newline mandatory-newline)
+(defclass fill-conditional-newline (conditional-newline fill-newline)
   ())
 
-(defclass fill-literal-newline (literal-newline fill-newline)
+(defclass linear-conditional-newline (conditional-newline linear-newline)
   ())
 
-(defclass linear-literal-newline (literal-newline linear-newline)
-  ())
-
-(defclass miser-literal-newline (literal-newline miser-newline)
+(defclass miser-conditional-newline (conditional-newline miser-newline)
   ())
 
 (defmethod print-object ((obj newline) stream)
@@ -240,15 +237,15 @@
              (block-start (write-char #\< stream))
              (block-end (write-char #\> stream))
              (fresh-newline (write-char #\r stream))
-             (fresh-literal-newline (write-char #\R stream))
+             (fresh-conditional-newline (write-char #\R stream))
              (mandatory-newline (write-char #\x stream))
-             (mandatory-literal-newline (write-char #\x stream))
+             (mandatory-conditional-newline (write-char #\x stream))
              (linear-newline (write-char #\l stream))
-             (linear-literal-newline (write-char #\L stream))
+             (linear-conditional-newline (write-char #\L stream))
              (fill-newline (write-char #\f stream))
-             (fill-literal-newline (write-char #\F stream))
+             (fill-conditional-newline (write-char #\F stream))
              (miser-newline (write-char #\m stream))
-             (miser-literal-newline (write-char #\M stream))
+             (miser-conditional-newline (write-char #\M stream))
              (block-indent (write-char #\I stream))
              (current-indent (write-char #\i stream))
              (advance (write-char #\a stream))
@@ -549,7 +546,7 @@
   :no-break)
 
 (defmethod layout (client stream mode (instruction newline))
-  (unless (typep instruction 'literal-newline)
+  (when (typep instruction 'conditional-newline)
     (loop with fragments = (fragments stream)
           for index from (1- (length fragments)) downto 0
           for fragment = (aref fragments index)
@@ -578,7 +575,7 @@
                                                               last)))
        result)
       (otherwise
-       (unless (typep instruction 'literal-newline)
+       (when (typep instruction 'conditional-newline)
          (add-advance-fragment stream mode
                                (if (miser-style-p (parent instruction))
                                    (column (parent instruction))
@@ -690,47 +687,22 @@
        (push newline sections)
        (push-instruction newline ,stream))))
 
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fresh)))
-  (declare (ignore client))
-  (do-pprint-newline stream fresh-newline))
-
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fresh-literal)))
-  (declare (ignore client))
-  (do-pprint-newline stream fresh-literal-newline))
-
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :mandatory)))
   (declare (ignore client))
-  (do-pprint-newline stream mandatory-newline))
-
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :mandatory-literal)))
-  (declare (ignore client))
-  (do-pprint-newline stream mandatory-literal-newline))
+  (do-pprint-newline stream mandatory-conditional-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser)))
   (declare (ignore client))
   (when (miser-width (car (blocks stream)))
-    (do-pprint-newline stream miser-newline)))
-
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser-literal)))
-  (declare (ignore client))
-  (when (miser-width (car (blocks stream)))
-    (do-pprint-newline stream miser-literal-newline)))
+    (do-pprint-newline stream miser-conditional-newline)))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear)))
   (declare (ignore client))
-  (do-pprint-newline stream linear-newline))
-
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear-literal)))
-  (declare (ignore client))
-  (do-pprint-newline stream linear-literal-newline))
+  (do-pprint-newline stream linear-conditional-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fill)))
   (declare (ignore client))
-  (do-pprint-newline stream fill-newline))
-
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fill-literal)))
-  (declare (ignore client))
-  (do-pprint-newline stream fill-literal-newline))
+  (do-pprint-newline stream fill-conditional-newline))
 
 (defmethod pprint-tab (client (stream pretty-stream) (kind (eql :line)) colnum colinc)
   (declare (ignore client))
@@ -880,7 +852,7 @@
 
 (defmethod ngray:stream-write-char ((stream pretty-stream) (char (eql #\Newline)))
   (if (head stream)
-      (do-pprint-newline stream mandatory-literal-newline)
+      (do-pprint-newline stream mandatory-newline)
       (terpri (target stream)))
   char)
 
@@ -909,7 +881,7 @@
                                :start start :end end))
           (when pos
             (append-text start pos)
-            (do-pprint-newline stream mandatory-literal-newline)
+            (do-pprint-newline stream mandatory-newline)
             (setf start (1+ pos))
             (go next))
           (append-text start end)))
@@ -942,13 +914,13 @@
 
 (defmethod ngray:stream-terpri ((stream pretty-stream))
   (if (head stream)
-      (do-pprint-newline stream mandatory-literal-newline)
+      (do-pprint-newline stream mandatory-newline)
       (terpri (target stream)))
   nil)
 
 (defmethod ngray:stream-fresh-line ((stream pretty-stream))
   (if (head stream)
-      (do-pprint-newline stream fresh-literal-newline)
+      (do-pprint-newline stream fresh-newline)
       (fresh-line (target stream)))
   nil)
 

@@ -63,8 +63,7 @@
     (declare (ignore client stream kind)))
   (:method :around (client stream kind)
     (declare (ignore client stream))
-    (when (or *print-pretty*
-              (member kind '(:mandatory-literal :fresh-literal)))
+    (when *print-pretty*
       (call-next-method))))
 
 (defgeneric pprint-tab (client stream kind colnum colinc)
