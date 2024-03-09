@@ -433,9 +433,10 @@
     (declare (ignore client stream mode instruction))
     :no-break))
 
-(defmethod layout :before (client stream mode (instruction section-start))
+(defmethod layout :around (client stream mode (instruction section-start))
   (declare (ignore client mode))
-  (setf (column instruction) (column stream)))
+  (setf (column instruction) (column stream))
+  (call-next-method))
 
 (defun add-advance-fragment (stream mode column)
   (declare (ignore mode))
@@ -520,20 +521,26 @@
   nil)
 
 (defmethod layout
+    (client stream (mode (eql :single-line)) (instruction newline))
+  (declare (ignore client stream))
+  :no-break)
+
+(defmethod layout :around
     (client stream (mode (eql :multiline)) (instruction miser-newline))
   (declare (ignore client))
   (if (miser-style-p (parent instruction))
       (call-next-method)
       :no-break))
 
-(defmethod layout
+(defmethod layout :around
     (client stream (mode (eql :multiline)) (instruction fresh-newline))
   (declare (ignore client))
   (if (zerop (column stream))
       :no-break
       (call-next-method)))
 
-(defmethod layout (client stream (mode (eql :multiline)) (instruction fill-newline))
+(defmethod layout :around
+    (client stream (mode (eql :multiline)) (instruction fill-newline))
   (declare (ignore client))
   (if (and (not (break-before-p instruction))
            (not (miser-style-p (parent instruction))))
@@ -541,46 +548,47 @@
       (call-next-method)))
 
 (defmethod layout
-    (client stream (mode (eql :single-line)) (instruction newline))
-  (declare (ignore client stream))
-  :no-break)
+    (client stream mode (instruction conditional-newline))
+  (declare (ignore client mode))
+  (loop with fragments = (fragments stream)
+        for index from (1- (length fragments)) downto 0
+        for fragment = (aref fragments index)
+        do (typecase fragment
+             (number
+              (setf (aref fragments index) nil))
+             (string
+              (let ((pos (break-position client stream fragment)))
+                (cond ((zerop pos)
+                       (setf (aref fragments index) nil))
+                      ((= pos (length fragment))
+                       (loop-finish))
+                      (t
+                       (setf (aref fragments index)
+                             (cons fragment pos))
+                       (loop-finish)))))))
+  (let ((result (call-next-method)))
+    (when (eq result :break)
+      (add-advance-fragment stream mode
+                            (if (miser-style-p (parent instruction))
+                                (column (parent instruction))
+                                (+ (column (parent instruction))
+                                   (indent instruction)))))
+    result))
+
 
 (defmethod layout (client stream mode (instruction newline))
-  (when (typep instruction 'conditional-newline)
-    (loop with fragments = (fragments stream)
-          for index from (1- (length fragments)) downto 0
-          for fragment = (aref fragments index)
-          do (typecase fragment
-               (number
-                (setf (aref fragments index) nil))
-               (string
-                (let ((pos (break-position client stream fragment)))
-                  (cond ((zerop pos)
-                         (setf (aref fragments index) nil))
-                        ((= pos (length fragment))
-                         (loop-finish))
-                        (t
-                         (setf (aref fragments index)
-                               (cons fragment pos))
-                         (loop-finish))))))))
   (setf (column instruction) (column (parent instruction)))
   (let ((result (layout client stream mode (newline (parent instruction)))))
     (case result
       ((nil)
-       result)
+       nil)
       (:overflow-lines
        (let ((last (last (suffix (block-end (parent instruction))))))
          (setf (suffix (block-end (parent instruction))) (and last
                                                               (typep (car last) 'string)
                                                               last)))
-       result)
+       :overflow-lines)
       (otherwise
-       (when (typep instruction 'conditional-newline)
-         (add-advance-fragment stream mode
-                               (if (miser-style-p (parent instruction))
-                                   (column (parent instruction))
-                                   (+ (column (parent instruction))
-                                      (indent instruction)))))
        :break))))
 
 (defmethod layout (client stream mode (fragments list))
