@@ -463,6 +463,25 @@
           (vector-push-extend text (fragments stream))
           :no-break))))
 
+(defun add-fragments (stream mode fragments)
+  (loop with result = :no-break
+        for fragment in fragments
+        finally (return-from add-fragments result)
+        if (stringp fragment)
+          do (unless (add-text-fragment stream mode fragment)
+               (return-from add-fragments nil))
+        else if (and (not *print-readably*)
+                     *print-lines*
+                     (>= (1+ (line stream)) *print-lines*))
+               do (add-text-fragment stream :overflow-lines " ..")
+                  (return-from add-fragments :overflow-lines)
+        else
+          do (write-fragments stream)
+             (terpri (target stream))
+             (setf (column stream) 0
+                   result :break)
+             (incf (line stream))))
+
 (defmethod layout (client stream mode (instruction advance))
   (add-advance-fragment stream mode (value instruction)))
 
@@ -577,8 +596,7 @@
 
 
 (defmethod layout (client stream mode (instruction newline))
-  (setf (column instruction) (column (parent instruction)))
-  (let ((result (layout client stream mode (newline (parent instruction)))))
+  (let ((result (add-fragments stream mode (newline (parent instruction)))))
     (case result
       ((nil)
        nil)
@@ -590,25 +608,6 @@
        :overflow-lines)
       (otherwise
        :break))))
-
-(defmethod layout (client stream mode (fragments list))
-  (loop with result = :no-break
-        for fragment in fragments
-        finally (return-from layout result)
-        if (stringp fragment)
-          do (unless (add-text-fragment stream mode fragment)
-               (return-from layout nil))
-        else if (and (not *print-readably*)
-                     *print-lines*
-                     (>= (1+ (line stream)) *print-lines*))
-               do (add-text-fragment stream :overflow-lines " ..")
-                  (return-from layout :overflow-lines)
-        else
-          do (write-fragments stream)
-             (terpri (target stream))
-             (setf (column stream) 0
-                   result :break)
-             (incf (line stream))))
 
 (defmethod layout (client stream mode (instruction block-indent))
   (declare (ignore client stream mode))
@@ -640,7 +639,7 @@
                      (miser-width miser-width)
                      (miser-style-p miser-style-p))
         instruction
-      (let ((result (layout client stream mode (prefix instruction))))
+      (let ((result (add-fragments stream mode (prefix instruction))))
         (when result
           (setf miser-style-p (and miser-width
                                    line-width
@@ -654,10 +653,10 @@
         result))))
 
 (defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
-  (layout client stream :unconditional (suffix instruction)))
+  (add-fragments stream :unconditional (suffix instruction)))
 
 (defmethod layout (client stream mode (instruction block-end))
-  (layout client stream mode (suffix instruction)))
+  (add-fragments stream mode (suffix instruction)))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
   (if current-tail
@@ -849,9 +848,6 @@
 
 ;;; Gray Stream protocol support
 
-#+(or)(defmethod ngray:stream-file-position ((stream pretty-stream))
-  (file-position (target stream)))
-
 (defmethod ngray:stream-write-char ((stream pretty-stream) char)
   (if (head stream)
       (vector-push-extend char (get-text-buffer stream))
@@ -863,50 +859,6 @@
       (do-pprint-newline stream mandatory-newline)
       (terpri (target stream)))
   char)
-
-#|
-(defmethod ngray:stream-write-string
-    ((stream pretty-stream) string &optional start end)
-  (if (blocks stream)
-      (flet ((append-text (start2 end2)
-               (when (/= start2 end2)
-                 (let* ((buffer (get-text-buffer stream))
-                        (start1 (fill-pointer buffer))
-                        (end1 (+ start1 (- end2 start2))))
-                   (when (< (array-total-size buffer) end1)
-                     (adjust-array buffer (+ 32 end1)))
-                   (setf (fill-pointer buffer) end1)
-                   (replace buffer string
-                            :start1 start1 :end1 end1
-                            :start2 start2 :end2 end2)))))
-        (prog (pos)
-          (unless start
-            (setf start 0))
-          (unless end
-            (setf end (length string)))
-         next
-           (setf pos (position #\newline string
-                               :start start :end end))
-          (when pos
-            (append-text start pos)
-            (do-pprint-newline stream mandatory-newline)
-            (setf start (1+ pos))
-            (go next))
-          (append-text start end)))
-      (write-string string (target stream)
-                    :start (or start 0) :end end))
-  string)
-
-#+gray-streams-sequence
-(defmethod ngray:stream-write-sequence
-    #+gray-streams-sequence/optional
-    ((stream pretty-stream) sequence &optional start end)
-    #+gray-streams-sequence/required
-    ((stream pretty-stream) sequence start end)
-    #+gray-streams-sequence/key
-    (sequence (stream pretty-stream) &key start end)
-  (ngray:stream-write-string stream sequence start end))
-|#
 
 (defmethod ngray:stream-finish-output ((stream pretty-stream))
   (unless (head stream)
