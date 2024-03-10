@@ -305,7 +305,6 @@
          last-maybe-break
          status
          (mode :single-line)
-         (client (client stream))
          (instruction (head stream))
          (%fragments-length 0)
          (%indent 0)
@@ -325,7 +324,7 @@
                           (format *debug-io* "section ~a, instruction ~a, mode = ~s~%"
                                   section
                                   instruction mode)))
-       (setf status (layout client stream mode instruction))
+       (setf status (layout stream mode instruction))
        #+pprint-debug
        (when *pprint-debug*
          (format *debug-io* "status = ~a~%"
@@ -428,13 +427,14 @@
     (setf (sections stream) nil)
     (finish-output (target stream))))
 
-(defgeneric layout (client stream mode instruction)
-  (:method (client stream (mode (eql :overflow-lines)) instruction)
-    (declare (ignore client stream mode instruction))
-    :no-break))
+(defgeneric layout (stream mode instruction))
 
-(defmethod layout :around (client stream mode (instruction section-start))
-  (declare (ignore client mode))
+(defmethod layout (stream (mode (eql :overflow-lines)) instruction)
+  (declare (ignore stream mode instruction))
+  :no-break)
+
+(defmethod layout :around (stream mode (instruction section-start))
+  (declare (ignore mode))
   (setf (column instruction) (column stream))
   (call-next-method))
 
@@ -482,14 +482,14 @@
                    result :break)
              (incf (line stream))))
 
-(defmethod layout (client stream mode (instruction advance))
+(defmethod layout (stream mode (instruction advance))
   (add-advance-fragment stream mode (value instruction)))
 
-(defmethod layout (client stream mode (instruction text))
+(defmethod layout (stream mode (instruction text))
   (add-text-fragment stream mode (value instruction)))
 
-(defmethod layout (client stream mode (instruction style))
-  (declare (ignore client mode))
+(defmethod layout (stream mode (instruction style))
+  (declare (ignore mode))
   (with-accessors ((value value))
       instruction
     (setf (column stream) (stream-scale-column (target stream) (column stream)
@@ -514,7 +514,7 @@
         (t
          0)))
 
-(defmethod layout (client stream mode (instruction section-tab)
+(defmethod layout (stream mode (instruction section-tab)
                    &aux (column (column stream)))
   (add-advance-fragment stream mode
                         (+ column
@@ -525,7 +525,7 @@
                                              (colinc instruction)
                                              (typep instruction 'relative-tab)))))
 
-(defmethod layout (client stream mode (instruction line-tab)
+(defmethod layout (stream mode (instruction line-tab)
                    &aux (column (column stream)))
   (add-advance-fragment stream mode
                         (+ column
@@ -535,41 +535,39 @@
                                              (typep instruction 'relative-tab)))))
 
 (defmethod layout
-    (client stream (mode (eql :single-line)) (instruction mandatory-newline))
-  (declare (ignore client stream))
+    (stream (mode (eql :single-line)) (instruction mandatory-newline))
+  (declare (ignore stream))
   nil)
 
 (defmethod layout
-    (client stream (mode (eql :single-line)) (instruction newline))
-  (declare (ignore client stream))
+    (stream (mode (eql :single-line)) (instruction newline))
+  (declare (ignore stream))
   :no-break)
 
 (defmethod layout :around
-    (client stream (mode (eql :multiline)) (instruction miser-newline))
-  (declare (ignore client))
+    (stream (mode (eql :multiline)) (instruction miser-newline))
   (if (miser-style-p (parent instruction))
       (call-next-method)
       :no-break))
 
 (defmethod layout :around
-    (client stream (mode (eql :multiline)) (instruction fresh-newline))
-  (declare (ignore client))
+    (stream (mode (eql :multiline)) (instruction fresh-newline))
   (if (zerop (column stream))
       :no-break
       (call-next-method)))
 
 (defmethod layout :around
-    (client stream (mode (eql :multiline)) (instruction fill-newline))
-  (declare (ignore client))
+    (stream (mode (eql :multiline)) (instruction fill-newline))
   (if (and (not (break-before-p instruction))
            (not (miser-style-p (parent instruction))))
       :maybe-break
       (call-next-method)))
 
 (defmethod layout
-    (client stream mode (instruction conditional-newline))
-  (declare (ignore client mode))
-  (loop with fragments = (fragments stream)
+    (stream mode (instruction conditional-newline))
+  (declare (ignore mode))
+  (loop with client = (client stream)
+        with fragments = (fragments stream)
         for index from (1- (length fragments)) downto 0
         for fragment = (aref fragments index)
         do (typecase fragment
@@ -595,7 +593,7 @@
     result))
 
 
-(defmethod layout (client stream mode (instruction newline))
+(defmethod layout (stream mode (instruction newline))
   (let ((result (add-fragments stream mode (newline (parent instruction)))))
     (case result
       ((nil)
@@ -609,25 +607,25 @@
       (otherwise
        :break))))
 
-(defmethod layout (client stream mode (instruction block-indent))
-  (declare (ignore client stream mode))
+(defmethod layout (stream mode (instruction block-indent))
+  (declare (ignore stream mode))
   (setf (indent instruction) (width instruction))
   :no-break)
 
-(defmethod layout (client stream mode (instruction current-indent))
-  (declare (ignore client mode))
+(defmethod layout (stream mode (instruction current-indent))
+  (declare (ignore mode))
   (setf (indent instruction)
         (+ (width instruction)
            (column stream)
            (- (column (parent instruction)))))
   :no-break)
 
-(defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-start))
-  (declare (ignore client stream))
+(defmethod layout (stream (mode (eql :overflow-lines)) (instruction block-start))
+  (declare (ignore stream))
   (setf (suffix (block-end instruction)) nil)
   :no-break)
 
-(defmethod layout (client stream mode (instruction block-start))
+(defmethod layout (stream mode (instruction block-start))
   (with-accessors ((column column)
                    (line-width line-width))
       stream
@@ -652,10 +650,10 @@
           (setf (suffix block-end) nil))
         result))))
 
-(defmethod layout (client stream (mode (eql :overflow-lines)) (instruction block-end))
+(defmethod layout (stream (mode (eql :overflow-lines)) (instruction block-end))
   (add-fragments stream :unconditional (suffix instruction)))
 
-(defmethod layout (client stream mode (instruction block-end))
+(defmethod layout (stream mode (instruction block-end))
   (add-fragments stream mode (suffix instruction)))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
