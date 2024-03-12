@@ -438,15 +438,19 @@
   (setf (column instruction) (column stream))
   (call-next-method))
 
-(defun add-advance-fragment (stream mode column)
+(defun add-advance-fragment (stream mode new-column)
   (declare (ignore mode))
-  (with-accessors ((fragments fragments))
+  (with-accessors ((fragments fragments)
+                   (column column))
       stream
-    (if (and (plusp (length fragments))
-             (typep (aref fragments (1- (length fragments))) 'real))
-        (setf (aref fragments (1- (length fragments))) column)
-        (vector-push-extend column fragments))
-    (setf (column stream) column)
+    (cond ((and (plusp (length fragments))
+                (typep (aref fragments (1- (length fragments))) 'real))
+           (setf (aref fragments (1- (length fragments))) new-column)
+           (setf column new-column))
+          ((<= new-column column))
+          (t
+           (vector-push-extend new-column fragments)
+           (setf column new-column)))
     :no-break))
 
 (defun add-text-fragment (stream mode text)
