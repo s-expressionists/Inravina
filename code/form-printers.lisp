@@ -759,17 +759,6 @@
            (not (constantp symbol)))
       (muffp symbol #\*)))
 
-(defun pprint-symbol (client stream object &rest options &key &allow-other-keys)
-  (declare (ignore options))
-  (with-style (client stream
-               :name (cond ((constant-variable-p object)
-                            :constant-variable)
-                           ((dynamic-variable-p object)
-                            :dynamic-variable)
-                           (t
-                            nil)))
-    (incless:print-object client object stream)))
-
 (defmethod pprint-symbol-macrolet (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)

@@ -22,7 +22,6 @@
            #:expand-logical-block
            #:make-dispatch-function
            #:make-pretty-stream
-           #:make-style
            #:pprint-apply
            #:pprint-argument-list
            #:pprint-array
@@ -70,6 +69,4 @@
            #:pretty-stream-p
            #:set-pprint-dispatch
            #:stream-measure-char
-           #:stream-measure-string
-           #:stream-scale-column
-           #:stream-style))
+           #:stream-measure-string))

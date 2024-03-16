@@ -40,11 +40,6 @@
           :initform 0    
           :type real)))
 
-(defclass style (instruction)
-  ((value :accessor value
-          :initarg :value
-          :initform nil)))
-
 (defmethod print-object ((obj text) stream)
   (print-unreadable-object (obj stream :type t :identity t)
     (prin1 (value obj) stream)))
@@ -181,7 +176,7 @@
               :initform (make-array 32
                                     :adjustable t
                                     :fill-pointer 0
-                                    :element-type '(or null style string real)))
+                                    :element-type '(or null string real)))
    (line :accessor line
          :initarg :line
          :initform nil
@@ -193,9 +188,6 @@
            :initarg :column
            :initform nil
            :type (or null real))
-   (style :accessor style
-          :initarg :style
-          :initform nil)
    (head :accessor head
          :initform nil
          :type (or null instruction))
@@ -253,7 +245,6 @@
              (line-relative-tab (write-char #\T stream))
              (section-tab (write-char #\u stream))
              (section-relative-tab (write-char #\U stream))
-             (style (write-char #\s stream))
              (text (dotimes (i (length (value instruction)))
                      (write-char #\- stream)))
              (otherwise (write-char #\? stream))))
@@ -308,12 +299,10 @@
          (instruction (head stream))
          (%fragments-length 0)
          (%indent 0)
-         (%column (or (ngray:stream-line-column (target stream)) 0))
-         (%style (stream-style (target stream))))
+         (%column (or (ngray:stream-line-column (target stream)) 0)))
      (setf (line-width stream) (line-length stream)
            (line stream) 0
-           (column stream) %column
-           (style stream) %style)
+           (column stream) %column)
    repeat
      (when instruction
        #+pprint-debug (when *pprint-debug*
@@ -342,8 +331,7 @@
                      (setf section instruction
                            %fragments-length (length (fragments stream))
                            %indent (indent instruction)
-                           %column (column stream)
-                           %style (style stream)))
+                           %column (column stream)))
                     ((or (eq section instruction)
                          (and (typep section 'section-start)
                               (eq instruction (section-end section))))
@@ -371,8 +359,7 @@
               (when section
                 (setf %fragments-length (length (fragments stream))
                       %indent (indent instruction)
-                      %column (column stream)
-                      %style (style stream))))
+                      %column (column stream))))
              ((eq status :overflow-lines)
               (setf mode :overflow-lines
                     section nil
@@ -382,7 +369,6 @@
                     (fill-pointer (fragments stream)) %fragments-length
                     (indent instruction) %indent
                     (column stream) %column
-                    (style stream) %style
                     section last-maybe-break
                     last-maybe-break nil
                     mode :unconditional))
@@ -394,8 +380,7 @@
                     mode :multiline
                     (fill-pointer (fragments stream)) %fragments-length
                     (indent instruction) %indent
-                    (column stream) %column
-                    (style stream) %style))
+                    (column stream) %column))
              (t
               (setf mode :unconditional)))
        (go repeat)))
@@ -414,9 +399,7 @@
              (null)
              (real
               (unless (minusp fragment)
-                (ngray:stream-advance-to-column target fragment)))
-             (style
-              (setf (stream-style stream) (value fragment))))
+                (ngray:stream-advance-to-column target fragment))))
         finally (setf (fill-pointer fragments) 0)))
 
 (defun process-instructions (stream)
@@ -458,23 +441,10 @@
       :no-break
       (let* ((fragment0 (when (plusp (length (fragments stream)))
                           (aref (fragments stream) (1- (length (fragments stream))))))
-             (fragment1 (when (> (length (fragments stream)) 1)
-                          (aref (fragments stream) (- (length (fragments stream)) 2))))
              (new-column (+ (column stream)
-                            (cond ((stringp fragment0)
-                                   (stream-measure-string (target stream) text
-                                                          (style stream)
-                                                          (aref fragment0 (1- (length fragment0)))
-                                                          (style stream)))
-                                  ((and (typep fragment0 'style)
-                                        (stringp fragment1))
-                                   (stream-measure-string (target stream) text
-                                                          (style stream)
-                                                          (aref fragment1 (1- (length fragment1)))
-                                                          (value fragment0)))
-                                  (t
-                                   (stream-measure-string (target stream) text
-                                                          (style stream) nil nil))))))
+                            (stream-measure-string (target stream) text
+                                                   (and (stringp fragment0)
+                                                        fragment0)))))
         (when (or (member mode '(:unconditional :overflow-lines))
                   (>= (line-width stream) new-column))
           (setf (column stream) new-column)
@@ -505,15 +475,6 @@
 
 (defmethod layout (stream mode (instruction text))
   (add-text-fragment stream mode (value instruction)))
-
-(defmethod layout (stream mode (instruction style))
-  (declare (ignore mode))
-  (with-accessors ((value value))
-      instruction
-    (setf (column stream) (stream-scale-column (target stream) (column stream)
-                                               (style stream) value)
-          (style stream) value)
-    (vector-push-extend instruction (fragments stream))))
 
 (defun compute-tab-size (column colnum colinc relativep)
   (cond (relativep
@@ -855,13 +816,6 @@
     ;(write-string suffix stream)
     (process-instructions stream)))
 
-(defun frob-style (stream style &aux (current-tail (tail stream)))
-  (cond (style)
-        (current-tail
-         (style current-tail))
-        (t
-         (stream-style stream))))
-
 ;;; Gray Stream protocol support
 
 (defmethod ngray:stream-write-char ((stream pretty-stream) char)
@@ -936,34 +890,5 @@
 (defmethod (setf ngray:stream-external-format) (new-value (stream pretty-stream))
   (setf (ngray:stream-external-format (target stream)) new-value))
 
-(defmethod stream-style ((stream pretty-stream))
-  (if (head stream)
-      (style stream)
-      (stream-style (target stream))))
-
-(defmethod (setf stream-style) (new-style (stream pretty-stream))
-  (when new-style
-    (if (head stream)
-        (push-instruction (make-instance 'style
-                                         :value new-style
-                                         :section (car (sections stream))
-                                         :parent (car (blocks stream)))
-                          stream)
-        (setf (stream-style (target stream)) new-style))))
-
-(defmethod make-style (client (stream pretty-stream) &rest initargs &key)
-  (apply #'make-style client (target stream) initargs))
-
-(defmethod stream-scale-column ((stream pretty-stream) column old-style new-style)
-  (stream-scale-column (target stream) column
-                       (frob-style stream old-style)
-                       (frob-style stream new-style)))
-
-(defmethod stream-measure-char ((stream pretty-stream) char &optional style)
-  (stream-measure-char (target stream) char (frob-style stream style)))
-
-(defmethod stream-measure-string ((stream pretty-stream) char style previous-char previous-style)
-  (stream-measure-string (target stream) char
-                         (frob-style stream style)
-                         previous-char
-                         previous-style))
+(defmethod stream-measure-string ((stream pretty-stream) string previous-string)
+  (stream-measure-string (target stream) string previous-string))

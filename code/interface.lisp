@@ -171,43 +171,9 @@
 
 (defgeneric pprint-macro-char (client stream object &optional quasiquote-p unquote-p disp-char sub-char))
 
-(defgeneric stream-style (stream)
-  (:method (stream)
-    (declare (ignore stream))
-    nil))
-
-(defgeneric (setf stream-style) (new-style stream)
-  (:method (new-style stream)
-    (declare (ignore stream))
-    new-style))
-
-(defgeneric make-style (client stream &rest initargs &key)
-  (:method (client stream &rest initargs &key name)
-    (declare (ignore client stream initargs name))
-    nil))
-
-(defmacro with-style ((client stream &rest initargs) &body body)
-  (let ((previous-var (gensym)))
-    `(let ((,previous-var (stream-style ,stream)))
-       (setf (stream-style ,stream) (make-style ,client ,stream ,@initargs))
-       (unwind-protect
-            (progn ,@body)
-         (setf (stream-style ,stream) ,previous-var)))))
-
-(defgeneric stream-scale-column (stream column old-style new-style)
-  (:method (stream column old-style new-style)
-    (declare (ignore stream old-style new-style))
-    column))
-
-(defgeneric stream-measure-char (stream char &optional style)
-  (:method (stream char &optional style)
-    (declare (ignore stream char style))
-    1))
-
-(defgeneric stream-measure-string (stream string style previous-char previous-style)
-  (:method (stream string style previous-char previous-style)
-    (declare (ignore stream style previous-char previous-style))
-    ;(format *debug-io* "~a ~a ~a~%" string style previous-char)
+(defgeneric stream-measure-string (stream string previous-string)
+  (:method (stream string previous-string)
+    (declare (ignore stream previous-string))
     (length string)))
 
 (defmacro define-interface ((client-var client-class &optional intrinsic) &body body)
