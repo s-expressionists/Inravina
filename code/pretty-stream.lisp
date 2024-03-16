@@ -406,7 +406,6 @@
   (loop with target = (target stream)
         with fragments = (fragments stream)
         for fragment across fragments
-        for i from 0
         do (etypecase fragment
              (string
               (write-string fragment target))
@@ -445,8 +444,8 @@
       stream
     (cond ((and (plusp (length fragments))
                 (typep (aref fragments (1- (length fragments))) 'real))
-           (setf (aref fragments (1- (length fragments))) new-column)
-           (setf column new-column))
+           (setf (aref fragments (1- (length fragments))) new-column
+                 column new-column))
           ((<= new-column column))
           (t
            (vector-push-extend new-column fragments)
@@ -457,10 +456,25 @@
   (if (or (null text)
           (zerop (length text)))
       :no-break
-      (let ((new-column (+ (column stream)
-                           (stream-measure-string (target stream) text
-                                                  0 nil
-                                                  (style stream)))))
+      (let* ((fragment0 (when (plusp (length (fragments stream)))
+                          (aref (fragments stream) (1- (length (fragments stream))))))
+             (fragment1 (when (> (length (fragments stream)) 1)
+                          (aref (fragments stream) (- (length (fragments stream)) 2))))
+             (new-column (+ (column stream)
+                            (cond ((stringp fragment0)
+                                   (stream-measure-string (target stream) text
+                                                          (style stream)
+                                                          (aref fragment0 (1- (length fragment0)))
+                                                          (style stream)))
+                                  ((and (typep fragment0 'style)
+                                        (stringp fragment1))
+                                   (stream-measure-string (target stream) text
+                                                          (style stream)
+                                                          (aref fragment1 (1- (length fragment1)))
+                                                          (value fragment0)))
+                                  (t
+                                   (stream-measure-string (target stream) text
+                                                          (style stream) nil nil))))))
         (when (or (member mode '(:unconditional :overflow-lines))
                   (>= (line-width stream) new-column))
           (setf (column stream) new-column)
@@ -948,7 +962,8 @@
 (defmethod stream-measure-char ((stream pretty-stream) char &optional style)
   (stream-measure-char (target stream) char (frob-style stream style)))
 
-(defmethod stream-measure-string ((stream pretty-stream) char &optional start end style)
+(defmethod stream-measure-string ((stream pretty-stream) char style previous-char previous-style)
   (stream-measure-string (target stream) char
-                         (or start 0) end
-                         (frob-style stream style)))
+                         (frob-style stream style)
+                         previous-char
+                         previous-style))

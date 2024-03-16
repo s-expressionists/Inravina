@@ -204,11 +204,11 @@
     (declare (ignore stream char style))
     1))
 
-(defgeneric stream-measure-string (stream string &optional start end style)
-  (:method (stream string &optional start end style)
-    (declare (ignore stream style))
-    (- (or end (length string))
-       (or start 0))))
+(defgeneric stream-measure-string (stream string style previous-char previous-style)
+  (:method (stream string style previous-char previous-style)
+    (declare (ignore stream style previous-char previous-style))
+    ;(format *debug-io* "~a ~a ~a~%" string style previous-char)
+    (length string)))
 
 (defmacro define-interface ((client-var client-class &optional intrinsic) &body body)
   (let* ((intrinsic-pkg (if intrinsic (find-package '#:common-lisp) *package*))

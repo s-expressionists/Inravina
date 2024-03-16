@@ -19,9 +19,9 @@
   (/ (pdf:get-char-width text pdf::*font* pdf::*font-size*)
      (em-size)))
 
-(defmethod inravina:stream-measure-string ((stream pdf-stream) string &optional start end style)
-  (declare (ignore stream style))
-  (measure-string (subseq string (or start 0) end)))
+(defmethod inravina:stream-measure-string ((stream pdf-stream) string &optional style previous-char)
+  (declare (ignore stream style previous-char))
+  (measure-string string))
 
 (defmethod inravina:stream-measure-char ((stream pdf-stream) char &optional style)
   (declare (ignore stream style))
