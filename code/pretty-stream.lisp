@@ -417,7 +417,7 @@
               (unless (minusp fragment)
                 (ngray:stream-advance-to-column target fragment)))
              (style
-              (setf (stream-style stream) (value fragment))))
+              (setf (stream-style target) (value fragment))))
         finally (setf (fill-pointer fragments) 0)))
 
 (defun process-instructions (stream)
