@@ -337,7 +337,7 @@
                               (and (typep instruction 'block-start)
                                    (section-end instruction))))
                      (setf section instruction
-                           %fragments (copy-tree (fragments stream))
+                           %fragments (fragments stream)
                            %indent (indent instruction)
                            %column (column stream)
                            %style (style stream)))
@@ -366,7 +366,7 @@
                     last-maybe-break nil
                     instruction (next instruction))
               (when section
-                (setf %fragments (copy-tree (fragments stream))
+                (setf %fragments (fragments stream)
                       %indent (indent instruction)
                       %column (column stream)
                       %style (style stream))))
