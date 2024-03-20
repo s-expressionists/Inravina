@@ -177,11 +177,8 @@
            :initarg :client)
    (depth :accessor depth
           :initform 0)
-   (fragments :reader fragments
-              :initform (make-array 32
-                                    :adjustable t
-                                    :fill-pointer 0
-                                    :element-type '(or null style string real)))
+   (fragments :accessor fragments
+              :initform nil)
    (line :accessor line
          :initarg :line
          :initform nil
@@ -306,7 +303,7 @@
          status
          (mode :single-line)
          (instruction (head stream))
-         (%fragments-length 0)
+         %fragments
          (%indent 0)
          (%column (or (ngray:stream-line-column (target stream)) 0))
          (%style (stream-style (target stream))))
@@ -340,7 +337,7 @@
                               (and (typep instruction 'block-start)
                                    (section-end instruction))))
                      (setf section instruction
-                           %fragments-length (length (fragments stream))
+                           %fragments (copy-tree (fragments stream))
                            %indent (indent instruction)
                            %column (column stream)
                            %style (style stream)))
@@ -369,7 +366,7 @@
                     last-maybe-break nil
                     instruction (next instruction))
               (when section
-                (setf %fragments-length (length (fragments stream))
+                (setf %fragments (copy-tree (fragments stream))
                       %indent (indent instruction)
                       %column (column stream)
                       %style (style stream))))
@@ -379,7 +376,7 @@
                     instruction (next instruction)))
              (last-maybe-break
               (setf instruction last-maybe-break
-                    (fill-pointer (fragments stream)) %fragments-length
+                    (fragments stream) %fragments
                     (indent instruction) %indent
                     (column stream) %column
                     (style stream) %style
@@ -392,7 +389,7 @@
                                     (next section))
                     section nil
                     mode :multiline
-                    (fill-pointer (fragments stream)) %fragments-length
+                    (fragments stream) %fragments
                     (indent instruction) %indent
                     (column stream) %column
                     (style stream) %style))
@@ -404,9 +401,7 @@
         
 (defun write-fragments (stream)
   (loop with target = (target stream)
-        with fragments = (fragments stream)
-        for fragment across fragments
-        for i from 0
+        for fragment in (nreverse (fragments stream))
         do (etypecase fragment
              (string
               (write-string fragment target))
@@ -418,7 +413,7 @@
                 (ngray:stream-advance-to-column target fragment)))
              (style
               (setf (stream-style target) (value fragment))))
-        finally (setf (fill-pointer fragments) 0)))
+        finally (setf (fragments stream) nil)))
 
 (defun process-instructions (stream)
   (unless (blocks stream)
@@ -443,13 +438,12 @@
   (with-accessors ((fragments fragments)
                    (column column))
       stream
-    (cond ((and (plusp (length fragments))
-                (typep (aref fragments (1- (length fragments))) 'real))
-           (setf (aref fragments (1- (length fragments))) new-column)
-           (setf column new-column))
+    (cond ((typep (car fragments) 'real)
+           (setf (car fragments) new-column
+                 column new-column))
           ((<= new-column column))
           (t
-           (vector-push-extend new-column fragments)
+           (push new-column fragments)
            (setf column new-column)))
     :no-break))
 
@@ -464,7 +458,7 @@
         (when (or (member mode '(:unconditional :overflow-lines))
                   (>= (line-width stream) new-column))
           (setf (column stream) new-column)
-          (vector-push-extend text (fragments stream))
+          (push text (fragments stream))
           :no-break))))
 
 (defun add-fragments (stream mode fragments)
@@ -499,7 +493,7 @@
     (setf (column stream) (stream-scale-column (target stream) (column stream)
                                                (style stream) value)
           (style stream) value)
-    (vector-push-extend instruction (fragments stream))))
+    (push instruction (fragments stream))))
 
 (defun compute-tab-size (column colnum colinc relativep)
   (cond (relativep
@@ -571,21 +565,19 @@
     (stream mode (instruction conditional-newline))
   (declare (ignore mode))
   (loop with client = (client stream)
-        with fragments = (fragments stream)
-        for index from (1- (length fragments)) downto 0
-        for fragment = (aref fragments index)
-        do (typecase fragment
+        for head on (fragments stream)
+        do (typecase (car head)
              (number
-              (setf (aref fragments index) nil))
+              (setf (car head) nil))
              (string
-              (let ((pos (break-position client stream fragment)))
+              (let ((pos (break-position client stream (car head))))
                 (cond ((zerop pos)
-                       (setf (aref fragments index) nil))
-                      ((= pos (length fragment))
+                       (setf (car head) nil))
+                      ((= pos (length (car head)))
                        (loop-finish))
                       (t
-                       (setf (aref fragments index)
-                             (cons fragment pos))
+                       (setf (car head)
+                             (cons (car head) pos))
                        (loop-finish)))))))
   (let ((result (call-next-method)))
     (when (eq result :break)
