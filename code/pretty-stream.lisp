@@ -468,6 +468,8 @@
         if (stringp fragment)
           do (unless (add-text-fragment stream mode fragment)
                (return-from add-fragments nil))
+        else if (eq mode :overflow-lines)
+          do (return-from add-fragments result)
         else if (and (not *print-readably*)
                      *print-lines*
                      (>= (1+ (line stream)) *print-lines*))
@@ -588,20 +590,11 @@
                                    (indent instruction)))))
     result))
 
-
 (defmethod layout (stream mode (instruction newline))
   (let ((result (add-fragments stream mode (newline (parent instruction)))))
-    (case result
-      ((nil)
-       nil)
-      (:overflow-lines
-       (let ((last (last (suffix (block-end (parent instruction))))))
-         (setf (suffix (block-end (parent instruction))) (and last
-                                                              (typep (car last) 'string)
-                                                              last)))
-       :overflow-lines)
-      (otherwise
-       :break))))
+    (if (member result '(nil :overflow-lines))
+        result
+        :break)))
 
 (defmethod layout (stream mode (instruction block-indent))
   (declare (ignore stream mode))
@@ -647,7 +640,10 @@
         result))))
 
 (defmethod layout (stream (mode (eql :overflow-lines)) (instruction block-end))
-  (add-fragments stream :unconditional (suffix instruction)))
+  (let ((last-fragment (car (last (suffix instruction)))))
+    (if (stringp last-fragment)
+        (add-text-fragment stream :unconditional last-fragment)
+        :no-break)))
 
 (defmethod layout (stream mode (instruction block-end))
   (add-fragments stream mode (suffix instruction)))
