@@ -51,6 +51,12 @@ Some issues I have noticed as I have been working on Inravina.
    statement in the "Exceptional Situations" section of
    SET-PPRINT-DISPATCH about read-only tables and the error that
    should result from attempting to modify one.
+6. In the description for `*print-lines*` it states:
+   > If an attempt is made to go beyond that many lines, “..” is
+   > printed at the end of the last line followed by all of the
+   > suffixes (closing delimiters) that are pending to be printed.
+   This does not specify what should be done if the suffix contains
+   newlines.
 
 ## Issues with ansi-test
 
