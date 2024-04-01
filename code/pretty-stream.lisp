@@ -167,7 +167,11 @@
   ((suffix :accessor suffix
            :initform nil
            :initarg :suffix    
-           :type list)))
+           :type list)
+   (overflow-suffix :accessor overflow-suffix
+                    :initform nil
+                    :initarg :overflow-suffix
+                    :type (or null string))))
 
 (defclass pretty-stream
     (ngray:fundamental-character-output-stream)
@@ -449,13 +453,14 @@
 
 (defun add-text-fragment (stream mode text)
   (if (or (null text)
-          (zerop (length text)))
+          (zerop (length text))
+          (eq mode :overflow-lines))
       :no-break
       (let ((new-column (+ (column stream)
                            (stream-measure-string (target stream) text
                                                   0 nil
                                                   (style stream)))))
-        (when (or (member mode '(:unconditional :overflow-lines))
+        (when (or (eq mode :unconditional)
                   (>= (line-width stream) new-column))
           (setf (column stream) new-column)
           (push text (fragments stream))
@@ -473,7 +478,7 @@
         else if (and (not *print-readably*)
                      *print-lines*
                      (>= (1+ (line stream)) *print-lines*))
-               do (add-text-fragment stream :overflow-lines " ..")
+               do (add-text-fragment stream :unconditional " ..")
                   (return-from add-fragments :overflow-lines)
         else
           do (write-fragments stream)
@@ -611,7 +616,7 @@
 
 (defmethod layout (stream (mode (eql :overflow-lines)) (instruction block-start))
   (declare (ignore stream))
-  (setf (suffix (block-end instruction)) nil)
+  (setf (overflow-suffix (block-end instruction)) nil)
   :no-break)
 
 (defmethod layout (stream mode (instruction block-start))
@@ -636,17 +641,17 @@
                 indent 0
                 block-column column))
         (when (eq result :overflow-lines)
-          (setf (suffix block-end) nil))
+          (setf (overflow-suffix block-end) nil))
         result))))
 
 (defmethod layout (stream (mode (eql :overflow-lines)) (instruction block-end))
-  (let ((last-fragment (car (last (suffix instruction)))))
-    (if (stringp last-fragment)
-        (add-text-fragment stream :unconditional last-fragment)
-        :no-break)))
+  (add-text-fragment stream :unconditional (overflow-suffix instruction)))
 
 (defmethod layout (stream mode (instruction block-end))
-  (add-fragments stream mode (suffix instruction)))
+  (let ((result (add-fragments stream mode (suffix instruction))))
+    (when (eq result :overflow-lines)
+      (add-text-fragment stream :unconditional (overflow-suffix instruction)))
+    result))
 
 (defun push-instruction (instruction stream &aux (current-tail (tail stream)))
   (if current-tail
@@ -822,6 +827,10 @@
                                                      (and (car (blocks stream))
                                                           (newline (car (blocks stream)))))
                                   :parent (car (blocks stream)))))
+    (unless (or (zerop (length suffix))
+                (char= #\newline (char suffix (1- (length suffix)))))
+      (setf (overflow-suffix block-end)
+            (car (last (suffix block-end)))))
     (setf (block-end (car (blocks stream))) block-end)
     (pop (blocks stream))
     (decf (depth stream))
