@@ -73,31 +73,22 @@
 (defclass fresh-newline (newline)
   ())
 
-(defclass mandatory-newline (newline)
-  ())
-
-(defclass fill-newline (newline)
-  ())
-
-(defclass linear-newline (newline)
-  ())
-
-(defclass miser-newline (newline)
+(defclass terpri-newline (newline)
   ())
 
 (defclass conditional-newline (newline)
   ())
 
-(defclass mandatory-conditional-newline (conditional-newline mandatory-newline)
+(defclass mandatory-newline (conditional-newline terpri-newline)
   ())
 
-(defclass fill-conditional-newline (conditional-newline fill-newline)
+(defclass fill-newline (conditional-newline)
   ())
 
-(defclass linear-conditional-newline (conditional-newline linear-newline)
+(defclass linear-newline (conditional-newline)
   ())
 
-(defclass miser-conditional-newline (conditional-newline miser-newline)
+(defclass miser-newline (conditional-newline)
   ())
 
 (defmethod print-object ((obj newline) stream)
@@ -239,14 +230,14 @@
              (block-end (write-char #\> stream))
              (fresh-newline (write-char #\r stream))
              (fresh-conditional-newline (write-char #\R stream))
+             (terpri-newline (write-char #\x stream))
              (mandatory-newline (write-char #\x stream))
-             (mandatory-conditional-newline (write-char #\x stream))
              (linear-newline (write-char #\l stream))
-             (linear-conditional-newline (write-char #\L stream))
+             (linear-newline (write-char #\L stream))
              (fill-newline (write-char #\f stream))
-             (fill-conditional-newline (write-char #\F stream))
+             (fill-newline (write-char #\F stream))
              (miser-newline (write-char #\m stream))
-             (miser-conditional-newline (write-char #\M stream))
+             (miser-newline (write-char #\M stream))
              (block-indent (write-char #\I stream))
              (current-indent (write-char #\i stream))
              (advance (write-char #\a stream))
@@ -540,7 +531,7 @@
                                              (typep instruction 'relative-tab)))))
 
 (defmethod layout
-    (stream (mode (eql :single-line)) (instruction mandatory-newline))
+    (stream (mode (eql :single-line)) (instruction terpri-newline))
   (declare (ignore stream))
   nil)
 
@@ -691,20 +682,20 @@
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :mandatory)))
   (declare (ignore client))
-  (do-pprint-newline stream mandatory-conditional-newline))
+  (do-pprint-newline stream mandatory-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser)))
   (declare (ignore client))
   (when (miser-width (car (blocks stream)))
-    (do-pprint-newline stream miser-conditional-newline)))
+    (do-pprint-newline stream miser-newline)))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear)))
   (declare (ignore client))
-  (do-pprint-newline stream linear-conditional-newline))
+  (do-pprint-newline stream linear-newline))
 
 (defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fill)))
   (declare (ignore client))
-  (do-pprint-newline stream fill-conditional-newline))
+  (do-pprint-newline stream fill-newline))
 
 (defmethod pprint-tab (client (stream pretty-stream) (kind (eql :line)) colnum colinc)
   (declare (ignore client))
@@ -856,7 +847,7 @@
 
 (defmethod ngray:stream-write-char ((stream pretty-stream) (char (eql #\Newline)))
   (if (head stream)
-      (do-pprint-newline stream mandatory-newline)
+      (do-pprint-newline stream terpri-newline)
       (terpri (target stream)))
   char)
 
@@ -874,7 +865,7 @@
 
 (defmethod ngray:stream-terpri ((stream pretty-stream))
   (if (head stream)
-      (do-pprint-newline stream mandatory-newline)
+      (do-pprint-newline stream terpri-newline)
       (terpri (target stream)))
   nil)
 
