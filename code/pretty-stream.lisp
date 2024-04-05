@@ -9,12 +9,14 @@
    (next :accessor next
          :initarg :next
          :initform nil
-         :type (or null instruction))
-   (section :accessor section
+         :type (or null instruction))))
+
+(defclass section-instruction (instruction)
+  ((section :accessor section
             :initarg :section
             :type (or null section-start))))
 
-(defclass section-start (instruction)
+(defclass section-start (section-instruction)
   ((depth :accessor depth
           :initarg :depth
           :initform 0
@@ -105,7 +107,7 @@
 (defclass line-tab (tab)
   ())
 
-(defclass section-tab (tab)
+(defclass section-tab (tab section-instruction)
   ())
 
 (defclass relative-tab (tab)
@@ -290,7 +292,8 @@
                    (describe stream *debug-io*))
   (loop for i = (head stream) then (next i)
         while i
-        when (and (typep (section i) 'block-start)
+        when (and (typep i 'section-instruction)
+                  (typep (section i) 'block-start)
                   (null (section-end (section i))))
           do (setf (section i) (section (section i))))
   (prog ((section t)
@@ -701,7 +704,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'line-tab
                                    :colnum colnum :colinc colinc
-                                   :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
 
@@ -709,7 +711,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'line-relative-tab
                                    :colnum colnum :colinc colinc
-                                   :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
 
@@ -733,7 +734,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'block-indent
                                    :width n
-                                   :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
 
@@ -741,7 +741,6 @@
   (declare (ignore client))
   (push-instruction (make-instance 'current-indent
                                    :width n
-                                   :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
 
@@ -749,7 +748,6 @@
   (value (if (typep current-tail 'text)
              current-tail
              (push-instruction (make-instance 'text
-                                              :section (car (sections stream))
                                               :parent (car (blocks stream)))
                                stream))))
 
@@ -813,7 +811,6 @@
 
 (defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
-                                  :section (car (sections stream))
                                   :suffix (parse-fix suffix
                                                      (and (car (blocks stream))
                                                           (newline (car (blocks stream)))))
@@ -827,7 +824,6 @@
     (pop (blocks stream))
     (decf (depth stream))
     (push-instruction block-end stream)
-    ;(write-string suffix stream)
     (process-instructions stream)))
 
 (defun frob-style (stream style &aux (current-tail (tail stream)))
@@ -883,7 +879,6 @@
 (defmethod ngray:stream-advance-to-column ((stream pretty-stream) column)
   (cond ((head stream)
          (push-instruction (make-instance 'advance
-                                          :section (car (sections stream))
                                           :value column
                                           :parent (car (blocks stream)))
                            stream)
@@ -921,7 +916,6 @@
     (if (head stream)
         (push-instruction (make-instance 'style
                                          :value new-style
-                                         :section (car (sections stream))
                                          :parent (car (blocks stream)))
                           stream)
         (setf (stream-style (target stream)) new-style))))
