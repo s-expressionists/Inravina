@@ -896,18 +896,22 @@
       (line-width stream)
       (ngray:stream-line-length (target stream))))
 
+#+(or (not clasp) (and clasp (not staging)))
 (defmethod ngray:stream-element-type ((stream pretty-stream))
   (ngray:stream-element-type (target stream)))
 
-#+gray-streams-element-type/setf
+#+(and gray-streams-element-type/setf
+       (or (not clasp) (and clasp (not staging))))
 (defmethod (setf ngray:stream-element-type) (new-value (stream pretty-stream))
   (setf (ngray:stream-element-type (target stream)) new-value))
 
-#+gray-streams-external-format
+#+(and gray-streams-external-format
+       (or (not clasp) (and clasp (not staging))))
 (defmethod ngray:stream-external-format ((stream pretty-stream))
   (ngray:stream-external-format (target stream)))
 
-#+gray-streams-external-format/setf
+#+(and gray-streams-external-format/setf
+       (or (not clasp) (and clasp (not staging))))
 (defmethod (setf ngray:stream-external-format) (new-value (stream pretty-stream))
   (setf (ngray:stream-external-format (target stream)) new-value))
 
