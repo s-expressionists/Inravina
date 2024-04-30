@@ -7,7 +7,7 @@
 
 (setf incless-extrinsic:*client* (make-instance 'extrinsic-client))
 
-(initialize)
+(initialize-inravina)
 
 (defmethod incless:write-object ((client extrinsic-client) object stream)
   (multiple-value-bind (func presentp)

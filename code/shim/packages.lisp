@@ -2,6 +2,6 @@
   (:use #:common-lisp)
   (:export #:*client*
            #:*standard-pprint-dispatch*
-           #:initialize
+           #:initialize-inravina
            #:shim-client
            #:pretty-stream-p))

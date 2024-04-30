@@ -217,7 +217,7 @@
          (print-pprint-dispatch-var (ensure-symbol '#:*print-pprint-dispatch* intrinsic-pkg))
          (pprint-pop-func (ensure-symbol '#:pprint-pop intrinsic-pkg))
          (pprint-exit-if-list-exhausted-func (ensure-symbol '#:pprint-exit-if-list-exhausted intrinsic-pkg))
-         (initialize-func (ensure-symbol '#:initialize)))
+         (initialize-func (ensure-symbol '#:initialize-inravina)))
     `(progn
        (defmethod make-dispatch-function
            ((client ,client-class) (pattern (eql :client-stream-object)) function rest)

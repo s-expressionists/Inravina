@@ -2,7 +2,7 @@
   (:use #:common-lisp)
   (:export #:*client*
            #:*standard-pprint-dispatch*
-           #:initialize
+           #:initialize-inravina
            #:intrinsic-client
            #:pprint-apply
            #:pprint-argument-list

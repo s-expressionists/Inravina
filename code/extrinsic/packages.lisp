@@ -2,7 +2,6 @@
   (:use #:common-lisp)
   (:shadow #:*print-pprint-dispatch*
            #:copy-pprint-dispatch
-           #:initialize
            #:pprint-dispatch
            #:pprint-exit-if-list-exhausted
            #:pprint-fill
@@ -21,6 +20,7 @@
            #:extrinsic-client
            #:copy-pprint-dispatch
            #:intrinsic-client
+           #:initialize-inravina
            #:pprint-apply
            #:pprint-argument-list
            #:pprint-array
