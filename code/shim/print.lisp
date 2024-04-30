@@ -98,4 +98,4 @@
              (write-char #\space stream))
            (ccl::write-a-frob object stream level list-kludge)))))
 
-(initialize)
+(initialize-inravina)
