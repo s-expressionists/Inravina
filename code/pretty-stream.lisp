@@ -564,7 +564,6 @@
 
 (defmethod layout
     (stream mode (instruction conditional-newline))
-  (declare (ignore mode))
   (loop with client = (client stream)
         for head on (fragments stream)
         do (typecase (car head)
