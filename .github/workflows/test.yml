@@ -13,15 +13,20 @@ jobs:
       run:
         shell: bash -l {0}
     strategy:
+      fail-fast: false
       matrix:
         lisp:
         - abcl
+        - acl
+        - ccl
         - clasp
+        - cmucl
+        - ecl
         - sbcl
-      fail-fast: false
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/yitzchak/archlinux-cl:latest
+      options: --security-opt seccomp:unconfined
     steps:
     - name: Checkout nontrivial-gray-streams
       uses: actions/checkout@v4
