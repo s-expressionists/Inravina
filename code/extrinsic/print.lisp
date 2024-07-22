@@ -4,7 +4,7 @@
   ())
 
 (defclass extrinsic-client-impl
-    (extrinsic-client quaviver/burger-dybvig:client)
+    (extrinsic-client quaviver/schubfach:client)
   ())
 
 (inravina:define-interface (incless-extrinsic:*client* extrinsic-client))

@@ -4,7 +4,7 @@
   ())
 
 (defclass intrinsic-client-impl
-    (intrinsic-client quaviver/burger-dybvig:client)
+    (intrinsic-client quaviver/schubfach:client)
   ())
 
 (trivial-package-locks:with-unlocked-packages (:common-lisp)
