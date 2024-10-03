@@ -11,3 +11,13 @@
                 :serial t
                 :components ((:file "packages")
                              (:file "pdf")))))
+
+(defsystem "inravina-examples/cst"
+  :depends-on ("concrete-syntax-tree"
+               "inravina-extrinsic")
+  :components ((:module "code"
+                :pathname "code/examples/cst"
+                :serial t
+                :components ((:file "packages")
+                             (:file "cst")))))
+           

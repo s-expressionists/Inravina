@@ -29,6 +29,7 @@
   (check-type stream-symbol symbol)
   (let ((block-name (gensym))
         (object-var (gensym))
+        (outer-object-var (gensym))
         (count-var (gensym))
         (stream-var (cond ((null stream-symbol)
                            '*standard-output*)
@@ -55,14 +56,14 @@
               (incless:handle-circle ,client ,object-var ,stream-var
                                      (lambda (,object-var ,stream-var
                                               &aux (*print-level* (and *print-level* (max 0 (1- *print-level*))))
-                                                   (,count-var 0))
+                                                   (,count-var 0) (,outer-object-var ,object-var))
                                        (declare (ignorable ,stream-var ,object-var ,count-var))
-                                       (pprint-start-logical-block ,client ,stream-var ,prefix-var ,per-line-prefix-p)
+                                       (pprint-start-logical-block ,client ,stream-var ,outer-object-var ,prefix-var ,per-line-prefix-p)
                                        (unwind-protect
                                             (block ,block-name
                                               (macrolet ((,pprint-exit-if-list-exhausted ()
                                                            '(unless ,object-var
-                                                             (return-from ,block-name)))
+                                                              (return-from ,block-name)))
                                                          (,pprint-pop ()
                                                            '(progn
                                                              (unless (pprint-pop-p ,client ,stream-var ,object-var ,count-var)
@@ -70,7 +71,7 @@
                                                              (incf ,count-var)
                                                              (pop ,object-var))))
                                                 ,@body))
-                                         (pprint-end-logical-block ,client ,stream-var ,suffix-var))))))
+                                         (pprint-end-logical-block ,client ,stream-var ,outer-object-var ,suffix-var))))))
        nil)))
 
 (defmacro pprint-logical-block ((client stream-symbol object

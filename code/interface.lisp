@@ -80,14 +80,18 @@
 
 (defgeneric pprint-tabular-plist (client stream object &optional colon-p at-sign-p tabsize))
     
-(defgeneric pprint-start-logical-block (client stream prefix per-line-prefix-p)
-  (:method (client stream prefix per-line-prefix-p)
-    (declare (ignore client stream prefix per-line-prefix-p))))
+(defgeneric pprint-start-logical-block (client stream object prefix per-line-prefix-p)
+  (:method (client stream object prefix per-line-prefix-p)
+    (declare (ignore client stream object prefix per-line-prefix-p))))
 
-(defgeneric pprint-end-logical-block (client stream suffix)
-  (:method (client stream suffix)
-    (declare (ignore client stream suffix))))
+(defgeneric pprint-end-logical-block (client stream object suffix)
+  (:method (client stream object suffix)
+    (declare (ignore client stream object suffix))))
 
+(defgeneric layout-block (client stream object kind line column)
+  (:method (client stream object kind line column)
+    (declare (ignore client stream object kind line column))))
+           
 (defgeneric pprint-valid-list-p (client stream object)
   (:method (client stream object)
     (declare (ignore client))
