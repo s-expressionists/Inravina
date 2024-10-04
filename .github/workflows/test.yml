@@ -33,6 +33,11 @@ jobs:
       with:
         repository: yitzchak/nontrivial-gray-streams
         path: nontrivial-gray-streams
+    - name: Checkout Quaviver
+      uses: actions/checkout@v4
+      with:
+        repository: s-expressionists/Quaviver
+        path: quaviver
     - name: Checkout Incless
       uses: actions/checkout@v4
       with:
