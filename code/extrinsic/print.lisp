@@ -3,9 +3,13 @@
 (defclass extrinsic-client (incless-extrinsic:extrinsic-client)
   ())
 
+(defclass extrinsic-client-impl
+    (extrinsic-client quaviver/schubfach:client)
+  ())
+
 (inravina:define-interface (incless-extrinsic:*client* extrinsic-client))
 
-(setf incless-extrinsic:*client* (make-instance 'extrinsic-client))
+(setf incless-extrinsic:*client* (make-instance 'extrinsic-client-impl))
 
 (initialize-inravina)
 
