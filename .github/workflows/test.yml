@@ -28,22 +28,22 @@ jobs:
       options: --security-opt seccomp:unconfined
     steps:
     - name: Checkout nontrivial-gray-streams
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: yitzchak/nontrivial-gray-streams
         path: nontrivial-gray-streams
     - name: Checkout Quaviver
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: s-expressionists/Quaviver
         path: quaviver
     - name: Checkout Incless
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         repository: s-expressionists/Incless
         path: incless
     - name: Checkout Inravina
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         path: inravina
     - name: Setup Lisp Environment
