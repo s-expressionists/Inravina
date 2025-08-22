@@ -9,15 +9,6 @@
    (function-designator :accessor dispatch-entry-function-designator
               :initarg :function-designator
               :type (or (and symbol (not null)) function))
-   (pattern :accessor dispatch-entry-pattern
-            :initarg :pattern
-            :type (member :client-stream-object :client-object-stream :stream-object :object-stream))
-   (arguments :accessor dispatch-entry-arguments
-              :initarg :arguments
-              :type list)
-   (dispatch-function :accessor dispatch-entry-dispatch-function
-                      :initarg :dispatch-function
-                      :type function)
    (priority :accessor dispatch-entry-priority
              :initarg :priority
              :initform 0
@@ -323,11 +314,11 @@
   (loop with iterator = (make-pprint-dispatch-iterator client table)
         with new-table = (make-instance 'dispatch-table
                                         :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))
-        for (presentp type-specifier function priority pattern arguments) = (multiple-value-list (funcall iterator))
+        for (presentp type-specifier function priority) = (multiple-value-list (funcall iterator))
         finally (setf (dispatch-table-read-only-p new-table) read-only)
                 (return new-table)
         while presentp
-        do (set-pprint-dispatch client new-table type-specifier function priority pattern arguments)))
+        do (set-pprint-dispatch client new-table type-specifier function priority)))
 
 (defmethod pprint-dispatch (client table object)
   (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
@@ -353,7 +344,7 @@
                  (loop-finish))
       (when entry
         (return-from pprint-dispatch
-                     (values (dispatch-entry-dispatch-function entry) t)))))
+                     (values (dispatch-entry-function-designator entry) t)))))
   (values (dispatch-table-default-dispatch-function table) nil))
 
 (defun check-table-read-only (table)
@@ -380,17 +371,15 @@
             do (remhash name cons-entries)))
   nil)
 
-(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier function &optional priority pattern arguments)
+(defmethod set-pprint-dispatch
+    (client (table dispatch-table) type-specifier function &optional priority pattern arguments)
   (check-table-read-only table)
   (set-pprint-dispatch client table type-specifier nil)
   (let ((entry (make-instance 'dispatch-entry
                               :type-specifier type-specifier
-                              :function-designator function
+                              :function-designator (make-dispatch-function client (or pattern :stream-object) function arguments)
                               :test-function (make-test-function type-specifier)
-                              :dispatch-function (make-dispatch-function client (or pattern :stream-object) function arguments)
-                              :priority (or priority 0)
-                              :pattern (or pattern :stream-object)
-                              :arguments arguments)))
+                              :priority (or priority 0))))
     (setf (dispatch-table-entries table) (sort (cons entry (dispatch-table-entries table))
                                                #'> :key #'dispatch-entry-priority))
     (if (cons-eql-specifier-p type-specifier)
@@ -411,7 +400,5 @@
             (values t
                     (dispatch-entry-type-specifier entry)
                     (dispatch-entry-function-designator entry)
-                    (dispatch-entry-priority entry)
-                    (dispatch-entry-pattern entry)
-                    (dispatch-entry-arguments entry)))
-          (values nil nil nil nil nil nil)))))
+                    (dispatch-entry-priority entry)))
+          (values nil nil nil nil)))))

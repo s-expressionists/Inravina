@@ -34,7 +34,18 @@
                               :minimize :minimizing :nconc :nconcing :sum :summing
                               :unless :when)))
 
-(defgeneric make-dispatch-function (client pattern function rest))
+(defgeneric make-dispatch-function (client pattern function rest)
+  (:method (client (pattern (eql :stream-object)) function (rest null))
+    (declare (ignore client))
+    function)
+  (:method (client (pattern (eql :stream-object)) function rest)
+    (declare (ignore client))
+    (lambda (stream object)
+      (apply function stream object rest)))
+  (:method (client (pattern (eql :object-stream)) function rest)
+    (declare (ignore client))
+    (lambda (stream object)
+      (apply function object stream rest))))
 
 (defgeneric copy-pprint-dispatch (client table &optional read-only))
 
@@ -162,19 +173,11 @@
        (defmethod make-dispatch-function
            ((client ,client-class) (pattern (eql :client-stream-object)) function rest)
          (lambda (stream object)
-           (apply function ,client-var (make-pretty-stream ,client-var stream) object rest)))
+           (apply function ,client-var stream object rest)))
        (defmethod make-dispatch-function
            ((client ,client-class) (pattern (eql :client-object-stream)) function rest)
          (lambda (stream object)
-           (apply function ,client-var object (make-pretty-stream ,client-var stream) rest)))
-       (defmethod make-dispatch-function
-           ((client ,client-class) (pattern (eql :stream-object)) function rest)
-         (lambda (stream object)
-           (apply function (make-pretty-stream ,client-var stream) object rest)))
-       (defmethod make-dispatch-function
-           ((client ,client-class) (pattern (eql :object-stream)) function rest)
-         (lambda (stream object)
-           (apply function object (make-pretty-stream ,client-var stream) rest)))
+           (apply function ,client-var object stream rest)))
        (defvar ,initial-pprint-dispatch-var nil)
        (defvar ,standard-pprint-dispatch-var nil)
        (defvar ,print-pprint-dispatch-var)
