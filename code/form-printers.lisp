@@ -107,7 +107,7 @@
               (write-char #\Space ,stream)
               (pprint-newline ,client ,stream (or ,newline :fill)))))
 
-(defmethod pprint-bindings (client stream object &optional colon-p at-sign-p)
+(defun pprint-bindings (client stream object &optional colon-p at-sign-p)
   (pprint-format-logical-block (client stream object :paren colon-p)
     (pprint-exit-if-list-exhausted)
     (loop with newline = (if at-sign-p :fill :linear)
@@ -116,7 +116,7 @@
              (write-char #\Space stream)
              (pprint-newline client stream newline))))
 
-(defmethod pprint-defpackage (client stream object &optional colon-p at-sign-p)
+(defun pprint-defpackage (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-logical-block (client stream object :prefix "(" :suffix ")")
       (pprint-exit-if-list-exhausted)
@@ -132,7 +132,7 @@
             (pprint-newline client stream linear-newline)
             (pprint-function-call client stream (pprint-pop) at-sign-p)))))
 
-(defmethod pprint-defun (client stream object &optional colon-p at-sign-p)
+(defun pprint-defun (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -147,7 +147,7 @@
       (pprint-newline client stream fill-newline)
       (pprint-lambda-list client stream (pprint-pop) colon-p at-sign-p))))
 
-(defmethod pprint-destructuring-bind (client stream object &optional colon-p at-sign-p)
+(defun pprint-destructuring-bind (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -162,7 +162,7 @@
       (pprint-newline client stream fill-newline)
       (incless:write-object client (pprint-pop) stream))))
 
-(defmethod pprint-defmethod (client stream object &optional colon-p at-sign-p)
+(defun pprint-defmethod (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -185,7 +185,7 @@
                (pprint-newline client stream fill-newline)
                (pprint-lambda-list client stream (pprint-pop) colon-p at-sign-p)))))))
 
-(defmethod pprint-do (client stream object &optional colon-p at-sign-p)
+(defun pprint-do (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-tagbody-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -201,7 +201,7 @@
       (pprint-newline client stream fill-newline)
       (pprint-linear client stream (pprint-pop) t nil))))
 
-(defmethod pprint-dolist (client stream object &optional colon-p at-sign-p)
+(defun pprint-dolist (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-tagbody-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -212,7 +212,7 @@
       (pprint-newline client stream miser-newline)
       (pprint-fill client stream (pprint-pop) t nil))))
 
-(defmethod pprint-eval-when (client stream object &optional colon-p at-sign-p)
+(defun pprint-eval-when (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -223,7 +223,7 @@
       (pprint-newline client stream miser-newline)
       (pprint-fill client stream (pprint-pop) t nil))))
 
-(defmethod pprint-multiple-value-bind (client stream object &optional colon-p at-sign-p)
+(defun pprint-multiple-value-bind (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -238,7 +238,7 @@
       (pprint-newline client stream fill-newline)
       (incless:write-object client (pprint-pop) stream))))
 
-(defmethod pprint-let (client stream object &optional colon-p at-sign-p)
+(defun pprint-let (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -249,7 +249,7 @@
       (pprint-newline client stream miser-newline)
       (pprint-bindings client stream (pprint-pop) t))))
 
-(defmethod pprint-prog (client stream object &optional colon-p at-sign-p)
+(defun pprint-prog (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-tagbody-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -260,7 +260,7 @@
       (pprint-newline client stream miser-newline)
       (pprint-bindings client stream (pprint-pop) t))))
 
-(defmethod pprint-prog1 (client stream object &optional colon-p at-sign-p)
+(defun pprint-prog1 (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -271,7 +271,7 @@
       (pprint-newline client stream miser-newline)
       (incless:write-object client (pprint-pop) stream))))
 
-(defmethod pprint-prog2 (client stream object &optional colon-p at-sign-p)
+(defun pprint-prog2 (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -286,13 +286,13 @@
       (pprint-newline client stream fill-newline)
       (incless:write-object client (pprint-pop) stream))))
 
-(defmethod pprint-progn (client stream object &optional colon-p at-sign-p)
+(defun pprint-progn (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
       (incless:write-object client (pprint-pop) stream))))
 
-(defmethod pprint-progv (client stream object &optional colon-p at-sign-p)
+(defun pprint-progv (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -307,14 +307,14 @@
       (pprint-newline client stream fill-newline)
       (pprint-linear client stream (pprint-pop) t nil))))
 
-(defmethod pprint-tagbody (client stream object &optional colon-p at-sign-p)
+(defun pprint-tagbody (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-tagbody-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
       (incless:write-object client (pprint-pop) stream))))
 
-(defmethod pprint-function-call (client stream object
-                                 &optional colon-p at-sign-p argument-count)
+(defun pprint-function-call (client stream object
+                             &optional colon-p at-sign-p argument-count)
   (with-newlines
     (pprint-function-call-form (client stream object :argument-count argument-count
                                                      :newline fill-newline)
@@ -324,13 +324,13 @@
       (write-char #\Space stream)
       (pprint-indent client stream :current 0))))
 
-(defmethod pprint-argument-list (client stream object
-                                 &optional colon-p at-sign-p argument-count)
+(defun pprint-argument-list (client stream object
+                             &optional colon-p at-sign-p argument-count)
   (with-newlines
     (pprint-function-call-form (client stream object :argument-count argument-count
                                                      :newline fill-newline))))
 
-(defmethod pprint-with (client stream object &optional colon-p at-sign-p argument-count)
+(defun pprint-with (client stream object &optional colon-p at-sign-p argument-count)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -341,7 +341,7 @@
       (pprint-newline client stream miser-newline)
       (pprint-argument-list client stream (pprint-pop) colon-p at-sign-p argument-count))))
 
-(defmethod pprint-lambda-list (client stream object &optional colon-p at-sign-p)
+(defun pprint-lambda-list (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-format-logical-block (client stream object :paren t)
       (let ((state :required)
@@ -453,7 +453,7 @@
       (and (string= item :and)
            (member parent '(:as :for :with)))))
 
-(defmethod pprint-loop (client stream object &optional colon-p at-sign-p)
+(defun pprint-loop (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (if (consp (second object))
         (pprint-list (client stream object :paren t :newline linear-newline)
@@ -509,7 +509,7 @@
              unless tail
                return t)))
 
-(defmethod pprint-array (client stream object &optional colon-p at-sign-p)
+(defun pprint-array (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (cond ((and *print-readably*
                 (not (literal-array-p object)))
@@ -552,7 +552,7 @@
            (write-string "#0A" stream)
            (incless:write-object client (aref object) stream)))))
 
-(defmethod pprint-lambda (client stream object &optional colon-p at-sign-p)
+(defun pprint-lambda (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -563,7 +563,7 @@
       (pprint-newline client stream miser-newline)
       (pprint-lambda-list client stream (pprint-pop) colon-p at-sign-p))))
 
-(defmethod pprint-macro-char (client stream object &optional quasiquote-p unquote-p disp-char sub-char)
+(defun pprint-macro-char (client stream object &optional quasiquote-p unquote-p disp-char sub-char)
   (cond ((and quasiquote-p unquote-p (not (getf *quasiquote* stream)))
          (pprint-fill client stream object t))
         (t
@@ -589,7 +589,7 @@
         (t
          (incless:print-object client object stream))))
 
-(defmethod pprint-case (client stream object &optional colon-p at-sign-p)
+(defun pprint-case (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-format-logical-block (client stream object :paren t)
       (pprint-exit-if-list-exhausted)
@@ -608,7 +608,7 @@
             (write-char #\Space stream)
             (pprint-newline client stream linear-newline)))))
 
-(defmethod pprint-cond (client stream object &optional colon-p at-sign-p)
+(defun pprint-cond (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-format-logical-block (client stream object :paren t)
       (pprint-exit-if-list-exhausted)
@@ -623,7 +623,7 @@
             (write-char #\Space stream)
             (pprint-newline client stream linear-newline)))))
 
-(defmethod pprint-flet (client stream object &optional colon-p at-sign-p)
+(defun pprint-flet (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
@@ -639,7 +639,7 @@
         (write-char #\Space stream)
         (pprint-newline client stream linear-newline)))))
 
-(defmethod pprint-call (client stream object &optional colon-p at-sign-p)
+(defun pprint-call (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (if (fboundp (first object))
         (let ((macrop (and (macro-function (first object)) t)))
@@ -695,7 +695,7 @@
                             (pprint-newline client stream fill-newline))))))))
         (pprint-function-call client stream object t))))
 
-(defmethod pprint-apply (client stream object &optional colon-p at-sign-p)
+(defun pprint-apply (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-function-call-form (client stream object)
       (pprint-exit-if-list-exhausted)
@@ -710,7 +710,7 @@
       (pprint-indent client stream :current 0)
       (pprint-newline client stream fill-newline))))
 
-(defmethod pprint-defclass (client stream object &optional colon-p at-sign-p)
+(defun pprint-defclass (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-format-logical-block (client stream object :paren t)
       (pprint-exit-if-list-exhausted)
@@ -770,7 +770,7 @@
                             nil)))
     (incless:print-object client object stream)))
 
-(defmethod pprint-symbol-macrolet (client stream object &optional colon-p at-sign-p)
+(defun pprint-symbol-macrolet (client stream object &optional colon-p at-sign-p)
   (with-newlines
     (pprint-body-form (client stream object :newline linear-newline)
       (pprint-exit-if-list-exhausted)
