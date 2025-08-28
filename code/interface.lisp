@@ -161,94 +161,114 @@
     (- (or end (length string))
        (or start 0))))
 
-(defmacro define-interface ((client-var client-class &optional intrinsic) &body body)
-  (let* ((intrinsic-pkg (if intrinsic (find-package '#:common-lisp) *package*))
-         (initial-pprint-dispatch-var (ensure-symbol '#:*initial-pprint-dispatch*))
-         (standard-pprint-dispatch-var (ensure-symbol '#:*standard-pprint-dispatch*))
-         (print-pprint-dispatch-var (ensure-symbol '#:*print-pprint-dispatch* intrinsic-pkg))
-         (pprint-pop-func (ensure-symbol '#:pprint-pop intrinsic-pkg))
-         (pprint-exit-if-list-exhausted-func (ensure-symbol '#:pprint-exit-if-list-exhausted intrinsic-pkg))
-         (initialize-func (ensure-symbol '#:initialize-inravina)))
-    `(progn
-       (defmethod make-dispatch-function
-           ((client ,client-class) (pattern (eql :client-stream-object)) function rest)
-         (lambda (stream object)
-           (apply function ,client-var stream object rest)))
-       (defmethod make-dispatch-function
-           ((client ,client-class) (pattern (eql :client-object-stream)) function rest)
-         (lambda (stream object)
-           (apply function ,client-var object stream rest)))
-       (defvar ,initial-pprint-dispatch-var nil)
-       (defvar ,standard-pprint-dispatch-var nil)
-       (defvar ,print-pprint-dispatch-var)
-       (defun ,(ensure-symbol '#:pretty-stream-p) (stream)
-         (pretty-stream-p ,client-var stream))
-       (defun ,(ensure-symbol '#:copy-pprint-dispatch intrinsic-pkg) (&optional (table ,print-pprint-dispatch-var))
-         #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
-         (check-type table (or null dispatch-table))
-         (copy-pprint-dispatch ,client-var (or table ,initial-pprint-dispatch-var)))
-       (defun ,(ensure-symbol '#:set-pprint-dispatch intrinsic-pkg)
-           (type-specifier function &optional (priority 0) (table ,print-pprint-dispatch-var))
-         #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
-         (check-type priority real)
-         (check-type table dispatch-table)
-         (check-type function (or symbol function))
-         (set-pprint-dispatch ,client-var table type-specifier function priority))
-       (defun ,(ensure-symbol '#:pprint-fill intrinsic-pkg) (stream object &optional (colon-p t) at-sign-p)
-         (pprint-fill ,client-var (coerce-output-stream-designator stream)
+(defgeneric execute-logical-block (client stream object function
+                                   &key prefix per-line-prefix-p suffix))
+
+(trinsic:make-define-interface (:client-form client-form :client-class client-class :intrinsic intrinsicp)
+    ((copy-pprint-dispatch-sym cl:copy-pprint-dispatch)
+     (initial-pprint-dispatch-sym #:*initial-pprint-dispatch*)
+     (pprint-dispatch-sym cl:pprint-dispatch)
+     (pprint-exit-if-list-exhausted-sym cl:pprint-exit-if-list-exhausted)
+     (pprint-fill-sym cl:pprint-fill)
+     (pprint-indent-sym cl:pprint-indent)
+     (pprint-linear-sym cl:pprint-linear)
+     (pprint-logical-block-sym cl:pprint-logical-block)
+     (pprint-newline-sym cl:pprint-newline)
+     (pprint-pop-sym cl:pprint-pop)
+     (pprint-tab-sym cl:pprint-tab)
+     (pprint-tabular-sym cl:pprint-tabular)
+     (pretty-stream-p-sym #:pretty-stream-p)
+     (print-pprint-dispatch-sym cl:*print-pprint-dispatch*)
+     (set-pprint-dispatch-sym cl:set-pprint-dispatch)
+     (standard-pprint-dispatch-sym #:*standard-pprint-dispatch*))
+   `((defmethod make-dispatch-function
+         ((client ,client-class) (pattern (eql :client-stream-object)) function rest)
+       (lambda (stream object)
+         (apply function ,client-form stream object rest)))
+
+     (defmethod make-dispatch-function
+         ((client ,client-class) (pattern (eql :client-object-stream)) function rest)
+       (lambda (stream object)
+         (apply function ,client-form object stream rest)))
+
+     (defvar ,initial-pprint-dispatch-sym (copy-pprint-dispatch ,client-form nil t))
+
+     (defvar ,standard-pprint-dispatch-sym (copy-pprint-dispatch ,client-form :standard t))
+
+     (defvar ,print-pprint-dispatch-sym (copy-pprint-dispatch ,client-form nil))
+
+     (defun ,pretty-stream-p-sym (stream)
+       (pretty-stream-p ,client-form stream))
+
+     (defun ,copy-pprint-dispatch-sym (&optional (table ,print-pprint-dispatch-sym))
+       #+ecl ,@(when intrinsicp '((declare (ext:check-arguments-type nil))))
+       (check-type table (or null dispatch-table))
+       (copy-pprint-dispatch ,client-form (or table ,initial-pprint-dispatch-sym)))
+
+     (defun ,set-pprint-dispatch-sym
+         (type-specifier function &optional (priority 0) (table ,print-pprint-dispatch-sym))
+       #+ecl ,@(when intrinsicp '((declare (ext:check-arguments-type nil))))
+       (check-type priority real)
+       (check-type table dispatch-table)
+       (check-type function (or symbol function))
+       (set-pprint-dispatch ,client-form table type-specifier function priority))
+
+     (defun ,pprint-fill-sym (stream object &optional (colon-p t) at-sign-p)
+       (pprint-fill ,client-form (coerce-output-stream-designator stream)
+                    object colon-p at-sign-p)
+       nil)
+
+     (defun ,pprint-linear-sym (stream object &optional (colon-p t) at-sign-p)
+       (pprint-linear ,client-form (coerce-output-stream-designator stream)
                       object colon-p at-sign-p)
-         nil)
-       (defun ,(ensure-symbol '#:pprint-linear intrinsic-pkg) (stream object &optional (colon-p t) at-sign-p)
-         (pprint-linear ,client-var (coerce-output-stream-designator stream)
-                        object colon-p at-sign-p)
-         nil)
-       (defun ,(ensure-symbol '#:pprint-tabular intrinsic-pkg) (stream object &optional (colon-p t) at-sign-p (tabsize 16))
-         (pprint-tabular ,client-var (coerce-output-stream-designator stream)
-                         object colon-p at-sign-p tabsize)
-         nil)
-       (defun ,(ensure-symbol '#:pprint-indent intrinsic-pkg) (relative-to n &optional stream)
-         (check-type relative-to (member :block :current))
-         (pprint-indent ,client-var (coerce-output-stream-designator stream)
-                        relative-to n)
-         nil)
-       (defun ,(ensure-symbol '#:pprint-newline intrinsic-pkg) (kind &optional stream)
-         (check-type kind (member :linear :fill :miser :mandatory))
-         (pprint-newline ,client-var (coerce-output-stream-designator stream)
-                         kind)
-         nil)
-       (defun ,(ensure-symbol '#:pprint-tab intrinsic-pkg) (kind colnum colinc &optional stream)
-         (check-type kind (member :line :section :line-relative :section-relative))
-         (pprint-tab ,client-var (coerce-output-stream-designator stream)
-                     kind colnum colinc)
-         nil)
-       (defun ,(ensure-symbol '#:pprint-dispatch intrinsic-pkg) (object &optional (table ,print-pprint-dispatch-var))
-         #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
-         (check-type table (or null dispatch-table))
-         (pprint-dispatch ,client-var (or table ,initial-pprint-dispatch-var) object))
-       (defmacro ,(ensure-symbol '#:pprint-logical-block intrinsic-pkg) ((stream-symbol object
-                                                                  &key (prefix "" prefix-p)
-                                                                       (per-line-prefix "" per-line-prefix-p)
-                                                                       (suffix "" suffix-p))
-                                                                 &body body)
-         (expand-logical-block ',client-var stream-symbol object
-                               prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
-                               ',pprint-exit-if-list-exhausted-func ',pprint-pop-func
-                               body))
-       (defmacro ,pprint-exit-if-list-exhausted-func ()
-         "Tests whether or not the list passed to the lexically current logical block has
+       nil)
+
+     (defun ,pprint-tabular-sym (stream object &optional (colon-p t) at-sign-p (tabsize 16))
+       (pprint-tabular ,client-form (coerce-output-stream-designator stream)
+                       object colon-p at-sign-p tabsize)
+       nil)
+
+     (defun ,pprint-indent-sym (relative-to n &optional stream)
+       (check-type relative-to (member :block :current))
+       (pprint-indent ,client-form (coerce-output-stream-designator stream)
+                      relative-to n)
+       nil)
+
+     (defun ,pprint-newline-sym (kind &optional stream)
+       (check-type kind (member :linear :fill :miser :mandatory))
+       (pprint-newline ,client-form (coerce-output-stream-designator stream)
+                       kind)
+       nil)
+
+     (defun ,pprint-tab-sym (kind colnum colinc &optional stream)
+       (check-type kind (member :line :section :line-relative :section-relative))
+       (pprint-tab ,client-form (coerce-output-stream-designator stream)
+                   kind colnum colinc)
+       nil)
+
+     (defun ,pprint-dispatch-sym (object &optional (table ,print-pprint-dispatch-sym))
+       #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
+       (check-type table (or null dispatch-table))
+       (pprint-dispatch ,client-form (or table ,initial-pprint-dispatch-sym) object))
+
+     (defmacro ,pprint-logical-block-sym ((stream-symbol object
+                                           &key (prefix "" prefix-p)
+                                                (per-line-prefix "" per-line-prefix-p)
+                                                (suffix "" suffix-p))
+                                          &body body)
+       (expand-logical-block ',client-form stream-symbol object
+                             prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
+                             ',pprint-exit-if-list-exhausted-sym ',pprint-pop-sym
+                             body))
+
+     (defmacro ,pprint-exit-if-list-exhausted-sym ()
+       "Tests whether or not the list passed to the lexically current logical block has
  been exhausted. If this list has been reduced to nil, pprint-exit-if-list-exhausted
  terminates the execution of the lexically current logical block except for the
  printing of the suffix. Otherwise pprint-exit-if-list-exhausted returns nil."
-         (error "PPRINT-EXIT-IF-LIST-EXHAUSTED must be lexically inside PPRINT-LOGICAL-BLOCK."))
-       (defmacro ,pprint-pop-func ()
-         "Pops one element from the list being printed in the lexically current logical
- block, obeying *print-length* and *print-circle*."
-         (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
-       (defun ,initialize-func (&aux *print-pretty*)
-         (setf ,initial-pprint-dispatch-var (copy-pprint-dispatch ,client-var nil t)
-               ,standard-pprint-dispatch-var (copy-pprint-dispatch ,client-var nil t)
-               ,print-pprint-dispatch-var (copy-pprint-dispatch ,client-var nil))
-         ,@body))))
+       (error "PPRINT-EXIT-IF-LIST-EXHAUSTED must be lexically inside PPRINT-LOGICAL-BLOCK."))
 
-(defgeneric execute-logical-block (client stream object function
-                                   &key prefix per-line-prefix-p suffix))
+     (defmacro ,pprint-pop-sym ()
+       "Pops one element from the list being printed in the lexically current logical
+ block, obeying *print-length* and *print-circle*."
+       (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))))

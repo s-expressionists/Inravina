@@ -278,7 +278,6 @@
      pprint-symbol)))
 
 (defmethod copy-pprint-dispatch (client (table null) &optional read-only)
-  (declare (ignore table))
   (let ((new-table (make-instance 'dispatch-table
                                   :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
@@ -288,7 +287,6 @@
     new-table))
 
 (defmethod copy-pprint-dispatch (client (table (eql :empty)) &optional read-only)
-  (declare (ignore table))
   (let ((new-table (make-instance 'dispatch-table
                                   :default-dispatch-function (make-dispatch-function client
                                                                                      :client-object-stream
@@ -298,8 +296,7 @@
       (setf (dispatch-table-read-only-p new-table) t))
     new-table))
 
-(defmethod copy-pprint-dispatch (client (table (eql t)) &optional read-only)
-  (declare (ignore table))
+(defmethod copy-pprint-dispatch (client (table (eql :standard)) &optional read-only)
   (let ((new-table (make-instance 'dispatch-table
                                   :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
     (loop for (type priority name . rest) in +initial-dispatch-entries+

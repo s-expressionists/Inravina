@@ -20,7 +20,6 @@
            #:define-interface
            #:execute-logical-block
            #:expand-logical-block
-           #:make-dispatch-function
            #:make-pretty-stream
            #:make-style
            #:pprint-apply

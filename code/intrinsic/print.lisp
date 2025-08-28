@@ -8,7 +8,9 @@
   ())
 
 (trivial-package-locks:with-unlocked-packages (:common-lisp)
-  (inravina:define-interface (incless-intrinsic:*client* intrinsic-client)))
+  (inravina:define-interface :client-form incless-intrinsic:*client*
+                             :client-class intrinsic-client
+                             :intrinsic t)))
 
 (setf incless-intrinsic:*client* (make-instance 'intrinsic-client-impl))
 

@@ -7,11 +7,14 @@
     (extrinsic-client quaviver/schubfach:client)
   ())
 
-(inravina:define-interface (incless-extrinsic:*client* extrinsic-client))
+(defmethod make-load-form ((object extrinsic-client-impl) &optional environment)
+  (declare (ignore environment))
+  '(make-instance 'extrinsic-client-impl))
 
-(setf incless-extrinsic:*client* (make-instance 'extrinsic-client-impl))
+(change-class incless-extrinsic:*client* 'extrinsic-client-impl)
 
-(initialize-inravina)
+(inravina:define-interface :client-form incless-extrinsic:*client*
+                           :client-class extrinsic-client)
 
 (defmethod incless:write-object ((client extrinsic-client) object stream)
   (multiple-value-bind (func presentp)
@@ -45,3 +48,4 @@
          (*read-suppress* nil)
          (*readtable* (copy-readtable nil)))
      ,@body))
+
