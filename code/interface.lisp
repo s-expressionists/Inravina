@@ -247,7 +247,7 @@
        nil)
 
      (defun ,pprint-dispatch-sym (object &optional (table ,print-pprint-dispatch-sym))
-       #+ecl ,@(when intrinsic '((declare (ext:check-arguments-type nil))))
+       #+ecl ,@(when intrinsicp '((declare (ext:check-arguments-type nil))))
        (check-type table (or null dispatch-table))
        (pprint-dispatch ,client-form (or table ,initial-pprint-dispatch-sym) object))
 
