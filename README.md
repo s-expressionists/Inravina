@@ -37,29 +37,6 @@ T
         AND COLLECT I)
 ```
 
-Inravina can also replace replace an implementation's pretty
-printer. This is done with the `inravina-intrinsic` system. Because
-pretty printer works with PRINT-METHOD and must participate in circle
-detection it must be coupled with the the printer and to some extent
-with FORMAT. This is done via [Incless][] which has its own
-intrinsic/extrinsic interface. In the case of replacing the pretty
-printer of an implementation, Inravina will interface to the printer
-via the incless-native system. To load all the required systems along
-with the required glue code one would use the `inravina-shim` system.
-
-```
-* (asdf:load-system :inravina-shim)
-T
-* (pprint '(loop for i in '(a b c) 
-                 unless (eq i b) do (stuff i) (quux i) and collect i))
-
-(LOOP FOR I IN '(A B C)
-      UNLESS (EQ I B)
-        DO (STUFF I)
-           (QUUX I)
-        AND COLLECT I)
-```
-
 There are also some examples of pretty printing with [cl-pdf][] and
 [McCLIM][] in the examples directory.
 
