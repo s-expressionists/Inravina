@@ -8,6 +8,7 @@
   :in-order-to ((asdf:test-op (asdf:test-op #:inravina/test)))
   :depends-on ("nontrivial-gray-streams"
                "incless"
+               "trinsic"
                (:feature :sbcl (:require #:sb-introspect)))
   :components ((:module code
                 :serial t
