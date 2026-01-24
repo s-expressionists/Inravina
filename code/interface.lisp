@@ -180,7 +180,8 @@
      (pretty-stream-p-sym #:pretty-stream-p)
      (print-pprint-dispatch-sym cl:*print-pprint-dispatch*)
      (set-pprint-dispatch-sym cl:set-pprint-dispatch)
-     (standard-pprint-dispatch-sym #:*standard-pprint-dispatch*))
+     (standard-pprint-dispatch-sym #:*standard-pprint-dispatch*)
+     (with-standard-io-syntax-sym #:with-standard-io-syntax))
    `((defmethod make-dispatch-function
          ((client ,client-class) (pattern (eql :client-stream-object)) function rest)
        (lambda (stream object)
@@ -196,6 +197,15 @@
      (defvar ,standard-pprint-dispatch-sym (copy-pprint-dispatch ,client-form :standard t))
 
      (defvar ,print-pprint-dispatch-sym (copy-pprint-dispatch ,client-form nil))
+
+     (defmethod incless:write-object ((client ,client-class) object stream)
+       (multiple-value-bind (func presentp)
+           (and *print-pretty*
+                (pprint-dispatch ,client-form ,print-pprint-dispatch-sym object))
+         (if presentp
+             (funcall func stream object)
+             (call-next-method)))
+       object)
 
      (defun ,pretty-stream-p-sym (stream)
        (pretty-stream-p ,client-form stream))
@@ -271,4 +281,30 @@
      (defmacro ,pprint-pop-sym ()
        "Pops one element from the list being printed in the lexically current logical
  block, obeying *print-length* and *print-circle*."
-       (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))))
+       (error "PPRINT-POP must be lexically inside PPRINT-LOGICAL-BLOCK."))
+
+     ,@(unless intrinsicp
+        `((defmacro ,with-standard-io-syntax-sym (&body body)
+            (list* 'let
+                   '((*package* (find-package "CL-USER"))
+                     (*print-array* t)
+                     (*print-base* 10)
+                     (*print-case* :upcase)
+                     (*print-circle* nil)
+                     (*print-escape* t)
+                     (*print-gensym* t)
+                     (*print-length* nil)
+                     (*print-level* nil)
+                     (*print-lines* nil)
+                     (*print-miser-width* nil)
+                     (,print-pprint-dispatch-sym ,standard-pprint-dispatch-sym)
+                     (*print-pretty* nil)
+                     (*print-radix* nil)
+                     (*print-readably* t)
+                     (*print-right-margin* nil)
+                     (*read-base* 10)
+                     (*read-default-float-format* 'single-float)
+                     (*read-eval* t)
+                     (*read-suppress* nil)
+                     (*readtable* (copy-readtable nil)))
+                   body))))))

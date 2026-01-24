@@ -11,7 +11,7 @@
                 :pathname "code/extrinsic/"
                 :serial t
                 :components ((:file "packages")
-                             (:file "print")))))
+                             (:file "interface")))))
 
 (asdf:defsystem "inravina-extrinsic/unit-test"
   :description "Unit testing suite for Inravina."
