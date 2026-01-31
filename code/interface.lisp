@@ -268,7 +268,7 @@
                                           &body body)
        (expand-logical-block ',client-form stream-symbol object
                              prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
-                             ',pprint-exit-if-list-exhausted-sym ',pprint-pop-sym
+                             ',pprint-exit-if-list-exhausted-sym ',pprint-pop-sym nil
                              body))
 
      (defmacro ,pprint-exit-if-list-exhausted-sym ()

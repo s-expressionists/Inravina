@@ -21,7 +21,7 @@
 
 (defun expand-logical-block (client stream-symbol object
                              prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
-                             pprint-exit-if-list-exhausted pprint-pop
+                             pprint-exit-if-list-exhausted pprint-pop more-items-p
                              body)
   (declare (ignore suffix-p))
   (when (and prefix-p per-line-prefix-p)
@@ -60,7 +60,10 @@
                                        (pprint-start-logical-block ,client ,stream-var ,prefix-var ,per-line-prefix-p)
                                        (unwind-protect
                                             (block ,block-name
-                                              (macrolet ((,pprint-exit-if-list-exhausted ()
+                                              (macrolet (,@(when more-items-p
+                                                             `((,more-items-p ()
+                                                                 '(and ,object-var t))))
+                                                         (,pprint-exit-if-list-exhausted ()
                                                            '(unless ,object-var
                                                              (return-from ,block-name)))
                                                          (,pprint-pop ()
@@ -80,8 +83,11 @@
                                 &body body)
   (expand-logical-block client stream-symbol object
                         prefix prefix-p per-line-prefix per-line-prefix-p suffix suffix-p
-                        'pprint-exit-if-list-exhausted 'pprint-pop
+                        'pprint-exit-if-list-exhausted 'pprint-pop 'more-items-p
                         body))
+
+(defmacro more-items-p ()
+  (error "MORE-ITEMS-P must be lexically inside PPRINT-LOGICAL-BLOCK."))
 
 (defmacro pprint-exit-if-list-exhausted ()
   "Tests whether or not the list passed to the lexically current logical block has

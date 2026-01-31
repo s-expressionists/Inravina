@@ -19,8 +19,10 @@
       (pprint-logical-block (client stream object :per-line-prefix prefix :suffix suffix)
         (funcall function stream
                  (lambda () (pprint-exit-if-list-exhausted))
-                 (lambda () (pprint-pop))))
+                 (lambda () (pprint-pop))
+                 (lambda () (more-items-p))))
       (pprint-logical-block (client stream object :prefix prefix :suffix suffix)
         (funcall function stream
                  (lambda () (pprint-exit-if-list-exhausted))
-                 (lambda () (pprint-pop))))))
+                 (lambda () (pprint-pop))
+                 (lambda () (more-items-p))))))
