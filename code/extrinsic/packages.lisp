@@ -17,7 +17,7 @@
   (:export #:*client*
            #:*print-pprint-dispatch*
            #:*standard-pprint-dispatch*
-           #:extrinsic-client
+           #:client
            #:copy-pprint-dispatch
            #:initialize-inravina
            #:pprint-dispatch

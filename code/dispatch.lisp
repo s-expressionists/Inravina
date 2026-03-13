@@ -277,7 +277,7 @@
      -10
      pprint-symbol)))
 
-(defmethod copy-pprint-dispatch (client (table null) &optional read-only)
+(defmethod copy-pprint-dispatch ((client client) (table null) &optional read-only)
   (let ((new-table (make-instance 'dispatch-table
                                   :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
@@ -286,7 +286,8 @@
       (setf (dispatch-table-read-only-p new-table) t))
     new-table))
 
-(defmethod copy-pprint-dispatch (client (table (eql :empty)) &optional read-only)
+(defmethod copy-pprint-dispatch
+    ((client client) (table (eql :empty)) &optional read-only)
   (let ((new-table (make-instance 'dispatch-table
                                   :default-dispatch-function (make-dispatch-function client
                                                                                      :client-object-stream
@@ -296,18 +297,21 @@
       (setf (dispatch-table-read-only-p new-table) t))
     new-table))
 
-(defmethod copy-pprint-dispatch (client (table (eql :standard)) &optional read-only)
+(defmethod copy-pprint-dispatch
+    ((client client) (table (eql :standard)) &optional read-only)
   (let ((new-table (make-instance 'dispatch-table
                                   :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
-          do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
+          do (set-pprint-dispatch client new-table type (fdefinition name) priority
+                                  :client-stream-object rest))
     #+(or)(loop for (type priority name . rest) in +extra-dispatch-entries+
-          do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
+                do (set-pprint-dispatch client new-table type (fdefinition name) priority
+                                        :client-stream-object rest))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
     new-table))
 
-(defmethod copy-pprint-dispatch (client table &optional read-only)
+(defmethod copy-pprint-dispatch ((client client) table &optional read-only)
   (loop with iterator = (make-pprint-dispatch-iterator client table)
         with new-table = (make-instance 'dispatch-table
                                         :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))
@@ -317,11 +321,11 @@
         while presentp
         do (set-pprint-dispatch client new-table type-specifier function priority)))
 
-(defmethod pprint-dispatch (client table object)
+(defmethod pprint-dispatch ((client client) table object)
   (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
           nil))
 
-(defmethod pprint-dispatch (client (table dispatch-table) object)
+(defmethod pprint-dispatch ((client client) (table dispatch-table) object)
   (when (or (not (arrayp object))
             (and (arrayp object)
                  *print-array*
@@ -350,8 +354,10 @@
             "Tried to modify a read-only pprint dispatch table: ~A"
             table)))
 
-(defmethod set-pprint-dispatch (client (table dispatch-table) type-specifier (function null) &optional priority pattern arguments)
-  (declare (ignore client priority pattern arguments))
+(defmethod set-pprint-dispatch
+    ((client client) (table dispatch-table) type-specifier (function null)
+     &optional priority pattern arguments)
+  (declare (ignore priority pattern arguments))
   (check-table-read-only table)
   (setf (dispatch-table-entries table) (delete type-specifier (dispatch-table-entries table)
                                                :key #'dispatch-entry-type-specifier :test #'equal)
@@ -369,7 +375,8 @@
   nil)
 
 (defmethod set-pprint-dispatch
-    (client (table dispatch-table) type-specifier function &optional priority pattern arguments)
+    ((client client) (table dispatch-table) type-specifier function
+     &optional priority pattern arguments)
   (check-table-read-only table)
   (set-pprint-dispatch client table type-specifier nil)
   (let ((entry (make-instance 'dispatch-entry
@@ -388,7 +395,7 @@
                                                             #'> :key #'dispatch-entry-priority))))
   nil)
 
-(defmethod make-pprint-dispatch-iterator (client (table dispatch-table))
+(defmethod make-pprint-dispatch-iterator ((client client) (table dispatch-table))
   (declare (ignore client))
   (let ((entries (dispatch-table-entries table)))
     (lambda ()

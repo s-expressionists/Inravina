@@ -5,7 +5,7 @@
   :author "Tarn W. Burton"
   :license "MIT"
   :depends-on ("incless-extension-intrinsic"
-               "inravina")
+               "inravina-extension")
   :components ((:module "code"
                 :pathname "code/extension-intrinsic/"
                 :serial t

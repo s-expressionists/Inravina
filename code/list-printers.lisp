@@ -37,29 +37,33 @@
              ,@(when newline
                  `((pprint-newline ,client ,stream ,newline))))))
 
-(defmethod pprint-fill (client stream object &optional colon-p at-sign-p)
+(defmethod pprint-fill ((client client) stream object &optional colon-p at-sign-p)
   (declare (ignore at-sign-p))
   (pprint-list (client stream object :paren colon-p :newline :fill)))
 
-(defmethod pprint-linear (client stream object &optional colon-p at-sign-p)
+(defmethod pprint-linear ((client client) stream object &optional colon-p at-sign-p)
   (declare (ignore at-sign-p))
   (pprint-list (client stream object :paren colon-p :newline :linear)))
 
-(defmethod pprint-tabular (client stream object &optional colon-p at-sign-p tabsize)
+(defmethod pprint-tabular
+    ((client client) stream object &optional colon-p at-sign-p tabsize)
   (declare (ignore at-sign-p))
   (unless tabsize
     (setq tabsize 16))
   (pprint-list (client stream object :paren colon-p :newline :fill :tabsize tabsize)))
 
-(defmethod pprint-fill-plist (client stream object &optional colon-p at-sign-p)
+(defmethod pprint-fill-plist
+    ((client client) stream object &optional colon-p at-sign-p)
   (declare (ignore at-sign-p))
   (pprint-plist (client stream object :paren colon-p :newline :fill)))
 
-(defmethod pprint-linear-plist (client stream object &optional colon-p at-sign-p)
+(defmethod pprint-linear-plist
+    ((client client) stream object &optional colon-p at-sign-p)
   (declare (ignore at-sign-p))
   (pprint-plist (client stream object :paren colon-p :newline :linear)))
 
-(defmethod pprint-tabular-plist (client stream object &optional colon-p at-sign-p tabsize)
+(defmethod pprint-tabular-plist
+    ((client client) stream object &optional colon-p at-sign-p tabsize)
   (declare (ignore at-sign-p))
   (unless tabsize
     (setq tabsize 16))

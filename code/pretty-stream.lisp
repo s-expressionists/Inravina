@@ -682,62 +682,61 @@
        (push newline sections)
        (push-instruction newline ,stream))))
 
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :mandatory)))
-  (declare (ignore client))
+(defmethod pprint-newline
+    ((client client) (stream pretty-stream) (kind (eql :mandatory)))
   (do-pprint-newline stream mandatory-newline))
 
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :miser)))
-  (declare (ignore client))
+(defmethod pprint-newline ((client client) (stream pretty-stream) (kind (eql :miser)))
   (when (miser-width (car (blocks stream)))
     (do-pprint-newline stream miser-newline)))
 
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :linear)))
-  (declare (ignore client))
+(defmethod pprint-newline
+    ((client client) (stream pretty-stream) (kind (eql :linear)))
   (do-pprint-newline stream linear-newline))
 
-(defmethod pprint-newline (client (stream pretty-stream) (kind (eql :fill)))
-  (declare (ignore client))
+(defmethod pprint-newline ((client client) (stream pretty-stream) (kind (eql :fill)))
   (do-pprint-newline stream fill-newline))
 
-(defmethod pprint-tab (client (stream pretty-stream) (kind (eql :line)) colnum colinc)
-  (declare (ignore client))
+(defmethod pprint-tab
+    ((client client) (stream pretty-stream) (kind (eql :line)) colnum colinc)
   (push-instruction (make-instance 'line-tab
                                    :colnum colnum :colinc colinc
                                    :parent (car (blocks stream)))
                     stream))
 
-(defmethod pprint-tab (client (stream pretty-stream) (kind (eql :line-relative)) colnum colinc)
-  (declare (ignore client))
+(defmethod pprint-tab
+    ((client client) (stream pretty-stream) (kind (eql :line-relative)) colnum colinc)
   (push-instruction (make-instance 'line-relative-tab
                                    :colnum colnum :colinc colinc
                                    :parent (car (blocks stream)))
                     stream))
 
-(defmethod pprint-tab (client (stream pretty-stream) (kind (eql :section)) colnum colinc)
-  (declare (ignore client))
+(defmethod pprint-tab
+    ((client client) (stream pretty-stream) (kind (eql :section)) colnum colinc)
   (push-instruction (make-instance 'section-tab
                                    :colnum colnum :colinc colinc
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
 
-(defmethod pprint-tab (client (stream pretty-stream) (kind (eql :section-relative)) colnum colinc)
-  (declare (ignore client))
+(defmethod pprint-tab
+    ((client client) (stream pretty-stream) (kind (eql :section-relative)) colnum
+     colinc)
   (push-instruction (make-instance 'section-relative-tab
                                    :colnum colnum :colinc colinc
                                    :section (car (sections stream))
                                    :parent (car (blocks stream)))
                     stream))
 
-(defmethod pprint-indent (client (stream pretty-stream) (relative-to (eql :block)) n)
-  (declare (ignore client))
+(defmethod pprint-indent
+    ((client client) (stream pretty-stream) (relative-to (eql :block)) n)
   (push-instruction (make-instance 'block-indent
                                    :width n
                                    :parent (car (blocks stream)))
                     stream))
 
-(defmethod pprint-indent (client (stream pretty-stream) (relative-to (eql :current)) n)
-  (declare (ignore client))
+(defmethod pprint-indent
+    ((client client) (stream pretty-stream) (relative-to (eql :current)) n)
   (push-instruction (make-instance 'current-indent
                                    :width n
                                    :parent (car (blocks stream)))
@@ -750,28 +749,25 @@
                                               :parent (car (blocks stream)))
                                stream))))
 
-(defmethod make-pretty-stream (client (stream broadcast-stream))
-  (declare (ignore client))
+(defmethod make-pretty-stream ((client client) (stream broadcast-stream))
   (if (broadcast-stream-streams stream)
       (call-next-method)
       stream))
 
-(defmethod make-pretty-stream (client (stream two-way-stream))
+(defmethod make-pretty-stream ((client client) (stream two-way-stream))
   (make-pretty-stream client (two-way-stream-output-stream stream)))
 
-(defmethod make-pretty-stream (client (stream pretty-stream))
-  (declare (ignore client))
+(defmethod make-pretty-stream ((client client) (stream pretty-stream))
   stream)
 
-(defmethod make-pretty-stream (client stream)
+(defmethod make-pretty-stream ((client client) stream)
   (make-instance 'pretty-stream :target stream :client client))
 
 #+sbcl
-(defmethod make-pretty-stream (client (stream sb-pretty:pretty-stream))
+(defmethod make-pretty-stream ((client client) (stream sb-pretty:pretty-stream))
   (make-pretty-stream client (sb-pretty::pretty-stream-target stream)))
 
-(defmethod pretty-stream-p (client (stream pretty-stream))
-  (declare (ignore client))
+(defmethod pretty-stream-p ((client client) (stream pretty-stream))
   t)
 
 (defun parse-fix (text newline)
@@ -788,7 +784,8 @@
         when (eql start (length text))
           do (loop-finish)))
 
-(defmethod pprint-start-logical-block (client (stream pretty-stream) prefix per-line-prefix-p)
+(defmethod pprint-start-logical-block
+    ((client client) (stream pretty-stream) prefix per-line-prefix-p)
   (let* ((parent (car (blocks stream)))
          (parent-newline (if parent
                              (newline parent)
@@ -808,7 +805,7 @@
     (push block-start (sections stream))
     (push-instruction block-start stream)))
 
-(defmethod pprint-end-logical-block (client (stream pretty-stream) suffix)
+(defmethod pprint-end-logical-block ((client client) (stream pretty-stream) suffix)
   (let ((block-end (make-instance 'block-end
                                   :suffix (parse-fix suffix
                                                      (and (car (blocks stream))
@@ -923,7 +920,7 @@
                           stream)
         (setf (stream-style (target stream)) new-style))))
 
-(defmethod make-style (client (stream pretty-stream) &rest initargs &key)
+(defmethod make-style ((client client) (stream pretty-stream) &rest initargs &key)
   (apply #'make-style client (target stream) initargs))
 
 (defmethod stream-scale-column ((stream pretty-stream) column old-style new-style)

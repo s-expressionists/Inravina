@@ -308,3 +308,5 @@
                      (*read-suppress* nil)
                      (*readtable* (copy-readtable nil)))
                    body))))))
+
+(defclass client () ())

@@ -1,38 +1,38 @@
 (in-package #:inravina-native)
 
-(defclass native-client ()
+(defclass client ()
   ())
 
-(defmethod inravina:copy-pprint-dispatch ((client native-client) table &optional read-only)
+(defmethod inravina:copy-pprint-dispatch ((client client) table &optional read-only)
   (declare (ignorable read-only))
   (copy-pprint-dispatch table))
 
-(defmethod inravina:pprint-dispatch ((client native-client) table object)
+(defmethod inravina:pprint-dispatch ((client client) table object)
   (pprint-dispatch table object))
 
-(defmethod inravina:set-pprint-dispatch ((client native-client) table type-specifier function &optional priority pattern arguments)
+(defmethod inravina:set-pprint-dispatch ((client client) table type-specifier function &optional priority pattern arguments)
   (declare (ignore pattern arguments))
   (set-pprint-dispatch type-specifier function priority table))
 
-(defmethod inravina:pprint-fill ((client native-client) stream object &optional colon-p at-sign-p)
+(defmethod inravina:pprint-fill ((client client) stream object &optional colon-p at-sign-p)
   (pprint-fill stream object colon-p at-sign-p))
 
-(defmethod inravina:pprint-linear ((client native-client) stream object &optional colon-p at-sign-p)
+(defmethod inravina:pprint-linear ((client client) stream object &optional colon-p at-sign-p)
   (pprint-linear stream object colon-p at-sign-p))
 
-(defmethod inravina:pprint-tabular ((client native-client) stream object &optional colon-p at-sign-p tabsize)
+(defmethod inravina:pprint-tabular ((client client) stream object &optional colon-p at-sign-p tabsize)
   (pprint-tabular stream object colon-p at-sign-p tabsize))
 
-(defmethod inravina:pprint-indent ((client native-client) stream relative-to n)
+(defmethod inravina:pprint-indent ((client client) stream relative-to n)
   (pprint-indent relative-to n stream))
 
-(defmethod inravina:pprint-newline ((client native-client) stream kind)
+(defmethod inravina:pprint-newline ((client client) stream kind)
   (pprint-newline kind stream))
 
-(defmethod inravina:pprint-tab ((client native-client) stream kind colnum colinc)
+(defmethod inravina:pprint-tab ((client client) stream kind colnum colinc)
   (pprint-tab kind colnum colinc stream))
 
-(defmethod inravina:execute-logical-block ((client native-client) stream object function
+(defmethod inravina:execute-logical-block ((client client) stream object function
                                            &key (prefix "")
                                                 per-line-prefix-p
                                                 (suffix ""))
@@ -46,7 +46,7 @@
                  (lambda () (pprint-exit-if-list-exhausted))
                  (lambda () (pprint-pop))))))
 
-(defmethod inravina:pretty-stream-p ((client native-client) stream)
+(defmethod inravina:pretty-stream-p ((client client) stream)
   (declare (ignorable stream))
   #+abcl (xp::xp-structure-p stream)
   #+ccl (or (ccl::xp-structure-p stream)

@@ -68,6 +68,7 @@
            #:pretty-stream
            #:pretty-stream-p
            #:set-pprint-dispatch
+           #:client
            #:stream-measure-char
            #:stream-measure-string
            #:stream-scale-column
