@@ -198,7 +198,7 @@
 
      (defvar ,print-pprint-dispatch-sym (copy-pprint-dispatch ,client-form nil))
 
-     (defmethod incless:write-object ((client ,client-class) object stream)
+     (defmethod incless:write-object :around ((client ,client-class) object stream)
        (multiple-value-bind (func presentp)
            (and *print-pretty*
                 (pprint-dispatch ,client-form ,print-pprint-dispatch-sym object))
@@ -310,3 +310,6 @@
                    body))))))
 
 (defclass client () ())
+
+(defmethod trinsic:features-list nconc ((client client))
+  (list :pprint/inravina))
