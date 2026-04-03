@@ -3,6 +3,8 @@
 (declaim (inline coerce-output-stream-designator
                  ensure-symbol))
 
+(defclass client () ())
+
 (defun coerce-output-stream-designator (designator)
   (cond ((null designator)
          *standard-output*)
@@ -164,7 +166,8 @@
 (defgeneric execute-logical-block (client stream object function
                                    &key prefix per-line-prefix-p suffix))
 
-(trinsic:make-define-interface (:client-form client-form :client-class client-class :intrinsic intrinsicp)
+(trinsic:make-define-interface (:client-form client-form :client-class client-class
+                                :intrinsic intrinsicp)
     ((copy-pprint-dispatch-sym cl:copy-pprint-dispatch)
      (initial-pprint-dispatch-sym #:*initial-pprint-dispatch*)
      (pprint-dispatch-sym cl:pprint-dispatch)
@@ -192,16 +195,16 @@
        (lambda (stream object)
          (apply function ,client-form object stream rest)))
 
-     (defvar ,initial-pprint-dispatch-sym (copy-pprint-dispatch ,client-form nil t))
+     (defparameter ,initial-pprint-dispatch-sym (copy-pprint-dispatch ,client-form nil t))
 
-     (defvar ,standard-pprint-dispatch-sym (copy-pprint-dispatch ,client-form :standard t))
+     (defparameter ,standard-pprint-dispatch-sym (copy-pprint-dispatch ,client-form :standard t))
 
-     (defvar ,print-pprint-dispatch-sym (copy-pprint-dispatch ,client-form nil))
+     (defparameter ,print-pprint-dispatch-sym (copy-pprint-dispatch ,client-form nil))
 
-     (defmethod incless:write-object :around ((client ,client-class) object stream)
+     (defmethod incless:write-object ((client ,client-class) object stream)
        (multiple-value-bind (func presentp)
            (and *print-pretty*
-                (pprint-dispatch ,client-form ,print-pprint-dispatch-sym object))
+                (pprint-dispatch client ,print-pprint-dispatch-sym object))
          (if presentp
              (funcall func stream object)
              (call-next-method)))
@@ -308,8 +311,6 @@
                      (*read-suppress* nil)
                      (*readtable* (copy-readtable nil)))
                    body))))))
-
-(defclass client () ())
 
 (defmethod trinsic:features-list nconc ((client client))
   (list :pprint/inravina))
