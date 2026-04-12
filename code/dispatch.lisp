@@ -279,7 +279,7 @@
 
 (defmethod copy-pprint-dispatch ((client client) (table null) &optional read-only)
   (let ((new-table (make-instance 'dispatch-table
-                                  :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
+                                  :default-dispatch-function (make-dispatch-function client :client-object-stream 'incless:print-object nil))))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
           do (set-pprint-dispatch client new-table type (fdefinition name) priority :client-stream-object rest))
     (when read-only
@@ -291,7 +291,7 @@
   (let ((new-table (make-instance 'dispatch-table
                                   :default-dispatch-function (make-dispatch-function client
                                                                                      :client-object-stream
-                                                                                     #'incless:print-object
+                                                                                     'incless:print-object
                                                                                      nil))))
     (when read-only
       (setf (dispatch-table-read-only-p new-table) t))
@@ -300,9 +300,9 @@
 (defmethod copy-pprint-dispatch
     ((client client) (table (eql :standard)) &optional read-only)
   (let ((new-table (make-instance 'dispatch-table
-                                  :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))))
+                                  :default-dispatch-function (make-dispatch-function client :client-object-stream 'incless:print-object nil))))
     (loop for (type priority name . rest) in +initial-dispatch-entries+
-          do (set-pprint-dispatch client new-table type (fdefinition name) priority
+          do (set-pprint-dispatch client new-table type name priority
                                   :client-stream-object rest))
     #+(or)(loop for (type priority name . rest) in +extra-dispatch-entries+
                 do (set-pprint-dispatch client new-table type (fdefinition name) priority
@@ -314,7 +314,7 @@
 (defmethod copy-pprint-dispatch ((client client) table &optional read-only)
   (loop with iterator = (make-pprint-dispatch-iterator client table)
         with new-table = (make-instance 'dispatch-table
-                                        :default-dispatch-function (make-dispatch-function client :client-object-stream #'incless:print-object nil))
+                                        :default-dispatch-function (make-dispatch-function client :client-object-stream 'incless:print-object nil))
         for (presentp type-specifier function priority) = (multiple-value-list (funcall iterator))
         finally (setf (dispatch-table-read-only-p new-table) read-only)
                 (return new-table)
@@ -322,7 +322,7 @@
         do (set-pprint-dispatch client new-table type-specifier function priority)))
 
 (defmethod pprint-dispatch ((client client) table object)
-  (values (make-dispatch-function client :client-object-stream #'incless:print-object nil)
+  (values (make-dispatch-function client :client-object-stream 'incless:print-object nil)
           nil))
 
 (defmethod pprint-dispatch ((client client) (table dispatch-table) object)

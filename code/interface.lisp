@@ -22,7 +22,7 @@
 (defun ensure-symbol (name &optional (package *package*))
   (intern (string name) package))
 
-(defvar *quasiquote* nil)
+(defvar *quasiquote* 0)
 
 (defvar *options*
   `(:loop-current-indent-clauses (:as :for :with :initially :finally :do :doing)
@@ -103,10 +103,11 @@
 
 (defgeneric pprint-valid-list-p (client stream object)
   (:method (client stream object)
-    (declare (ignore client))
+    (declare (ignore client)
+             (special *quasiquote*))
     (and (listp object)
          (not (quasiquote-form-p object))
-         (not (and (getf *quasiquote* stream)
+         (not (and (plusp *quasiquote*)
                    (unquote-form-p object))))))
 
 (defgeneric make-pretty-stream (client stream)

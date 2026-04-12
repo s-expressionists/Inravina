@@ -564,7 +564,10 @@
       (pprint-lambda-list client stream (pprint-pop) colon-p at-sign-p))))
 
 (defun pprint-macro-char (client stream object &optional quasiquote-p unquote-p disp-char sub-char)
-  (cond ((and quasiquote-p unquote-p (not (getf *quasiquote* stream)))
+  (declare (special *quasiquote*))
+  (cond ((and quasiquote-p
+              unquote-p
+              (not (plusp *quasiquote*)))
          (pprint-fill client stream object t))
         (t
          (when disp-char
@@ -572,19 +575,22 @@
          (when sub-char
            (write-char sub-char stream))
          (if quasiquote-p
-             (let ((*quasiquote* (list* stream (not unquote-p) *quasiquote*)))
+             (let ((*quasiquote* (if unquote-p
+                                     (1- *quasiquote*)
+                                     (1+ *quasiquote*))))
                (incless:write-object client (second object) stream))
              (incless:write-object client (second object) stream)))))
 
 #+sbcl
 (defun pprint-sbcl-quasiquote (client stream object)
-  (cond ((getf *quasiquote* stream)
+  (declare (special *quasiquote*))
+  (cond ((plusp *quasiquote*)
          (write-string (ecase (sb-impl::comma-kind object)
                          (0 ",")
                          (1 ",.")
                          (2 ",@"))
                        stream)
-         (let ((*quasiquote* (list* stream nil *quasiquote*)))
+         (let ((*quasiquote* (1- *quasiquote*)))
            (incless:write-object client (sb-impl::comma-expr object) stream)))
         (t
          (incless:print-object client object stream))))
